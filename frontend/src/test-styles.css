@@ -1,0 +1,12 @@
+/* ملف اختبار للتأكد من عمل TailwindCSS */
+.test-red {
+  @apply bg-red-500 text-white p-4 rounded-lg;
+}
+
+.test-blue {
+  @apply bg-blue-500 text-white p-4 rounded-lg shadow-lg;
+}
+
+.test-gradient {
+  @apply bg-gradient-to-r from-blue-500 to-purple-600 text-white p-4 rounded-lg;
+}

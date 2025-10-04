@@ -1,0 +1,6 @@
+Update IndexingEvents.cs: Implement event classes to implement Core.Interfaces.Events (IPropertyCreatedEvent, IPropertyUpdatedEvent, IPropertyDeletedEvent, IUnitCreatedEvent, IUnitUpdatedEvent, IUnitPricingUpdatedEvent, IUnitAvailabilityChangedEvent, IReviewAddedEvent) with required properties
+Add missing helper method stubs in FastSearchService (GetAppliedFiltersInfo, GetSearchCorrectionsAsync, GetTrieCompletions, CalculateRelevanceScore, GetAllActivePropertyIdsAsync, LoadPropertiesWithLocationAsync, FilterByLocation, GetAvailable*Async) to satisfy compiler
+Refactor IndexAutoUpdateService handlers to use correct event property names (notification.NewPropertyId, notification.UpdateInfo, etc.) or adjust event classes accordingly
+Implement or stub missing private helper methods in IndexGenerationService (GroupPropertiesByCity, CalculateSeasonalAvailability, CalculateRelatedAmenitiesAsync, GroupPropertiesByType, GroupPropertiesByPriceRanges, etc.)
+Ensure all supporting DTOs referenced in services (Landmark, SeasonalInfo, GeoBounds, CityPriceData, SeasonalPricingData, etc.) are defined in IndexModels
+Add necessary using directives in all indexing service files for newly defined DTOs and Core entities

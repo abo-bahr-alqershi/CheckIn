@@ -1,0 +1,11 @@
+using MediatR;
+using YemenBooking.Application.DTOs;
+using YemenBooking.Application.DTOs.Sections;
+
+namespace YemenBooking.Application.Queries.MobileApp.Sections
+{
+    public class GetActiveSectionsForHomeQuery : IRequest<IEnumerable<SectionDto>>
+    {
+    }
+}
+

@@ -1,0 +1,6 @@
+<Project>
+  <PropertyGroup>
+    <EnableSourceControlManagerQueries>false</EnableSourceControlManagerQueries>
+    <ContinuousIntegrationBuild>false</ContinuousIntegrationBuild>
+  </PropertyGroup>
+</Project>
