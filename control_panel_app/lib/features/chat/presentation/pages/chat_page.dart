@@ -970,6 +970,7 @@ class _ChatPageState extends State<ChatPage>
           focusNode: _messageFocusNode,
           conversationId: widget.conversation.id,
           replyToMessageId: _replyToMessageId,
+          // cancel token mapping is handled inside input widget
           editingMessage: _editingMessage,
           onSend: _sendMessage,
           onAttachment: _pickAttachment,

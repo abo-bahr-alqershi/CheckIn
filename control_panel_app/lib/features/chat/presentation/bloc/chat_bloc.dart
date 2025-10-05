@@ -1513,6 +1513,8 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     required String filePath,
     required String messageType,
     required void Function(int sent, int total) onProgress,
+    String? replyToMessageId,
+    String? replyToAttachmentId,
   }) async {
     final result = await uploadAttachmentUseCase(
       UploadAttachmentParams(
@@ -1534,13 +1536,19 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
         throw Exception(_mapFailureToMessage(failure));
       },
       (attachment) async {
+        // Compose content with optional reply attachment token for precise reply previews
+        String content = attachment.fileUrl;
+        if (replyToAttachmentId != null && replyToAttachmentId.isNotEmpty) {
+          content = '::attref='+replyToAttachmentId+'::'+content;
+        }
+
         final sendResult = await sendMessageUseCase(
           SendMessageParams(
             conversationId: conversationId,
             messageType: messageType,
-            content: attachment.fileUrl,
+            content: content,
             location: null,
-            replyToMessageId: null,
+            replyToMessageId: replyToMessageId,
             attachmentIds: [attachment.id],
           ),
         );
