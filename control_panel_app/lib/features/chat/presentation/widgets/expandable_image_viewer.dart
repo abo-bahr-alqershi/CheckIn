@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:photo_view/photo_view_gallery.dart';
+import '../../../../core/widgets/cached_image_widget.dart';
 import '../../domain/entities/attachment.dart';
 
 class ExpandableImageViewer extends StatefulWidget {
@@ -59,8 +60,13 @@ class _ExpandableImageViewerState extends State<ExpandableImageViewer> {
               onPageChanged: (index) => setState(() => _currentIndex = index),
               builder: (context, index) {
                 final image = widget.images[index];
-                return PhotoViewGalleryPageOptions(
-                  imageProvider: NetworkImage(image.fileUrl),
+                return PhotoViewGalleryPageOptions.customChild(
+                  child: CachedImageWidget(
+                    imageUrl: image.fileUrl,
+                    fit: BoxFit.contain,
+                    removeContainer: true,
+                  ),
+                  initialScale: PhotoViewComputedScale.contained,
                   minScale: PhotoViewComputedScale.contained,
                   maxScale: PhotoViewComputedScale.covered * 3.0,
                   heroAttributes: PhotoViewHeroAttributes(tag: image.id),
