@@ -53,13 +53,21 @@ class WhatsAppStyleImageGrid extends StatelessWidget {
   }
 
   Widget _buildSingleImage(Attachment image) {
-    // Keep a visually pleasant default ratio, but remove extra container to avoid inner margins.
+    // Keep a visually pleasant default ratio and ensure tap opens viewer.
     return AspectRatio(
       aspectRatio: 4 / 3,
-      child: CachedImageWidget(
-        imageUrl: image.fileUrl,
-        fit: BoxFit.cover,
-        removeContainer: true,
+      child: Builder(
+        builder: (context) => GestureDetector(
+          onTap: () {
+            HapticFeedback.lightImpact();
+            _openImageViewer(context, 0);
+          },
+          child: CachedImageWidget(
+            imageUrl: image.fileUrl,
+            fit: BoxFit.cover,
+            removeContainer: true,
+          ),
+        ),
       ),
     );
   }
