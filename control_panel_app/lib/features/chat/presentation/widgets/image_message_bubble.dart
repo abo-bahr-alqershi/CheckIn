@@ -12,6 +12,7 @@ import '../models/image_upload_info.dart';
 import 'message_status_indicator.dart';
 import 'whatsapp_style_image_grid.dart';
 import '../bloc/chat_bloc.dart';
+import 'reaction_picker_widget.dart';
 
 class ImageMessageBubble extends StatefulWidget {
   final Message message;
@@ -38,6 +39,7 @@ class _ImageMessageBubbleState extends State<ImageMessageBubble>
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
   late Animation<double> _fadeAnimation;
+  bool _showReactions = false;
 
   @override
   void initState() {
@@ -222,8 +224,8 @@ class _ImageMessageBubbleState extends State<ImageMessageBubble>
       ),
     );
 
-    // عرض تفاعلات الرسالة أسفل الفقاعة (إن وجدت)
-    if (widget.message.reactions.isNotEmpty) {
+    // عرض تفاعلات الرسالة أو منتقي التفاعل أسفل الفقاعة
+    if (widget.message.reactions.isNotEmpty || _showReactions) {
       return Column(
         crossAxisAlignment:
             widget.isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
@@ -231,7 +233,15 @@ class _ImageMessageBubbleState extends State<ImageMessageBubble>
         children: [
           bubble,
           const SizedBox(height: 4),
-          _buildMinimalReactions(),
+          if (_showReactions)
+            ReactionPickerWidget(
+              onReaction: (reaction) {
+                widget.onReaction?.call(reaction);
+                setState(() => _showReactions = false);
+              },
+            )
+          else
+            _buildMinimalReactions(),
         ],
       );
     }
@@ -704,7 +714,9 @@ class _ImageMessageBubbleState extends State<ImageMessageBubble>
 
   void _handleDoubleTap() {
     HapticFeedback.lightImpact();
-    widget.onReaction?.call('like');
+    setState(() {
+      _showReactions = !_showReactions;
+    });
   }
 
   void _retryFailedUploads() {
