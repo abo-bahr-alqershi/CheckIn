@@ -309,10 +309,14 @@ class _MessageBubbleWidgetState extends State<MessageBubbleWidget>
     // If the reply message contains images, show exact first image thumbnail
     if (replyMessage.attachments.isNotEmpty) {
       // Prefer the first image attachment to avoid mismatches when replying to grouped images
-      Attachment? firstImage = replyMessage.attachments.firstWhere(
-        (a) => _isImageLikeAttachment(a),
-        orElse: () => replyMessage.attachments.first,
-      );
+      Attachment? firstImage;
+      for (final a in replyMessage.attachments) {
+        if (_isImageLikeAttachment(a)) {
+          firstImage = a;
+          break;
+        }
+      }
+      firstImage ??= replyMessage.attachments.first;
 
       if (_isImageLikeAttachment(firstImage)) {
         final url = firstImage.thumbnailUrl ?? firstImage.fileUrl;
