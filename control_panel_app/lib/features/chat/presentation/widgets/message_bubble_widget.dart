@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'dart:ui';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/app_text_styles.dart';
+import '../../../../core/widgets/cached_image_widget.dart';
 import '../../domain/entities/message.dart';
 import 'attachment_preview_widget.dart';
 import 'message_status_indicator.dart';
 import 'reaction_picker_widget.dart';
+import '../bloc/chat_bloc.dart';
+import '../bloc/chat_state.dart';
 
 class MessageBubbleWidget extends StatefulWidget {
   final Message message;
@@ -204,6 +208,7 @@ class _MessageBubbleWidgetState extends State<MessageBubbleWidget>
   }
 
   Widget _buildMinimalReplySection() {
+    final replyMessage = _findReplyMessage();
     return GestureDetector(
       onTap: widget.onReplyTap,
       child: Container(
@@ -262,23 +267,199 @@ class _MessageBubbleWidgetState extends State<MessageBubbleWidget>
                       fontSize: 9,
                     ),
                   ),
-                  const SizedBox(height: 1),
-                  Text(
-                    'محتوى الرسالة المرد عليها',
-                    style: AppTextStyles.caption.copyWith(
-                      color: widget.isMe
-                          ? Colors.white.withValues(alpha: 0.4)
-                          : AppTheme.textMuted.withValues(alpha: 0.5),
-                      fontSize: 10,
+                  const SizedBox(height: 4),
+                  if (replyMessage != null)
+                    _buildReplyPreviewContent(replyMessage)
+                  else
+                    Text(
+                      '[المحتوى غير متوفر]...',
+                      style: AppTextStyles.caption.copyWith(
+                        color: widget.isMe
+                            ? Colors.white.withValues(alpha: 0.4)
+                            : AppTheme.textMuted.withValues(alpha: 0.5),
+                        fontSize: 10,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
                 ],
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Message? _findReplyMessage() {
+    final replyId = widget.message.replyToMessageId;
+    if (replyId == null) return null;
+    final chatState = context.read<ChatBloc>().state;
+    if (chatState is! ChatLoaded) return null;
+    final List<Message> messages =
+        (chatState.messages[widget.message.conversationId] ?? []).cast<Message>();
+    for (final m in messages) {
+      if (m.id == replyId) return m;
+    }
+    return null;
+  }
+
+  Widget _buildReplyPreviewContent(Message replyMessage) {
+    if (replyMessage.attachments.isNotEmpty) {
+      final images = replyMessage.attachments.where((a) => a.isImage).toList();
+      final videos = replyMessage.attachments.where((a) => a.isVideo).toList();
+      if (images.isNotEmpty) {
+        final display = images.take(3).toList();
+        final remaining = images.length - display.length;
+        return SizedBox(
+          height: 32,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (int i = 0; i < display.length; i++) ...[
+                _buildMiniThumb(
+                  display[i].fileUrl,
+                  overlayText: (i == display.length - 1 && remaining > 0)
+                      ? '+$remaining'
+                      : null,
+                ),
+                if (i < display.length - 1) const SizedBox(width: 4),
+              ],
+            ],
+          ),
+        );
+      }
+      if (videos.isNotEmpty) {
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildMiniThumb(
+              videos.first.thumbnailUrl ?? videos.first.fileUrl,
+              icon: Icons.videocam_rounded,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              'فيديو',
+              style: AppTextStyles.caption.copyWith(
+                color: widget.isMe
+                    ? Colors.white.withValues(alpha: 0.6)
+                    : AppTheme.textWhite.withValues(alpha: 0.7),
+                fontSize: 10,
+              ),
+            ),
+          ],
+        );
+      }
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.attach_file_rounded,
+            size: 14,
+            color: widget.isMe
+                ? Colors.white.withValues(alpha: 0.5)
+                : AppTheme.textWhite.withValues(alpha: 0.6),
+          ),
+          const SizedBox(width: 4),
+          Text(
+            'مرفق',
+            style: AppTextStyles.caption.copyWith(
+              color: widget.isMe
+                  ? Colors.white.withValues(alpha: 0.6)
+                  : AppTheme.textWhite.withValues(alpha: 0.7),
+              fontSize: 10,
+            ),
+          ),
+        ],
+      );
+    }
+
+    final content = (replyMessage.content ?? '').trim();
+    if (content.isEmpty) {
+      return Text(
+        '[محتوى غير نصي]',
+        style: AppTextStyles.caption.copyWith(
+          color: widget.isMe
+              ? Colors.white.withValues(alpha: 0.6)
+              : AppTheme.textWhite.withValues(alpha: 0.7),
+          fontSize: 10,
+        ),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      );
+    }
+
+    final isHttp = content.startsWith('http://') || content.startsWith('https://');
+    final isRelative = content.startsWith('/');
+    if (isHttp || isRelative) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _buildMiniThumb(content),
+          const SizedBox(width: 6),
+          Text(
+            'صورة',
+            style: AppTextStyles.caption.copyWith(
+              color: widget.isMe
+                  ? Colors.white.withValues(alpha: 0.6)
+                  : AppTheme.textWhite.withValues(alpha: 0.7),
+              fontSize: 10,
+            ),
+          ),
+        ],
+      );
+    }
+
+    return Text(
+      content,
+      style: AppTextStyles.caption.copyWith(
+        color: widget.isMe
+            ? Colors.white.withValues(alpha: 0.6)
+            : AppTheme.textWhite.withValues(alpha: 0.7),
+        fontSize: 10,
+      ),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+    );
+  }
+
+  Widget _buildMiniThumb(String url, {IconData? icon, String? overlayText}) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(5),
+      child: Stack(
+        children: [
+          SizedBox(
+            width: 32,
+            height: 32,
+            child: CachedImageWidget(
+              imageUrl: url,
+              fit: BoxFit.cover,
+              removeContainer: true,
+            ),
+          ),
+          if (icon != null)
+            Positioned.fill(
+              child: Container(
+                color: Colors.black.withValues(alpha: 0.25),
+                child: Icon(icon, size: 14, color: Colors.white),
+              ),
+            ),
+          if (overlayText != null)
+            Positioned.fill(
+              child: Container(
+                color: Colors.black.withValues(alpha: 0.35),
+                alignment: Alignment.center,
+                child: Text(
+                  overlayText,
+                  style: AppTextStyles.caption.copyWith(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
