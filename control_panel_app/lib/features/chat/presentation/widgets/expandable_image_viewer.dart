@@ -9,8 +9,12 @@ import '../../domain/entities/attachment.dart';
 class ExpandableImageViewer extends StatefulWidget {
   final List<Attachment> images;
   final int initialIndex;
-  final Function(String)? onReaction;
+  final Function(String)? onReaction; // message-level reaction
   final void Function(Attachment)? onReply;
+  // Optional: initial reactions by attachment id to render overlay per image
+  final Map<String, String>? initialReactionsByAttachment;
+  // Optional: per-attachment reaction callback to sync overlay with parent
+  final void Function(Attachment, String)? onReactForAttachment;
 
   const ExpandableImageViewer({
     super.key,
@@ -18,6 +22,8 @@ class ExpandableImageViewer extends StatefulWidget {
     this.initialIndex = 0,
     this.onReaction,
     this.onReply,
+    this.initialReactionsByAttachment,
+    this.onReactForAttachment,
   });
 
   @override
@@ -34,6 +40,10 @@ class _ExpandableImageViewerState extends State<ExpandableImageViewer> {
     super.initState();
     _currentIndex = widget.initialIndex.clamp(0, widget.images.length - 1);
     _pageController = PageController(initialPage: _currentIndex);
+    // Seed with initial per-attachment reactions if provided
+    if (widget.initialReactionsByAttachment != null) {
+      _imageReactions.addAll(widget.initialReactionsByAttachment!);
+    }
   }
 
   @override
@@ -54,7 +64,10 @@ class _ExpandableImageViewerState extends State<ExpandableImageViewer> {
               setState(() {
                 _imageReactions[current.id] = 'like';
               });
+              // message-level reaction
               widget.onReaction?.call('like');
+              // per-attachment overlay sync
+              widget.onReactForAttachment?.call(current, 'like');
             },
             onLongPress: () {
               HapticFeedback.lightImpact();
@@ -130,7 +143,10 @@ class _ExpandableImageViewerState extends State<ExpandableImageViewer> {
             setState(() {
               _imageReactions[current.id] = type;
             });
+            // message-level reaction
             widget.onReaction?.call(type);
+            // per-attachment overlay sync back to parent grid/bubble
+            widget.onReactForAttachment?.call(current, type);
           },
           onReply: widget.onReply,
           parentNavigatorContext: context,

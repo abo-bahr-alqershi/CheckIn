@@ -37,6 +37,7 @@ namespace YemenBooking.Infrastructure.Repositories
             var total = await query.CountAsync(cancellationToken);
             var items = await query
                 .OrderByDescending(m => m.CreatedAt)
+                .ThenByDescending(m => m.Id)
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
                 .ToListAsync(cancellationToken);

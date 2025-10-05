@@ -306,20 +306,16 @@ class _MessageBubbleWidgetState extends State<MessageBubbleWidget>
   }
 
   Widget _buildReplyPreviewContent(Message replyMessage) {
-    // Prefer showing a single representative thumbnail
+    // If the reply message contains images, show exact first image thumbnail
     if (replyMessage.attachments.isNotEmpty) {
-      // Try to find an image-like attachment (contentType or heuristics)
-      Attachment? image;
-      for (final a in replyMessage.attachments) {
-        if (_isImageLikeAttachment(a)) {
-          image = a;
-          break;
-        }
-      }
-      image ??= replyMessage.attachments.first;
+      // Prefer the first image attachment to avoid mismatches when replying to grouped images
+      Attachment? firstImage = replyMessage.attachments.firstWhere(
+        (a) => _isImageLikeAttachment(a),
+        orElse: () => replyMessage.attachments.first,
+      );
 
-      if (_isImageLikeAttachment(image)) {
-        final url = image.thumbnailUrl ?? image.fileUrl;
+      if (_isImageLikeAttachment(firstImage)) {
+        final url = firstImage.thumbnailUrl ?? firstImage.fileUrl;
         return SizedBox(
           height: 32,
           child: Row(
@@ -332,11 +328,11 @@ class _MessageBubbleWidgetState extends State<MessageBubbleWidget>
       }
 
       // Video-like: show its thumbnail or first frame indicator
-      if (_isVideoLikeAttachment(image)) {
+      if (_isVideoLikeAttachment(firstImage)) {
         return Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _buildMiniThumb(image.thumbnailUrl ?? image.fileUrl,
+            _buildMiniThumb(firstImage.thumbnailUrl ?? firstImage.fileUrl,
                 icon: Icons.videocam_rounded),
             const SizedBox(width: 6),
             Text(
