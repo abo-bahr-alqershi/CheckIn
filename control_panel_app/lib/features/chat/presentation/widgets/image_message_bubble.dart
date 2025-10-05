@@ -204,7 +204,9 @@ class _ImageMessageBubbleState extends State<ImageMessageBubble>
           ClipRRect(
             borderRadius: BorderRadius.circular(12),
             child: GestureDetector(
-              onLongPress: _showOptions,
+              // For single image, show options on long-press (not viewer)
+              onLongPress:
+                  widget.message.attachments.length == 1 ? _showOptions : null,
               onDoubleTap: _handleDoubleTap,
               child: WhatsAppStyleImageGrid(
                 images: widget.message.attachments,

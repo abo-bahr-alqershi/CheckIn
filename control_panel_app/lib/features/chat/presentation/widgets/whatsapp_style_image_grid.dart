@@ -33,10 +33,13 @@ class WhatsAppStyleImageGrid extends StatelessWidget {
         HapticFeedback.lightImpact();
         _openImageViewer(context, 0);
       },
-      onLongPress: () {
-        HapticFeedback.lightImpact();
-        _openImageViewer(context, 0);
-      },
+      // Long-press should open viewer only for grouped images; for single image let parent show options
+      onLongPress: imageCount > 1
+          ? () {
+              HapticFeedback.lightImpact();
+              _openImageViewer(context, 0);
+            }
+          : null,
       child: _buildGrid(imageCount),
     );
   }
@@ -66,10 +69,7 @@ class WhatsAppStyleImageGrid extends StatelessWidget {
             HapticFeedback.lightImpact();
             _openImageViewer(context, 0);
           },
-          onLongPress: () {
-            HapticFeedback.lightImpact();
-            _openImageViewer(context, 0);
-          },
+          // Long-press handled by parent bubble to show options for single image
           child: CachedImageWidget(
             imageUrl: image.fileUrl,
             fit: BoxFit.cover,
