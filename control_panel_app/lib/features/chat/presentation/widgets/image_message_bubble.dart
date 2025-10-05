@@ -18,7 +18,7 @@ class ImageMessageBubble extends StatefulWidget {
   final Message message;
   final bool isMe;
   final List<ImageUploadInfo>? uploadingImages; // معلومات الرفع
-  final VoidCallback? onReply;
+  final void Function(Attachment)? onReply;
   final Function(String)? onReaction;
 
   const ImageMessageBubble({
@@ -210,8 +210,9 @@ class _ImageMessageBubbleState extends State<ImageMessageBubble>
                 isMe: widget.isMe,
                 onReaction: widget.onReaction,
                 onReply: (attachment) {
-                  // Forward to parent; ChatPage will set specific attachment if needed via onReply
-                  widget.onReply?.call();
+                  if (widget.onReply != null) {
+                    widget.onReply!(attachment);
+                  }
                 },
               ),
             ),
