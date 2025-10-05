@@ -55,6 +55,7 @@ class _MessageInputWidgetState extends State<MessageInputWidget>
   final AudioRecorder _audioRecorder = AudioRecorder();
   bool _isRecording = false;
   bool _showAttachmentOptions = false;
+  bool _showEmojiPicker = false;
   String _recordingPath = '';
 
   // Smooth progress tracking (UI-only) — kept minimal and driven by true bytes progress
@@ -198,6 +199,7 @@ class _MessageInputWidgetState extends State<MessageInputWidget>
             mainAxisSize: MainAxisSize.min,
             children: [
               if (_showAttachmentOptions) _buildMinimalAttachmentOptions(),
+              if (_showEmojiPicker) _buildEmojiPicker(),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
@@ -385,7 +387,17 @@ class _MessageInputWidgetState extends State<MessageInputWidget>
             ),
           ),
           GestureDetector(
-            onTap: _insertEmoji,
+            onTap: () {
+              HapticFeedback.lightImpact();
+              setState(() {
+                _showEmojiPicker = !_showEmojiPicker;
+              });
+              if (_showEmojiPicker) {
+                FocusScope.of(context).unfocus();
+              } else {
+                widget.focusNode.requestFocus();
+              }
+            },
             child: Container(
               padding: const EdgeInsets.all(6),
               child: Icon(
@@ -704,84 +716,45 @@ class _MessageInputWidgetState extends State<MessageInputWidget>
     final bloc = context.read<ChatBloc>();
     final filePaths = images.map((f) => f.path).toList();
     final totalImages = filePaths.length;
-
-    // Start smooth progress animation
-    _startSmoothProgress('${tempMessageId}_0');
+    // We will upload and send each image as a separate message to satisfy the requirement
 
     try {
-      // Compute precise overall bytes across all images
-      final totalBytes =
-          images.map((f) => f.lengthSync()).fold<int>(0, (a, b) => a + b);
-
-      int uploadedBytesSoFar = 0;
-
-      await bloc.uploadImagesAndSendSingleMessage(
-        conversationId: widget.conversationId,
-        filePaths: filePaths,
-        onProgress: (index, sent, total) {
-          // Estimate bytes uploaded so far across completed previous files
-          uploadedBytesSoFar = 0;
-          for (int i = 0; i < images.length; i++) {
-            if (i < index) {
-              uploadedBytesSoFar += images[i].lengthSync();
-            } else if (i == index) {
-              // current file fractional progress
-              final currentTotal = total > 0 ? total : images[i].lengthSync();
-              final currentSent = sent.clamp(0, currentTotal);
-              uploadedBytesSoFar += currentSent;
-            }
-          }
-
-          final overallProgress =
-              totalBytes > 0 ? uploadedBytesSoFar / totalBytes : 0.0;
-
-          // Update target progress for smooth animation
-          _updateTargetProgress(overallProgress);
-
-          // Also update each image's per-item progress precisely
-          for (int i = 0; i < uploadInfos.length; i++) {
-            double p;
-            if (i < index) {
-              p = 1.0;
-            } else if (i == index) {
-              final t = total > 0 ? total : images[i].lengthSync();
-              p = t > 0 ? sent / t : 0.0;
-            } else {
-              p = 0.0;
-            }
-            bloc.add(UpdateImageUploadProgressEvent(
-              conversationId: widget.conversationId,
-              uploadId: uploadInfos[i].id,
-              progress: p,
-            ));
-          }
-        },
-      );
-
-      // Set target to 100%
-      _updateTargetProgress(1.0);
-
-      // Wait for smooth animation to reach 100%
-      await Future.delayed(const Duration(milliseconds: 300));
-
-      // Mark all as completed
       for (int i = 0; i < images.length; i++) {
-        final uploadId = '${tempMessageId}_$i';
-        bloc.add(UpdateImageUploadProgressEvent(
-          conversationId: widget.conversationId,
-          uploadId: uploadId,
-          progress: 1.0,
-          isCompleted: true,
-        ));
+        // Start smooth progress animation for this image
+        _startSmoothProgress(uploadInfos[i].id);
+        final filePath = images[i].path;
+        final uploadId = uploadInfos[i].id;
+        await bloc
+            .uploadAttachmentWithProgress(
+              conversationId: widget.conversationId,
+              filePath: filePath,
+              messageType: 'image',
+              onProgress: (sent, total) {
+                final t = total > 0 ? total : images[i].lengthSync();
+                final p = t > 0 ? sent / t : 0.0;
+                bloc.add(UpdateImageUploadProgressEvent(
+                  conversationId: widget.conversationId,
+                  uploadId: uploadId,
+                  progress: p,
+                ));
+                _updateTargetProgress(p);
+              },
+            )
+            .then((_) async {
+          bloc.add(UpdateImageUploadProgressEvent(
+            conversationId: widget.conversationId,
+            uploadId: uploadId,
+            progress: 1.0,
+            isCompleted: true,
+          ));
+        }).whenComplete(() {
+          _stopSmoothProgress();
+        });
       }
 
-      // Add a small delay to show 100% completion before clearing
-      await Future.delayed(const Duration(milliseconds: 500));
-
-      // Clear the uploading bubble
+      // Clear the uploading bubble once all are done
       if (mounted) {
-        bloc.add(
-            FinishImageUploadsEvent(conversationId: widget.conversationId));
+        bloc.add(FinishImageUploadsEvent(conversationId: widget.conversationId));
       }
     } catch (e) {
       for (int i = 0; i < images.length; i++) {
@@ -794,7 +767,7 @@ class _MessageInputWidgetState extends State<MessageInputWidget>
         ));
       }
     } finally {
-      // Stop smooth progress animation
+      // Ensure smooth animator stopped
       _stopSmoothProgress();
     }
   }
@@ -828,9 +801,63 @@ class _MessageInputWidgetState extends State<MessageInputWidget>
     // Implement file picker
   }
 
-  void _insertEmoji() {
-    HapticFeedback.lightImpact();
-    // Show emoji picker
+  Widget _buildEmojiPicker() {
+    // Lightweight custom emoji grid to avoid external deps; can be replaced with emoji_picker_flutter.
+    const emojis = [
+      '😀','😁','😂','🤣','😊','😍','😘','😜','😎','😢','😭','😡','👍','👎','🙏','👏','🔥','🎉','💯','❤️','💔','😮','🤔','🤗','😴','🤯','😇','😉','😅','😏'
+    ];
+    return Container(
+      height: 220,
+      margin: const EdgeInsets.only(bottom: 6),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(colors: [
+          AppTheme.darkCard.withValues(alpha: 0.8),
+          AppTheme.darkCard.withValues(alpha: 0.7),
+        ]),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppTheme.darkBorder.withValues(alpha: 0.08),
+          width: 0.5,
+        ),
+      ),
+      child: GridView.builder(
+        padding: const EdgeInsets.all(8),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 8,
+          mainAxisSpacing: 6,
+          crossAxisSpacing: 6,
+        ),
+        itemCount: emojis.length,
+        itemBuilder: (context, index) {
+          final emoji = emojis[index];
+          return GestureDetector(
+            onTap: () {
+              HapticFeedback.selectionClick();
+              final text = widget.controller.text;
+              final selection = widget.controller.selection;
+              final base = selection.baseOffset;
+              final extent = selection.extentOffset;
+              if (base >= 0 && extent >= 0 && base <= text.length && extent <= text.length) {
+                final start = text.substring(0, base);
+                final end = text.substring(extent);
+                widget.controller.text = '$start$emoji$end';
+                final newPos = base + emoji.length;
+                widget.controller.selection = TextSelection.collapsed(offset: newPos);
+              } else {
+                widget.controller.text = '$text$emoji';
+                widget.controller.selection = TextSelection.collapsed(offset: widget.controller.text.length);
+              }
+            },
+            child: Center(
+              child: Text(
+                emoji,
+                style: const TextStyle(fontSize: 22),
+              ),
+            ),
+          );
+        },
+      ),
+    );
   }
 }
 

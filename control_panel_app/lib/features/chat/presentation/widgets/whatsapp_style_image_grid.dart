@@ -12,6 +12,10 @@ class WhatsAppStyleImageGrid extends StatelessWidget {
   // Optional callbacks to propagate actions to parent (message-level)
   final Function(String)? onReaction;
   final void Function(Attachment)? onReply;
+  // Optional: per-attachment reaction state to reflect overlay in viewer
+  final Map<String, String>? reactionsByAttachment;
+  // Optional: callback when a reaction is set for a specific attachment
+  final void Function(Attachment, String)? onReactForAttachment;
 
   const WhatsAppStyleImageGrid({
     super.key,
@@ -20,6 +24,8 @@ class WhatsAppStyleImageGrid extends StatelessWidget {
     this.onTap,
     this.onReaction,
     this.onReply,
+    this.reactionsByAttachment,
+    this.onReactForAttachment,
   });
 
   @override
@@ -70,10 +76,16 @@ class WhatsAppStyleImageGrid extends StatelessWidget {
             HapticFeedback.lightImpact();
             _openImageViewer(context, 0);
           },
-          child: CachedImageWidget(
-            imageUrl: image.fileUrl,
-            fit: BoxFit.cover,
-            removeContainer: true,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              CachedImageWidget(
+                imageUrl: image.fileUrl,
+                fit: BoxFit.cover,
+                removeContainer: true,
+              ),
+              if (_hasOverlayFor(image)) _buildReactionOverlay(image),
+            ],
           ),
         ),
       ),
@@ -239,13 +251,63 @@ class WhatsAppStyleImageGrid extends StatelessWidget {
           HapticFeedback.lightImpact();
           _openImageViewer(context, index);
         },
-        child: CachedImageWidget(
-          imageUrl: image.fileUrl,
-          fit: BoxFit.cover,
-          removeContainer: true,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            CachedImageWidget(
+              imageUrl: image.fileUrl,
+              fit: BoxFit.cover,
+              removeContainer: true,
+            ),
+            if (_hasOverlayFor(image)) _buildReactionOverlay(image),
+          ],
         ),
       ),
     );
+  }
+
+  bool _hasOverlayFor(Attachment image) {
+    final map = reactionsByAttachment;
+    if (map == null) return false;
+    final r = map[image.id];
+    return r != null && r.isNotEmpty;
+  }
+
+  Widget _buildReactionOverlay(Attachment image) {
+    final type = reactionsByAttachment?[image.id] ?? '';
+    final emoji = _emojiFor(type);
+    return Positioned(
+      right: 6,
+      bottom: 6,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+        decoration: BoxDecoration(
+          color: Colors.black.withOpacity(0.45),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: Colors.white.withOpacity(0.2), width: 0.5),
+        ),
+        child: Text(emoji, style: const TextStyle(fontSize: 12)),
+      ),
+    );
+  }
+
+  String _emojiFor(String type) {
+    switch (type) {
+      case 'like':
+        return '👍';
+      case 'love':
+        return '❤️';
+      case 'laugh':
+        return '😂';
+      case 'wow':
+        return '😮';
+      case 'sad':
+        return '😢';
+      case 'angry':
+        return '😠';
+      default:
+        return '👍';
+    }
   }
 
   void _openImageViewer(BuildContext context, int initialIndex) {
@@ -258,6 +320,8 @@ class WhatsAppStyleImageGrid extends StatelessWidget {
           initialIndex: initialIndex,
           onReaction: onReaction,
           onReply: onReply,
+          initialReactionsByAttachment: reactionsByAttachment,
+          onReactForAttachment: onReactForAttachment,
         ),
         transitionDuration: const Duration(milliseconds: 300),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {

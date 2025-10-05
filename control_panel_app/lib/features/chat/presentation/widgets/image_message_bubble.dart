@@ -215,6 +215,12 @@ class _ImageMessageBubbleState extends State<ImageMessageBubble>
                     widget.onReply!(attachment);
                   }
                 },
+            reactionsByAttachment: const {},
+            onReactForAttachment: (attachment, reaction) {
+              // When reacting inside the viewer to a specific image, propagate as a message reaction.
+              // The backend supports reactions per message, not per attachment; UI overlay remains per attachment.
+              widget.onReaction?.call(reaction);
+            },
               ),
             ),
           ),
@@ -321,6 +327,10 @@ class _ImageMessageBubbleState extends State<ImageMessageBubble>
           initialIndex: 0,
           onReaction: widget.onReaction,
           onReply: widget.onReply,
+          initialReactionsByAttachment: const {},
+          onReactForAttachment: (att, reaction) {
+            widget.onReaction?.call(reaction);
+          },
         ),
         transitionDuration: const Duration(milliseconds: 300),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {

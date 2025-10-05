@@ -242,6 +242,37 @@ class _ChatPageState extends State<ChatPage>
     if (state is ChatLoaded && !state.isLoadingMessages) {
       final messages = state.messages[widget.conversation.id] ?? [];
       if (messages.isNotEmpty) {
+        // Show a small top progress bar while fetching older messages
+        final overlay = Overlay.of(context);
+        final entry = OverlayEntry(builder: (_) {
+          return Positioned(
+            top: MediaQuery.of(context).padding.top + 44,
+            left: 0,
+            right: 0,
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                  child: Container(
+                    width: 140,
+                    height: 18,
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.25),
+                      border: Border.all(
+                        color: AppTheme.primaryBlue.withValues(alpha: 0.15),
+                        width: 0.5,
+                      ),
+                    ),
+                    child: const LinearProgressIndicator(minHeight: 2),
+                  ),
+                ),
+              ),
+            ),
+          );
+        });
+        overlay?.insert(entry);
         context.read<ChatBloc>().add(
               LoadMessagesEvent(
                 conversationId: widget.conversation.id,
@@ -249,6 +280,10 @@ class _ChatPageState extends State<ChatPage>
                 beforeMessageId: messages.last.id,
               ),
             );
+        // Remove overlay after a short delay or on next frame
+        Future.delayed(const Duration(milliseconds: 600), () {
+          entry.remove();
+        });
       }
     }
   }
@@ -322,8 +357,86 @@ class _ChatPageState extends State<ChatPage>
 
       // Highlight animation
       HapticFeedback.lightImpact();
-      // You can add a highlight animation here
+      return;
     }
+
+    // If not found in current list, attempt to load older messages until found or no more
+    final bloc = context.read<ChatBloc>();
+    final state = bloc.state;
+    if (state is! ChatLoaded) return;
+    final convoId = widget.conversation.id;
+    final List<Message> current = (state.messages[convoId] ?? []).cast<Message>();
+    if (current.isEmpty) return;
+
+    // Show inline loading overlay at top
+    final overlay = Overlay.of(context);
+    final entry = OverlayEntry(builder: (_) {
+      return Positioned(
+        top: MediaQuery.of(context).padding.top + 44,
+        left: 0,
+        right: 0,
+        child: Align(
+          alignment: Alignment.topCenter,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+              child: Container(
+                width: 160,
+                height: 20,
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.25),
+                  border: Border.all(
+                    color: AppTheme.primaryBlue.withValues(alpha: 0.15),
+                    width: 0.5,
+                  ),
+                ),
+                child: const LinearProgressIndicator(minHeight: 2),
+              ),
+            ),
+          ),
+        ),
+      );
+    });
+    overlay?.insert(entry);
+
+    void tryFindAfterLoad() {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final key2 = _messageKeys[messageId];
+        if (key2?.currentContext != null) {
+          entry.remove();
+          Scrollable.ensureVisible(
+            key2!.currentContext!,
+            duration: const Duration(milliseconds: 500),
+            curve: Curves.easeOutExpo,
+            alignment: 0.5,
+          );
+          HapticFeedback.lightImpact();
+        } else {
+          // Continue loading older if possible
+          final st2 = bloc.state;
+          if (st2 is ChatLoaded) {
+            final msgs = st2.messages[convoId] ?? [];
+            if (msgs.isNotEmpty && !st2.isLoadingMessages) {
+              bloc.add(LoadMessagesEvent(
+                conversationId: convoId,
+                pageNumber: (msgs.length ~/ 50) + 1,
+                beforeMessageId: msgs.last.id,
+              ));
+              // Re-try after next frame
+              Future.delayed(const Duration(milliseconds: 400), tryFindAfterLoad);
+            } else {
+              // Stop if no more
+              Future.delayed(const Duration(milliseconds: 200), () => entry.remove());
+            }
+          } else {
+            entry.remove();
+          }
+        }
+      });
+    }
+
+    tryFindAfterLoad();
   }
 
   void _syncCurrentUser() {
@@ -470,62 +583,47 @@ class _ChatPageState extends State<ChatPage>
   }
 
   Widget _buildPremiumLoadingState() {
-    return Center(
-      child: TweenAnimationBuilder<double>(
-        tween: Tween(begin: 0, end: 1),
-        duration: const Duration(milliseconds: 600),
-        curve: Curves.easeOutBack,
-        builder: (context, value, child) {
-          return Transform.scale(
-            scale: value,
+    // Elegant skeleton placeholders matching message layout
+    return ListView.builder(
+      reverse: true,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      itemCount: 10,
+      itemBuilder: (context, index) {
+        final isMe = index % 2 == 0;
+        return Align(
+          alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+          child: Container(
+            margin: EdgeInsets.only(
+              left: isMe ? MediaQuery.of(context).size.width * 0.2 : 8,
+              right: isMe ? 8 : MediaQuery.of(context).size.width * 0.2,
+              top: 8,
+              bottom: 4,
+            ),
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(10),
               child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
                 child: Container(
-                  padding: const EdgeInsets.all(20),
+                  height: 54 + (index % 3) * 10,
+                  width: MediaQuery.of(context).size.width * 0.6,
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: [
-                        AppTheme.darkCard.withValues(alpha: 0.5),
-                        AppTheme.darkCard.withValues(alpha: 0.3),
+                        AppTheme.darkCard.withValues(alpha: 0.35),
+                        AppTheme.darkCard.withValues(alpha: 0.2),
                       ],
                     ),
-                    borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                      color: AppTheme.primaryBlue.withValues(alpha: 0.1),
+                      color: AppTheme.darkBorder.withValues(alpha: 0.08),
                       width: 0.5,
                     ),
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      SizedBox(
-                        width: 40,
-                        height: 40,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            AppTheme.primaryBlue.withValues(alpha: 0.6),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        'جاري تحميل الرسائل...',
-                        style: AppTextStyles.bodySmall.copyWith(
-                          color: AppTheme.textWhite.withValues(alpha: 0.7),
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
                   ),
                 ),
               ),
             ),
-          );
-        },
-      ),
+          ),
+        );
+      },
     );
   }
 
