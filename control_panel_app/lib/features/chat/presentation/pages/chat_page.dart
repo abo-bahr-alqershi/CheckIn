@@ -272,7 +272,7 @@ class _ChatPageState extends State<ChatPage>
             ),
           );
         });
-        overlay?.insert(entry);
+        overlay.insert(entry);
         context.read<ChatBloc>().add(
               LoadMessagesEvent(
                 conversationId: widget.conversation.id,
@@ -365,7 +365,8 @@ class _ChatPageState extends State<ChatPage>
     final state = bloc.state;
     if (state is! ChatLoaded) return;
     final convoId = widget.conversation.id;
-    final List<Message> current = (state.messages[convoId] ?? []).cast<Message>();
+    final List<Message> current =
+        (state.messages[convoId] ?? []).cast<Message>();
     if (current.isEmpty) return;
 
     // Show inline loading overlay at top
@@ -398,7 +399,7 @@ class _ChatPageState extends State<ChatPage>
         ),
       );
     });
-    overlay?.insert(entry);
+    overlay.insert(entry);
 
     void tryFindAfterLoad() {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -424,10 +425,12 @@ class _ChatPageState extends State<ChatPage>
                 beforeMessageId: msgs.last.id,
               ));
               // Re-try after next frame
-              Future.delayed(const Duration(milliseconds: 400), tryFindAfterLoad);
+              Future.delayed(
+                  const Duration(milliseconds: 400), tryFindAfterLoad);
             } else {
               // Stop if no more
-              Future.delayed(const Duration(milliseconds: 200), () => entry.remove());
+              Future.delayed(
+                  const Duration(milliseconds: 200), () => entry.remove());
             }
           } else {
             entry.remove();
@@ -1068,11 +1071,11 @@ class _ChatPageState extends State<ChatPage>
                   ),
                   const SizedBox(width: 8),
                   GestureDetector(
-                onTap: () {
+                    onTap: () {
                       HapticFeedback.lightImpact();
                       setState(() {
-                    _replyToMessageId = null;
-                    _replyToAttachment = null;
+                        _replyToMessageId = null;
+                        _replyToAttachment = null;
                       });
                     },
                     child: Container(
@@ -1104,7 +1107,8 @@ class _ChatPageState extends State<ChatPage>
 
   Widget _buildReplyPreviewContent(Message replyMessage) {
     if (_replyToAttachment != null) {
-      final url = _replyToAttachment!.thumbnailUrl ?? _replyToAttachment!.fileUrl;
+      final url =
+          _replyToAttachment!.thumbnailUrl ?? _replyToAttachment!.fileUrl;
       return Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -1193,7 +1197,15 @@ class _ChatPageState extends State<ChatPage>
       );
     }
 
-    final content = (replyMessage.content ?? '').trim();
+    // تنظيف المحتوى من token attref
+    String content = (replyMessage.content ?? '').trim();
+    if (content.startsWith('::attref=')) {
+      final endIdx = content.indexOf('::', '::attref='.length);
+      if (endIdx > '::attref='.length) {
+        content = content.substring(endIdx + 2);
+      }
+    }
+
     if (content.isEmpty) {
       return Text(
         '[محتوى غير نصي]',
@@ -1433,17 +1445,24 @@ class _ChatPageState extends State<ChatPage>
         _editingMessage = null;
       });
     } else {
+      // إذا كان هناك رد على مرفق محدد، قم بتشفير معرفه في المحتوى
+      String messageContent = content;
+      if (_replyToAttachment != null && _replyToMessageId != null) {
+        messageContent = '::attref=${_replyToAttachment!.id}::$content';
+      }
+
       context.read<ChatBloc>().add(
             SendMessageEvent(
               conversationId: widget.conversation.id,
               messageType: 'text',
-              content: content,
+              content: messageContent,
               replyToMessageId: _replyToMessageId,
               currentUserId: _currentUserId,
             ),
           );
       setState(() {
         _replyToMessageId = null;
+        _replyToAttachment = null;
       });
     }
 
@@ -1464,6 +1483,7 @@ class _ChatPageState extends State<ChatPage>
   void _setReplyTo(Message message) {
     setState(() {
       _replyToMessageId = message.id;
+      _replyToAttachment = null; // مسح أي مرفق محدد عند الرد العادي
     });
     _messageFocusNode.requestFocus();
   }

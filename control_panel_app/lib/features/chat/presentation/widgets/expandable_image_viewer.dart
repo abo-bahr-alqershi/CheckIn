@@ -5,6 +5,7 @@ import 'package:photo_view/photo_view.dart';
 import 'package:photo_view/photo_view_gallery.dart';
 import '../../../../core/widgets/cached_image_widget.dart';
 import '../../domain/entities/attachment.dart';
+import 'reaction_picker_widget.dart';
 
 class ExpandableImageViewer extends StatefulWidget {
   final List<Attachment> images;
@@ -34,6 +35,7 @@ class _ExpandableImageViewerState extends State<ExpandableImageViewer> {
   late int _currentIndex;
   late final PageController _pageController;
   final Map<String, String> _imageReactions = {};
+  bool _showReactionPicker = false;
 
   @override
   void initState() {
@@ -104,6 +106,30 @@ class _ExpandableImageViewerState extends State<ExpandableImageViewer> {
             right: 0,
             child: _buildReactionOverlay(),
           ),
+          
+          // Reaction Picker Widget - ظاهر دائماً
+          if (_showReactionPicker)
+            Positioned(
+              bottom: MediaQuery.of(context).padding.bottom + 80,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: ReactionPickerWidget(
+                  onReaction: (reaction) {
+                    final current = widget.images[_currentIndex];
+                    setState(() {
+                      _imageReactions[current.id] = reaction;
+                      _showReactionPicker = false;
+                    });
+                    // message-level reaction
+                    widget.onReaction?.call(reaction);
+                    // per-attachment overlay sync
+                    widget.onReactForAttachment?.call(current, reaction);
+                  },
+                ),
+              ),
+            ),
+          
           Positioned(
             top: MediaQuery.of(context).padding.top + 8,
             left: 8,
@@ -124,6 +150,38 @@ class _ExpandableImageViewerState extends State<ExpandableImageViewer> {
               child: Text(
                 '${_currentIndex + 1}/${widget.images.length}',
                 style: const TextStyle(color: Colors.white),
+              ),
+            ),
+          ),
+          
+          // زر إظهار الريآكشنات
+          Positioned(
+            bottom: MediaQuery.of(context).padding.bottom + 16,
+            right: 16,
+            child: GestureDetector(
+              onTap: () {
+                HapticFeedback.lightImpact();
+                setState(() {
+                  _showReactionPicker = !_showReactionPicker;
+                });
+              },
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: _showReactionPicker 
+                      ? Colors.white.withOpacity(0.25)
+                      : Colors.white.withOpacity(0.15),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: Colors.white.withOpacity(0.3),
+                    width: 1,
+                  ),
+                ),
+                child: Icon(
+                  _showReactionPicker ? Icons.close : Icons.favorite_rounded,
+                  color: Colors.white,
+                  size: 24,
+                ),
               ),
             ),
           ),

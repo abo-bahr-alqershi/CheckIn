@@ -306,40 +306,54 @@ class _MessageBubbleWidgetState extends State<MessageBubbleWidget>
   }
 
   Widget _buildReplyPreviewContent(Message replyMessage) {
-    // If the reply message contains images, show exact target image if a token is present
-    if (replyMessage.attachments.isNotEmpty) {
-      // Check if the current message content encodes a referenced attachment id
-      final content = (widget.message.content ?? '').trim();
-      String? referencedAttachmentId;
-      if (content.startsWith('::attref=')) {
-        final endIdx = content.indexOf('::', '::attref='.length);
-        if (endIdx > '::attref='.length) {
-          referencedAttachmentId = content.substring('::attref='.length, endIdx);
-        }
+    // استخراج معرف المرفق المستهدف من محتوى الرسالة الحالية (التي ترد على الرسالة)
+    String currentMessageContent = (widget.message.content ?? '').trim();
+    String? referencedAttachmentId;
+    
+    if (currentMessageContent.startsWith('::attref=')) {
+      final endIdx = currentMessageContent.indexOf('::', '::attref='.length);
+      if (endIdx > '::attref='.length) {
+        referencedAttachmentId = currentMessageContent.substring('::attref='.length, endIdx);
       }
-
-      // Prefer the first image attachment to avoid mismatches when replying to grouped images
-      Attachment? firstImage;
-      if (referencedAttachmentId != null) {
+    }
+    
+    // تنظيف محتوى الرسالة المردود عليها للعرض
+    String cleanContent = (replyMessage.content ?? '').trim();
+    if (cleanContent.startsWith('::attref=')) {
+      final endIdx = cleanContent.indexOf('::', '::attref='.length);
+      if (endIdx > '::attref='.length) {
+        cleanContent = cleanContent.substring(endIdx + 2);
+      }
+    }
+    
+    // If the reply message contains attachments, show exact target image
+    if (replyMessage.attachments.isNotEmpty) {
+      // البحث عن المرفق المحدد إذا كان هناك معرف
+      Attachment? targetAttachment;
+      if (referencedAttachmentId != null && referencedAttachmentId.isNotEmpty) {
         for (final a in replyMessage.attachments) {
           if (a.id == referencedAttachmentId) {
-            firstImage = a;
+            targetAttachment = a;
             break;
           }
         }
       }
-      if (firstImage == null) {
+      
+      // إذا لم نجد المرفق المحدد، ابحث عن أول صورة
+      if (targetAttachment == null) {
         for (final a in replyMessage.attachments) {
           if (_isImageLikeAttachment(a)) {
-            firstImage = a;
+            targetAttachment = a;
             break;
           }
         }
       }
-      firstImage ??= replyMessage.attachments.first;
+      
+      // استخدم أول مرفق كملاذ أخير
+      targetAttachment ??= replyMessage.attachments.first;
 
-      if (_isImageLikeAttachment(firstImage)) {
-        final url = firstImage.thumbnailUrl ?? firstImage.fileUrl;
+      if (_isImageLikeAttachment(targetAttachment)) {
+        final url = targetAttachment.thumbnailUrl ?? targetAttachment.fileUrl;
         return SizedBox(
           height: 32,
           child: Row(
@@ -352,11 +366,11 @@ class _MessageBubbleWidgetState extends State<MessageBubbleWidget>
       }
 
       // Video-like: show its thumbnail or first frame indicator
-      if (_isVideoLikeAttachment(firstImage)) {
+      if (_isVideoLikeAttachment(targetAttachment)) {
         return Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _buildMiniThumb(firstImage.thumbnailUrl ?? firstImage.fileUrl,
+            _buildMiniThumb(targetAttachment.thumbnailUrl ?? targetAttachment.fileUrl,
                 icon: Icons.videocam_rounded),
             const SizedBox(width: 6),
             Text(
@@ -383,7 +397,7 @@ class _MessageBubbleWidgetState extends State<MessageBubbleWidget>
                 ? Colors.white.withValues(alpha: 0.5)
                 : AppTheme.textWhite.withValues(alpha: 0.6),
           ),
-          const SizedBox(width: 4),
+          const SizedBox(width: 6),
           Text(
             'مرفق',
             style: AppTextStyles.caption.copyWith(
@@ -397,8 +411,8 @@ class _MessageBubbleWidgetState extends State<MessageBubbleWidget>
       );
     }
 
-    final content = (replyMessage.content ?? '').trim();
-    if (content.isEmpty) {
+    // لا توجد مرفقات: تحقق من المحتوى النظيف
+    if (cleanContent.isEmpty) {
       return Text(
         '[محتوى غير نصي]',
         style: AppTextStyles.caption.copyWith(
@@ -412,12 +426,25 @@ class _MessageBubbleWidgetState extends State<MessageBubbleWidget>
       );
     }
 
-    // If content looks like an image link, show its thumbnail
-    if (_looksLikeImage(content)) {
+    // إذا كان المحتوى يبدو كـ URL مرفق (attachment URL)، اعرضه كصورة
+    if (cleanContent.startsWith('/api/common/chat/attachments/')) {
+      return SizedBox(
+        height: 32,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildMiniThumb(cleanContent),
+          ],
+        ),
+      );
+    }
+
+    // إذا كان المحتوى يبدو كصورة، اعرضها كصورة
+    if (_looksLikeImage(cleanContent)) {
       return Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _buildMiniThumb(content),
+          _buildMiniThumb(cleanContent),
           const SizedBox(width: 6),
           Text(
             'صورة',
@@ -432,9 +459,9 @@ class _MessageBubbleWidgetState extends State<MessageBubbleWidget>
       );
     }
 
-    // Else show trimmed text
+    // اعرض النص العادي
     return Text(
-      content,
+      cleanContent,
       style: AppTextStyles.caption.copyWith(
         color: widget.isMe
             ? Colors.white.withValues(alpha: 0.6)
@@ -528,13 +555,22 @@ class _MessageBubbleWidgetState extends State<MessageBubbleWidget>
   Widget _buildMessageContent() {
     if (widget.message.messageType == 'text' &&
         widget.message.content != null) {
+      // تنظيف المحتوى من token attref
+      String displayContent = widget.message.content!;
+      if (displayContent.startsWith('::attref=')) {
+        final endIdx = displayContent.indexOf('::', '::attref='.length);
+        if (endIdx > '::attref='.length) {
+          displayContent = displayContent.substring(endIdx + 2);
+        }
+      }
+
       return Padding(
         padding: const EdgeInsets.symmetric(
           horizontal: 8,
           vertical: 5,
         ),
         child: Text(
-          widget.message.content!,
+          displayContent,
           style: AppTextStyles.bodySmall.copyWith(
             color: widget.isMe
                 ? Colors.white
