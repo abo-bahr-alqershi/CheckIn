@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:async';
 import 'package:bookn_cp_app/features/chat/presentation/widgets/multi_image_picker_modal.dart';
 import 'package:bookn_cp_app/features/chat/presentation/widgets/image_preview_screen.dart';
 import 'package:flutter/material.dart';
@@ -55,7 +56,12 @@ class _MessageInputWidgetState extends State<MessageInputWidget>
   bool _isRecording = false;
   bool _showAttachmentOptions = false;
   String _recordingPath = '';
-  // Duration _recordingDuration = Duration.zero; // Unused field
+
+  // Smooth progress tracking
+  Timer? _progressTimer;
+  double _currentDisplayedProgress = 0.0;
+  double _targetProgress = 0.0;
+  String? _currentUploadId;
 
   @override
   void initState() {
@@ -84,9 +90,67 @@ class _MessageInputWidgetState extends State<MessageInputWidget>
 
   @override
   void dispose() {
+    _progressTimer?.cancel();
     _animationController.dispose();
     _audioRecorder.dispose();
     super.dispose();
+  }
+
+  void _startSmoothProgress(String baseUploadId) {
+    _currentUploadId = baseUploadId;
+    _currentDisplayedProgress = 0.0;
+    _targetProgress = 0.0;
+
+    _progressTimer?.cancel();
+    _progressTimer = Timer.periodic(const Duration(milliseconds: 50), (timer) {
+      if (!mounted || _currentUploadId == null) {
+        timer.cancel();
+        return;
+      }
+
+      // Smoothly interpolate towards target progress
+      if (_currentDisplayedProgress < _targetProgress) {
+        // Increment by 1% every 50ms for smooth animation
+        _currentDisplayedProgress += 0.01;
+        if (_currentDisplayedProgress > _targetProgress) {
+          _currentDisplayedProgress = _targetProgress;
+        }
+
+        // Update UI with smooth progress
+        final bloc = context.read<ChatBloc>();
+
+        // Extract base ID (everything before last underscore)
+        final baseId =
+            _currentUploadId!.substring(0, _currentUploadId!.lastIndexOf('_'));
+
+        // We don't know exact count, so update first 10 possible IDs
+        // (actual count will be filtered by bloc state)
+        for (int i = 0; i < 10; i++) {
+          final uploadId = '${baseId}_$i';
+          bloc.add(UpdateImageUploadProgressEvent(
+            conversationId: widget.conversationId,
+            uploadId: uploadId,
+            progress: _currentDisplayedProgress,
+          ));
+        }
+      }
+
+      // Stop timer when complete
+      if (_currentDisplayedProgress >= 1.0) {
+        timer.cancel();
+      }
+    });
+  }
+
+  void _updateTargetProgress(double progress) {
+    _targetProgress = progress;
+  }
+
+  void _stopSmoothProgress() {
+    _progressTimer?.cancel();
+    _currentDisplayedProgress = 0.0;
+    _targetProgress = 0.0;
+    _currentUploadId = null;
   }
 
   void _onTextChanged() {
@@ -635,21 +699,36 @@ class _MessageInputWidgetState extends State<MessageInputWidget>
   ) async {
     final bloc = context.read<ChatBloc>();
     final filePaths = images.map((f) => f.path).toList();
+    final totalImages = filePaths.length;
+
+    // Start smooth progress animation
+    _startSmoothProgress('${tempMessageId}_0');
 
     try {
       await bloc.uploadImagesAndSendSingleMessage(
         conversationId: widget.conversationId,
         filePaths: filePaths,
         onProgress: (index, sent, total) {
-          final ratio = total > 0 ? sent / total : 0.0;
-          final uploadId = '${tempMessageId}_$index';
-          bloc.add(UpdateImageUploadProgressEvent(
-            conversationId: widget.conversationId,
-            uploadId: uploadId,
-            progress: ratio,
-          ));
+          // Calculate overall progress considering all images
+          final currentImageProgress = total > 0 ? sent / total : 0.0;
+
+          // Each image contributes 1/totalImages to the overall progress
+          // For example with 3 images:
+          // Image 0 at 50%: (0 + 0.5) / 3 = 0.167 = 16.7%
+          // Image 1 at 30%: (1 + 0.3) / 3 = 0.433 = 43.3%
+          // Image 2 at 70%: (2 + 0.7) / 3 = 0.9 = 90%
+          final overallProgress = (index + currentImageProgress) / totalImages;
+
+          // Update target progress for smooth animation
+          _updateTargetProgress(overallProgress);
         },
       );
+
+      // Set target to 100%
+      _updateTargetProgress(1.0);
+
+      // Wait for smooth animation to reach 100%
+      await Future.delayed(const Duration(milliseconds: 300));
 
       // Mark all as completed
       for (int i = 0; i < images.length; i++) {
@@ -680,6 +759,9 @@ class _MessageInputWidgetState extends State<MessageInputWidget>
           error: e.toString(),
         ));
       }
+    } finally {
+      // Stop smooth progress animation
+      _stopSmoothProgress();
     }
   }
 

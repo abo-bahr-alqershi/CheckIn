@@ -5,7 +5,7 @@ class ApiConstants {
   static const String baseUrl = String.fromEnvironment(
     'BASE_URL',
     // defaultValue: 'http://ameenalqershi-001-site1.mtempurl.com',
-    defaultValue: 'http://192.168.0.31:5000/',
+    defaultValue: 'http://192.168.0.100:5000/',
   );
 
   // Derived base URLs for different API areas
@@ -18,13 +18,13 @@ class ApiConstants {
   static const String imageBaseUrl = String.fromEnvironment(
     'IMAGE_BASE_URL',
     // defaultValue: 'http://ameenalqershi-001-site1.mtempurl.com',
-    defaultValue: 'http://192.168.0.31:5000',
+    defaultValue: 'http://192.168.0.100:5000',
   );
 
   static const String socketUrl = String.fromEnvironment(
     'SOCKET_URL',
     // defaultValue: 'wss://ws.ameenalqershi-001-site1.mtempurl.com',
-    defaultValue: 'wss://192.168.0.31:5000',
+    defaultValue: 'wss://192.168.0.100:5000',
   );
 
   // Google Places API
@@ -38,7 +38,8 @@ class ApiConstants {
   // Timeouts
   static const Duration connectTimeout = Duration(seconds: 30);
   static const Duration receiveTimeout = Duration(seconds: 30);
-  static const Duration sendTimeout = Duration(seconds: 600); // 10 minutes for large file uploads
+  static const Duration sendTimeout =
+      Duration(seconds: 600); // 10 minutes for large file uploads
 
   // Headers
   static const String contentType = 'Content-Type';

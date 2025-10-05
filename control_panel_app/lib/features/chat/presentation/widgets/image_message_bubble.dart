@@ -528,11 +528,9 @@ class _ImageMessageBubbleState extends State<ImageMessageBubble>
   }
 
   Widget _buildProgressOverlay(List<ImageUploadInfo> images) {
-    final totalProgress = images.fold<double>(
-          0,
-          (sum, img) => sum + img.progress,
-        ) /
-        images.length;
+    // Since all images now share the same overall progress value (0-1),
+    // we can use any image's progress (they're all the same)
+    final totalProgress = images.isEmpty ? 0.0 : images.first.progress;
 
     final uploadingCount =
         images.where((img) => !img.isCompleted && !img.isFailed).length;
