@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'dart:ui';
 import 'package:photo_view/photo_view.dart';
 import 'package:photo_view/photo_view_gallery.dart';
 import '../../../../core/widgets/cached_image_widget.dart';
@@ -26,6 +27,7 @@ class ExpandableImageViewer extends StatefulWidget {
 class _ExpandableImageViewerState extends State<ExpandableImageViewer> {
   late int _currentIndex;
   late final PageController _pageController;
+  final Map<String, String> _imageReactions = {};
 
   @override
   void initState() {
@@ -48,6 +50,10 @@ class _ExpandableImageViewerState extends State<ExpandableImageViewer> {
         children: [
           GestureDetector(
             onDoubleTap: () {
+              final current = widget.images[_currentIndex];
+              setState(() {
+                _imageReactions[current.id] = 'like';
+              });
               widget.onReaction?.call('like');
             },
             onLongPress: () {
@@ -77,6 +83,13 @@ class _ExpandableImageViewerState extends State<ExpandableImageViewer> {
               ),
               backgroundDecoration: const BoxDecoration(color: Colors.black),
             ),
+          ),
+          // Per-image reaction overlay (elegant, clear, appropriate size)
+          Positioned(
+            bottom: MediaQuery.of(context).padding.bottom + 24,
+            left: 0,
+            right: 0,
+            child: _buildReactionOverlay(),
           ),
           Positioned(
             top: MediaQuery.of(context).padding.top + 8,
@@ -112,13 +125,70 @@ class _ExpandableImageViewerState extends State<ExpandableImageViewer> {
       backgroundColor: Colors.transparent,
       builder: (sheetContext) {
         return _ImageViewerOptionsSheet(
-          onReact: (type) => widget.onReaction?.call(type),
+          onReact: (type) {
+            final current = widget.images[_currentIndex];
+            setState(() {
+              _imageReactions[current.id] = type;
+            });
+            widget.onReaction?.call(type);
+          },
           onReply: widget.onReply,
           parentNavigatorContext: context,
           currentAttachment: widget.images[_currentIndex],
         );
       },
     );
+  }
+
+  Widget _buildReactionOverlay() {
+    if (widget.images.isEmpty) return const SizedBox.shrink();
+    final current = widget.images[_currentIndex];
+    final reaction = _imageReactions[current.id];
+    if (reaction == null) return const SizedBox.shrink();
+
+    final emoji = _emojiForReaction(reaction);
+    return Center(
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: Colors.white.withOpacity(0.25),
+                width: 0.5,
+              ),
+            ),
+            child: Text(
+              emoji,
+              style: const TextStyle(fontSize: 28),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _emojiForReaction(String type) {
+    switch (type) {
+      case 'like':
+        return '👍';
+      case 'love':
+        return '❤️';
+      case 'laugh':
+        return '😂';
+      case 'wow':
+        return '😮';
+      case 'sad':
+        return '😢';
+      case 'angry':
+        return '😠';
+      default:
+        return '👍';
+    }
   }
 }
 
