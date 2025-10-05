@@ -26,22 +26,22 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
   late PageController _pageController;
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
-  
+
   int _currentIndex = 0;
   List<File> _editedImages = [];
   final TextEditingController _captionController = TextEditingController();
-  
+
   @override
   void initState() {
     super.initState();
     _editedImages = List.from(widget.images);
     _pageController = PageController();
-    
+
     _animationController = AnimationController(
       duration: const Duration(milliseconds: 300),
       vsync: this,
     );
-    
+
     _fadeAnimation = Tween<double>(
       begin: 0.0,
       end: 1.0,
@@ -49,7 +49,7 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
       parent: _animationController,
       curve: Curves.easeOut,
     ));
-    
+
     _animationController.forward();
   }
 
@@ -74,7 +74,7 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
         ),
       ),
     );
-    
+
     if (editedImage != null && editedImage is Uint8List) {
       final tempFile = File(_editedImages[index].path);
       await tempFile.writeAsBytes(editedImage);
@@ -86,12 +86,12 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
 
   void _removeImage(int index) {
     HapticFeedback.mediumImpact();
-    
+
     if (_editedImages.length == 1) {
       Navigator.pop(context);
       return;
     }
-    
+
     setState(() {
       _editedImages.removeAt(index);
       if (_currentIndex >= _editedImages.length) {
@@ -132,7 +132,7 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
               },
             ),
           ),
-          
+
           // Top bar
           Positioned(
             top: 0,
@@ -140,7 +140,7 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
             right: 0,
             child: _buildTopBar(),
           ),
-          
+
           // Thumbnails
           Positioned(
             bottom: 100,
@@ -148,7 +148,7 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
             right: 0,
             child: _buildThumbnails(),
           ),
-          
+
           // Bottom controls
           Positioned(
             bottom: 0,
@@ -206,7 +206,7 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
                   ),
                 ),
               ),
-              
+
               // Image counter
               Container(
                 padding: const EdgeInsets.symmetric(
@@ -225,7 +225,7 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
                   ),
                 ),
               ),
-              
+
               // Action buttons
               Row(
                 children: [
@@ -275,7 +275,7 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
 
   Widget _buildThumbnails() {
     if (_editedImages.length <= 1) return const SizedBox.shrink();
-    
+
     return Container(
       height: 60,
       margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -284,7 +284,7 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
         itemCount: _editedImages.length,
         itemBuilder: (context, index) {
           final isSelected = index == _currentIndex;
-          
+
           return GestureDetector(
             onTap: () {
               HapticFeedback.lightImpact();
@@ -376,9 +376,9 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
                   ),
                 ),
               ),
-              
+
               const SizedBox(width: 12),
-              
+
               // Send button
               GestureDetector(
                 onTap: () {
