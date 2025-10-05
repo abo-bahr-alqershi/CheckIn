@@ -306,14 +306,34 @@ class _MessageBubbleWidgetState extends State<MessageBubbleWidget>
   }
 
   Widget _buildReplyPreviewContent(Message replyMessage) {
-    // If the reply message contains images, show exact first image thumbnail
+    // If the reply message contains images, show exact target image if a token is present
     if (replyMessage.attachments.isNotEmpty) {
+      // Check if the current message content encodes a referenced attachment id
+      final content = (widget.message.content ?? '').trim();
+      String? referencedAttachmentId;
+      if (content.startsWith('::attref=')) {
+        final endIdx = content.indexOf('::', '::attref='.length);
+        if (endIdx > '::attref='.length) {
+          referencedAttachmentId = content.substring('::attref='.length, endIdx);
+        }
+      }
+
       // Prefer the first image attachment to avoid mismatches when replying to grouped images
       Attachment? firstImage;
-      for (final a in replyMessage.attachments) {
-        if (_isImageLikeAttachment(a)) {
-          firstImage = a;
-          break;
+      if (referencedAttachmentId != null) {
+        for (final a in replyMessage.attachments) {
+          if (a.id == referencedAttachmentId) {
+            firstImage = a;
+            break;
+          }
+        }
+      }
+      if (firstImage == null) {
+        for (final a in replyMessage.attachments) {
+          if (_isImageLikeAttachment(a)) {
+            firstImage = a;
+            break;
+          }
         }
       }
       firstImage ??= replyMessage.attachments.first;
