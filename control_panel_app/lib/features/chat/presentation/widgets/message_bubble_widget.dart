@@ -10,7 +10,6 @@ import 'attachment_preview_widget.dart';
 import 'message_status_indicator.dart';
 import 'reaction_picker_widget.dart';
 import '../bloc/chat_bloc.dart';
-import '../bloc/chat_state.dart';
 
 class MessageBubbleWidget extends StatefulWidget {
   final Message message;
@@ -297,7 +296,8 @@ class _MessageBubbleWidgetState extends State<MessageBubbleWidget>
     final chatState = context.read<ChatBloc>().state;
     if (chatState is! ChatLoaded) return null;
     final List<Message> messages =
-        (chatState.messages[widget.message.conversationId] ?? []).cast<Message>();
+        (chatState.messages[widget.message.conversationId] ?? [])
+            .cast<Message>();
     for (final m in messages) {
       if (m.id == replyId) return m;
     }
@@ -389,7 +389,8 @@ class _MessageBubbleWidgetState extends State<MessageBubbleWidget>
       );
     }
 
-    final isHttp = content.startsWith('http://') || content.startsWith('https://');
+    final isHttp =
+        content.startsWith('http://') || content.startsWith('https://');
     final isRelative = content.startsWith('/');
     if (isHttp || isRelative) {
       return Row(

@@ -33,6 +33,10 @@ class WhatsAppStyleImageGrid extends StatelessWidget {
         HapticFeedback.lightImpact();
         _openImageViewer(context, 0);
       },
+      onLongPress: () {
+        HapticFeedback.lightImpact();
+        _openImageViewer(context, 0);
+      },
       child: _buildGrid(imageCount),
     );
   }
@@ -59,6 +63,10 @@ class WhatsAppStyleImageGrid extends StatelessWidget {
       child: Builder(
         builder: (context) => GestureDetector(
           onTap: () {
+            HapticFeedback.lightImpact();
+            _openImageViewer(context, 0);
+          },
+          onLongPress: () {
             HapticFeedback.lightImpact();
             _openImageViewer(context, 0);
           },
@@ -224,6 +232,10 @@ class WhatsAppStyleImageGrid extends StatelessWidget {
     return Builder(
       builder: (context) => GestureDetector(
         onTap: () {
+          HapticFeedback.lightImpact();
+          _openImageViewer(context, index);
+        },
+        onLongPress: () {
           HapticFeedback.lightImpact();
           _openImageViewer(context, index);
         },
