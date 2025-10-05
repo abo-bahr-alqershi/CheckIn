@@ -110,10 +110,11 @@ class _ExpandableImageViewerState extends State<ExpandableImageViewer> {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (context) {
+      builder: (sheetContext) {
         return _ImageViewerOptionsSheet(
           onReact: (type) => widget.onReaction?.call(type),
           onReply: widget.onReply,
+          parentNavigatorContext: context,
         );
       },
     );
@@ -123,7 +124,12 @@ class _ExpandableImageViewerState extends State<ExpandableImageViewer> {
 class _ImageViewerOptionsSheet extends StatelessWidget {
   final void Function(String) onReact;
   final VoidCallback? onReply;
-  const _ImageViewerOptionsSheet({required this.onReact, this.onReply});
+  final BuildContext parentNavigatorContext;
+  const _ImageViewerOptionsSheet({
+    required this.onReact,
+    this.onReply,
+    required this.parentNavigatorContext,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -154,7 +160,11 @@ class _ImageViewerOptionsSheet extends StatelessWidget {
               children: [
                 if (onReply != null)
                   _actionTile(context, Icons.reply_rounded, 'رد', () {
+                    // Close the options sheet first
                     Navigator.pop(context);
+                    // Then close the viewer page
+                    Navigator.pop(parentNavigatorContext);
+                    // Finally notify parent to set reply and focus input
                     onReply!();
                   }),
                 _actionTile(context, Icons.download_rounded, 'حفظ', () {
