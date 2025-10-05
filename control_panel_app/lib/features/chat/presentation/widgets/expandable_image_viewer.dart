@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:photo_view/photo_view_gallery.dart';
 import '../../domain/entities/attachment.dart';
@@ -6,11 +7,15 @@ import '../../domain/entities/attachment.dart';
 class ExpandableImageViewer extends StatefulWidget {
   final List<Attachment> images;
   final int initialIndex;
+  final Function(String)? onReaction;
+  final VoidCallback? onReply;
 
   const ExpandableImageViewer({
     super.key,
     required this.images,
     this.initialIndex = 0,
+    this.onReaction,
+    this.onReply,
   });
 
   @override
@@ -40,7 +45,15 @@ class _ExpandableImageViewerState extends State<ExpandableImageViewer> {
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          PhotoViewGallery.builder(
+          GestureDetector(
+            onDoubleTap: () {
+              widget.onReaction?.call('like');
+            },
+            onLongPress: () {
+              HapticFeedback.lightImpact();
+              _showImageOptions();
+            },
+            child: PhotoViewGallery.builder(
             pageController: _pageController,
             itemCount: widget.images.length,
             onPageChanged: (index) => setState(() => _currentIndex = index),
@@ -56,7 +69,8 @@ class _ExpandableImageViewerState extends State<ExpandableImageViewer> {
             loadingBuilder: (context, event) => const Center(
               child: CircularProgressIndicator(strokeWidth: 2),
             ),
-            backgroundDecoration: const BoxDecoration(color: Colors.black),
+              backgroundDecoration: const BoxDecoration(color: Colors.black),
+            ),
           ),
           Positioned(
             top: MediaQuery.of(context).padding.top + 8,
@@ -85,4 +99,106 @@ class _ExpandableImageViewerState extends State<ExpandableImageViewer> {
       ),
     );
   }
+
+  void _showImageOptions() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return _ImageViewerOptionsSheet(
+          onReact: (type) => widget.onReaction?.call(type),
+          onReply: widget.onReply,
+        );
+      },
+    );
+  }
 }
+
+class _ImageViewerOptionsSheet extends StatelessWidget {
+  final void Function(String) onReact;
+  final VoidCallback? onReply;
+  const _ImageViewerOptionsSheet({required this.onReact, this.onReply});
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _reactionChip('👍', 'like', onReact),
+              _reactionChip('❤️', 'love', onReact),
+              _reactionChip('😂', 'laugh', onReact),
+              _reactionChip('😮', 'wow', onReact),
+              _reactionChip('😢', 'sad', onReact),
+              _reactionChip('😠', 'angry', onReact),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Container(
+            margin: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.6),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (onReply != null)
+                  _actionTile(context, Icons.reply_rounded, 'رد', () {
+                    Navigator.pop(context);
+                    onReply!();
+                  }),
+                _actionTile(context, Icons.download_rounded, 'حفظ', () {
+                  Navigator.pop(context);
+                }),
+                _actionTile(context, Icons.share_rounded, 'مشاركة', () {
+                  Navigator.pop(context);
+                }),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+        ],
+      ),
+    );
+  }
+
+  Widget _reactionChip(String emoji, String type, void Function(String) onReact) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 6),
+      child: GestureDetector(
+        onTap: () {
+          HapticFeedback.selectionClick();
+          Navigator.pop(context);
+          onReact(type);
+        },
+        child: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.1),
+            shape: BoxShape.circle,
+          ),
+          child: Text(emoji, style: const TextStyle(fontSize: 22)),
+        ),
+      ),
+    );
+  }
+
+  Widget _actionTile(
+    BuildContext context,
+    IconData icon,
+    String title,
+    VoidCallback onTap,
+  ) {
+    return ListTile(
+      onTap: onTap,
+      leading: Icon(icon, color: Colors.white.withOpacity(0.9)),
+      title: Text(title, style: const TextStyle(color: Colors.white)),
+    );
+  }
+}
+
+// No global key needed; we use the bottom sheet context to pop

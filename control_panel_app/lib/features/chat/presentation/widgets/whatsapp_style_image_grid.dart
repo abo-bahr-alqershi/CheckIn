@@ -10,12 +10,17 @@ class WhatsAppStyleImageGrid extends StatelessWidget {
   final List<Attachment> images;
   final bool isMe;
   final VoidCallback? onTap;
+  // Optional callbacks to propagate actions to parent (message-level)
+  final Function(String)? onReaction;
+  final VoidCallback? onReply;
 
   const WhatsAppStyleImageGrid({
     super.key,
     required this.images,
     required this.isMe,
     this.onTap,
+    this.onReaction,
+    this.onReply,
   });
 
   @override
@@ -49,12 +54,13 @@ class WhatsAppStyleImageGrid extends StatelessWidget {
   }
 
   Widget _buildSingleImage(Attachment image) {
+    // Keep a visually pleasant default ratio, but remove extra container to avoid inner margins.
     return AspectRatio(
       aspectRatio: 4 / 3,
       child: CachedImageWidget(
         imageUrl: image.fileUrl,
         fit: BoxFit.cover,
-        removeContainer: true, // إضافة هذا
+        removeContainer: true,
       ),
     );
   }
@@ -211,18 +217,17 @@ class WhatsAppStyleImageGrid extends StatelessWidget {
     return GestureDetector(
       onTap: () {
         HapticFeedback.lightImpact();
-        _openImageViewer(null, index);
+        _openImageViewer(context, index);
       },
       child: CachedImageWidget(
         imageUrl: image.fileUrl,
         fit: BoxFit.cover,
-        removeContainer: true, // إضافة هذا
+        removeContainer: true,
       ),
     );
   }
 
-  void _openImageViewer(BuildContext? context, int initialIndex) {
-    if (context == null) return;
+  void _openImageViewer(BuildContext context, int initialIndex) {
 
     Navigator.push(
       context,
@@ -231,6 +236,8 @@ class WhatsAppStyleImageGrid extends StatelessWidget {
             ExpandableImageViewer(
           images: images,
           initialIndex: initialIndex,
+          onReaction: onReaction,
+          onReply: onReply,
         ),
         transitionDuration: const Duration(milliseconds: 300),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
