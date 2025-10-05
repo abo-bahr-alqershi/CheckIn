@@ -729,6 +729,11 @@ class _MessageInputWidgetState extends State<MessageInputWidget>
               conversationId: widget.conversationId,
               filePath: filePath,
               messageType: 'image',
+              // pass reply context to ensure exact reply preview mapping
+              replyToMessageId: widget.replyToMessageId,
+              replyToAttachmentId: (images.length == 1)
+                  ? 'inline_${tempMessageId}_$i' // ephemeral id for single capture; not used if actual attachment id exists
+                  : null,
               onProgress: (sent, total) {
                 final t = total > 0 ? total : images[i].lengthSync();
                 final p = t > 0 ? sent / t : 0.0;
