@@ -209,7 +209,10 @@ class _ImageMessageBubbleState extends State<ImageMessageBubble>
                 images: widget.message.attachments,
                 isMe: widget.isMe,
                 onReaction: widget.onReaction,
-                onReply: widget.onReply,
+                onReply: (attachment) {
+                  // Forward to parent; ChatPage will set specific attachment if needed via onReply
+                  widget.onReply?.call();
+                },
               ),
             ),
           ),

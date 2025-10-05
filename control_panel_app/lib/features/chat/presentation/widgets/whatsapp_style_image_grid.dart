@@ -11,7 +11,7 @@ class WhatsAppStyleImageGrid extends StatelessWidget {
   final VoidCallback? onTap;
   // Optional callbacks to propagate actions to parent (message-level)
   final Function(String)? onReaction;
-  final VoidCallback? onReply;
+  final void Function(Attachment)? onReply;
 
   const WhatsAppStyleImageGrid({
     super.key,
