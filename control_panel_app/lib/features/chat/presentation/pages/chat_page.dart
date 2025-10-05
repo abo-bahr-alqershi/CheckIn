@@ -718,7 +718,13 @@ class _ChatPageState extends State<ChatPage>
       return ImageMessageBubble(
         message: message,
         isMe: isMe,
-        onReply: () => _setReplyTo(message),
+        onReply: (attachment) {
+          setState(() {
+            _replyToMessageId = message.id;
+            _replyToAttachment = attachment;
+          });
+          _messageFocusNode.requestFocus();
+        },
         onReaction: (reactionType) =>
             _addReaction(message, reactionType, userId),
       );

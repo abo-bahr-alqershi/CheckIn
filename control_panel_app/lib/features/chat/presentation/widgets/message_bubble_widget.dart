@@ -10,6 +10,7 @@ import 'attachment_preview_widget.dart';
 import 'message_status_indicator.dart';
 import 'reaction_picker_widget.dart';
 import '../bloc/chat_bloc.dart';
+import '../bloc/chat_state.dart';
 
 class MessageBubbleWidget extends StatefulWidget {
   final Message message;
@@ -296,8 +297,7 @@ class _MessageBubbleWidgetState extends State<MessageBubbleWidget>
     final chatState = context.read<ChatBloc>().state;
     if (chatState is! ChatLoaded) return null;
     final List<Message> messages =
-        (chatState.messages[widget.message.conversationId] ?? [])
-            .cast<Message>();
+        (chatState.messages[widget.message.conversationId] ?? []).cast<Message>();
     for (final m in messages) {
       if (m.id == replyId) return m;
     }
@@ -305,38 +305,33 @@ class _MessageBubbleWidgetState extends State<MessageBubbleWidget>
   }
 
   Widget _buildReplyPreviewContent(Message replyMessage) {
+    // Prefer showing a single representative thumbnail
     if (replyMessage.attachments.isNotEmpty) {
-      final images = replyMessage.attachments.where((a) => a.isImage).toList();
-      final videos = replyMessage.attachments.where((a) => a.isVideo).toList();
-      if (images.isNotEmpty) {
-        final display = images.take(3).toList();
-        final remaining = images.length - display.length;
+      // Try to find an image-like attachment (contentType or heuristics)
+      final image = replyMessage.attachments.firstWhere(
+        (a) => _isImageLikeAttachment(a),
+        orElse: () => replyMessage.attachments.first,
+      );
+
+      if (_isImageLikeAttachment(image)) {
+        final url = image.thumbnailUrl ?? image.fileUrl;
         return SizedBox(
           height: 32,
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              for (int i = 0; i < display.length; i++) ...[
-                _buildMiniThumb(
-                  display[i].fileUrl,
-                  overlayText: (i == display.length - 1 && remaining > 0)
-                      ? '+$remaining'
-                      : null,
-                ),
-                if (i < display.length - 1) const SizedBox(width: 4),
-              ],
+              _buildMiniThumb(url),
             ],
           ),
         );
       }
-      if (videos.isNotEmpty) {
+
+      // Video-like: show its thumbnail or first frame indicator
+      if (_isVideoLikeAttachment(image)) {
         return Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _buildMiniThumb(
-              videos.first.thumbnailUrl ?? videos.first.fileUrl,
-              icon: Icons.videocam_rounded,
-            ),
+            _buildMiniThumb(image.thumbnailUrl ?? image.fileUrl, icon: Icons.videocam_rounded),
             const SizedBox(width: 6),
             Text(
               'فيديو',
@@ -350,6 +345,8 @@ class _MessageBubbleWidgetState extends State<MessageBubbleWidget>
           ],
         );
       }
+
+      // Fallback generic attachment
       return Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -389,10 +386,8 @@ class _MessageBubbleWidgetState extends State<MessageBubbleWidget>
       );
     }
 
-    final isHttp =
-        content.startsWith('http://') || content.startsWith('https://');
-    final isRelative = content.startsWith('/');
-    if (isHttp || isRelative) {
+    // If content looks like an image link, show its thumbnail
+    if (_looksLikeImage(content)) {
       return Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -411,6 +406,7 @@ class _MessageBubbleWidgetState extends State<MessageBubbleWidget>
       );
     }
 
+    // Else show trimmed text
     return Text(
       content,
       style: AppTextStyles.caption.copyWith(
@@ -422,6 +418,32 @@ class _MessageBubbleWidgetState extends State<MessageBubbleWidget>
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
     );
+  }
+
+  bool _isImageLikeAttachment(Attachment a) {
+    if (a.isImage) return true;
+    return _looksLikeImage(a.fileUrl) || _looksLikeImage(a.url) || _looksLikeImage(a.fileName) ||
+        (a.thumbnailUrl != null && _looksLikeImage(a.thumbnailUrl!));
+  }
+
+  bool _isVideoLikeAttachment(Attachment a) {
+    if (a.isVideo) return true;
+    return _looksLikeVideo(a.fileUrl) || _looksLikeVideo(a.url) || _looksLikeVideo(a.fileName);
+  }
+
+  bool _looksLikeImage(String? s) {
+    if (s == null || s.trim().isEmpty) return false;
+    final lower = s.toLowerCase();
+    return lower.endsWith('.jpg') || lower.endsWith('.jpeg') || lower.endsWith('.png') ||
+        lower.endsWith('.webp') || lower.endsWith('.gif') || lower.contains('/images/') ||
+        lower.contains('/image/') || lower.contains('mime=image');
+  }
+
+  bool _looksLikeVideo(String? s) {
+    if (s == null || s.trim().isEmpty) return false;
+    final lower = s.toLowerCase();
+    return lower.endsWith('.mp4') || lower.endsWith('.mov') || lower.endsWith('.mkv') ||
+        lower.endsWith('.webm') || lower.endsWith('.avi');
   }
 
   Widget _buildMiniThumb(String url, {IconData? icon, String? overlayText}) {
