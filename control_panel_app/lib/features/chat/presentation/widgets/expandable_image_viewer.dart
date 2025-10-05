@@ -128,12 +128,12 @@ class _ImageViewerOptionsSheet extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              _reactionChip('👍', 'like', onReact),
-              _reactionChip('❤️', 'love', onReact),
-              _reactionChip('😂', 'laugh', onReact),
-              _reactionChip('😮', 'wow', onReact),
-              _reactionChip('😢', 'sad', onReact),
-              _reactionChip('😠', 'angry', onReact),
+        _reactionChip(context, '👍', 'like', onReact),
+        _reactionChip(context, '❤️', 'love', onReact),
+        _reactionChip(context, '😂', 'laugh', onReact),
+        _reactionChip(context, '😮', 'wow', onReact),
+        _reactionChip(context, '😢', 'sad', onReact),
+        _reactionChip(context, '😠', 'angry', onReact),
             ],
           ),
           const SizedBox(height: 12),
@@ -166,7 +166,12 @@ class _ImageViewerOptionsSheet extends StatelessWidget {
     );
   }
 
-  Widget _reactionChip(String emoji, String type, void Function(String) onReact) {
+  Widget _reactionChip(
+    BuildContext context,
+    String emoji,
+    String type,
+    void Function(String) onReact,
+  ) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 6),
       child: GestureDetector(

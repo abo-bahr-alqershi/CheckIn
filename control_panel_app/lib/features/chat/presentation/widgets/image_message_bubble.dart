@@ -556,9 +556,7 @@ class _ImageMessageBubbleState extends State<ImageMessageBubble>
     // احسب متوسط التقدم الحقيقي عبر جميع الصور
     final totalProgress = images.isEmpty
         ? 0.0
-        : images
-                .map((img) => img.progress)
-                .fold<double>(0.0, (a, b) => a + b) /
+        : images.map((img) => img.progress).fold<double>(0.0, (a, b) => a + b) /
             images.length;
 
     final uploadingCount =

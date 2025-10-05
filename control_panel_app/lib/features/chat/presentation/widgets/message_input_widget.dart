@@ -127,7 +127,8 @@ class _MessageInputWidgetState extends State<MessageInputWidget>
         // Update all current uploads for this conversation with same displayed progress
         final state = bloc.state;
         if (state is ChatLoaded) {
-          final currentUploads = state.uploadingImages[widget.conversationId] ?? const <ImageUploadInfo>[];
+          final currentUploads = state.uploadingImages[widget.conversationId] ??
+              const <ImageUploadInfo>[];
           for (final u in currentUploads) {
             bloc.add(UpdateImageUploadProgressEvent(
               conversationId: widget.conversationId,
@@ -709,9 +710,8 @@ class _MessageInputWidgetState extends State<MessageInputWidget>
 
     try {
       // Compute precise overall bytes across all images
-      final totalBytes = images
-          .map((f) => f.lengthSync())
-          .fold<int>(0, (a, b) => a + b);
+      final totalBytes =
+          images.map((f) => f.lengthSync()).fold<int>(0, (a, b) => a + b);
 
       int uploadedBytesSoFar = 0;
 
@@ -732,9 +732,8 @@ class _MessageInputWidgetState extends State<MessageInputWidget>
             }
           }
 
-          final overallProgress = totalBytes > 0
-              ? uploadedBytesSoFar / totalBytes
-              : 0.0;
+          final overallProgress =
+              totalBytes > 0 ? uploadedBytesSoFar / totalBytes : 0.0;
 
           // Update target progress for smooth animation
           _updateTargetProgress(overallProgress);
