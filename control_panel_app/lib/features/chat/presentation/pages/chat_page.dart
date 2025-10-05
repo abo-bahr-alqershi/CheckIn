@@ -1007,12 +1007,13 @@ class _ChatPageState extends State<ChatPage>
             mainAxisSize: MainAxisSize.min,
             children: [
               for (int i = 0; i < display.length; i++) ...[
-                _buildMiniThumb(display[i].fileUrl),
+                _buildMiniThumb(
+                  display[i].fileUrl,
+                  overlayText: (i == display.length - 1 && remaining > 0)
+                      ? '+$remaining'
+                      : null,
+                ),
                 if (i < display.length - 1) const SizedBox(width: 4),
-              ],
-              if (remaining > 0) ...[
-                const SizedBox(width: 6),
-                _buildMoreBadge(remaining),
               ],
             ],
           ),
@@ -1098,7 +1099,7 @@ class _ChatPageState extends State<ChatPage>
     );
   }
 
-  Widget _buildMiniThumb(String url, {IconData? icon}) {
+  Widget _buildMiniThumb(String url, {IconData? icon, String? overlayText}) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(6),
       child: Stack(
@@ -1117,6 +1118,21 @@ class _ChatPageState extends State<ChatPage>
               child: Container(
                 color: Colors.black.withValues(alpha: 0.25),
                 child: Icon(icon, size: 16, color: Colors.white),
+              ),
+            ),
+          if (overlayText != null)
+            Positioned.fill(
+              child: Container(
+                color: Colors.black.withValues(alpha: 0.35),
+                alignment: Alignment.center,
+                child: Text(
+                  overlayText,
+                  style: AppTextStyles.caption.copyWith(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
               ),
             ),
         ],
