@@ -136,7 +136,8 @@ class _ImageMessageBubbleState extends State<ImageMessageBubble>
     // حساب العرض المناسب بناءً على عدد الصور
     double bubbleWidth;
     if (images.length == 1) {
-      bubbleWidth = maxWidth * 0.85;
+      // اجعل عرض الفقاعة مكافئًا للبقية لإزالة أي هوامش زائدة
+      bubbleWidth = maxWidth;
     } else if (images.length == 2) {
       bubbleWidth = maxWidth;
     } else {
@@ -176,14 +177,15 @@ class _ImageMessageBubbleState extends State<ImageMessageBubble>
     // حساب العرض المناسب بناءً على عدد المرفقات
     double bubbleWidth;
     if (widget.message.attachments.length == 1) {
-      bubbleWidth = maxWidth * 0.85;
+      // توحيد العرض مع تخطيطات الصور المتعددة لتجنب أي حواف داخلية
+      bubbleWidth = maxWidth;
     } else if (widget.message.attachments.length == 2) {
       bubbleWidth = maxWidth;
     } else {
       bubbleWidth = maxWidth;
     }
 
-    return Container(
+    final bubble = Container(
       width: bubbleWidth,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
@@ -198,9 +200,15 @@ class _ImageMessageBubbleState extends State<ImageMessageBubble>
         children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(12),
-            child: WhatsAppStyleImageGrid(
-              images: widget.message.attachments,
-              isMe: widget.isMe,
+            child: GestureDetector(
+              onLongPress: _showOptions,
+              onDoubleTap: _handleDoubleTap,
+              child: WhatsAppStyleImageGrid(
+                images: widget.message.attachments,
+                isMe: widget.isMe,
+                onReaction: widget.onReaction,
+                onReply: widget.onReply,
+              ),
             ),
           ),
 
@@ -213,12 +221,28 @@ class _ImageMessageBubbleState extends State<ImageMessageBubble>
         ],
       ),
     );
+
+    // عرض تفاعلات الرسالة أسفل الفقاعة (إن وجدت)
+    if (widget.message.reactions.isNotEmpty) {
+      return Column(
+        crossAxisAlignment:
+            widget.isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          bubble,
+          const SizedBox(height: 4),
+          _buildMinimalReactions(),
+        ],
+      );
+    }
+
+    return bubble;
   }
 
   Widget _buildSingleContentImage(String url) {
     final screenWidth = MediaQuery.of(context).size.width;
     final maxWidth = screenWidth * 0.65;
-    final bubbleWidth = maxWidth * 0.85;
+    final bubbleWidth = maxWidth;
 
     return Container(
       width: bubbleWidth,
@@ -241,6 +265,7 @@ class _ImageMessageBubbleState extends State<ImageMessageBubble>
               CachedImageWidget(
                 imageUrl: url,
                 fit: BoxFit.cover,
+                removeContainer: true,
               ),
               Positioned(
                 bottom: 4,
@@ -528,9 +553,13 @@ class _ImageMessageBubbleState extends State<ImageMessageBubble>
   }
 
   Widget _buildProgressOverlay(List<ImageUploadInfo> images) {
-    // Since all images now share the same overall progress value (0-1),
-    // we can use any image's progress (they're all the same)
-    final totalProgress = images.isEmpty ? 0.0 : images.first.progress;
+    // احسب متوسط التقدم الحقيقي عبر جميع الصور
+    final totalProgress = images.isEmpty
+        ? 0.0
+        : images
+                .map((img) => img.progress)
+                .fold<double>(0.0, (a, b) => a + b) /
+            images.length;
 
     final uploadingCount =
         images.where((img) => !img.isCompleted && !img.isFailed).length;
@@ -663,7 +692,16 @@ class _ImageMessageBubbleState extends State<ImageMessageBubble>
 
   void _showOptions() {
     HapticFeedback.lightImpact();
-    // عرض خيارات الرسالة
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return _ImageMessageOptionsSheet(
+          isMe: widget.isMe,
+          onReply: widget.onReply,
+        );
+      },
+    );
   }
 
   void _handleDoubleTap() {
@@ -721,5 +759,211 @@ class _ImageMessageBubbleState extends State<ImageMessageBubble>
 
   String _formatTime(DateTime dateTime) {
     return '${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
+  }
+
+  Widget _buildMinimalReactions() {
+    final groupedReactions = <String, int>{};
+    for (final reaction in widget.message.reactions) {
+      groupedReactions[reaction.reactionType] =
+          (groupedReactions[reaction.reactionType] ?? 0) + 1;
+    }
+
+    return Wrap(
+      spacing: 2,
+      runSpacing: 2,
+      children: groupedReactions.entries.map((entry) {
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                AppTheme.darkCard.withValues(alpha: 0.5),
+                AppTheme.darkCard.withValues(alpha: 0.3),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: AppTheme.darkBorder.withValues(alpha: 0.15),
+              width: 0.5,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(_getEmojiForReaction(entry.key),
+                  style: const TextStyle(fontSize: 10)),
+              if (entry.value > 1) ...[
+                const SizedBox(width: 2),
+                Text(
+                  entry.value.toString(),
+                  style: AppTextStyles.caption.copyWith(
+                    fontSize: 8,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.textWhite.withValues(alpha: 0.6),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  String _getEmojiForReaction(String reactionType) {
+    switch (reactionType) {
+      case 'like':
+        return '👍';
+      case 'love':
+        return '❤️';
+      case 'laugh':
+        return '😂';
+      case 'sad':
+        return '😢';
+      case 'angry':
+        return '😠';
+      case 'wow':
+        return '😮';
+      default:
+        return '👍';
+    }
+  }
+}
+
+class _ImageMessageOptionsSheet extends StatelessWidget {
+  final bool isMe;
+  final VoidCallback? onReply;
+
+  const _ImageMessageOptionsSheet({required this.isMe, this.onReply});
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                AppTheme.darkCard.withValues(alpha: 0.85),
+                AppTheme.darkCard.withValues(alpha: 0.9),
+              ],
+            ),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+            border: Border.all(
+              color: AppTheme.darkBorder.withValues(alpha: 0.08),
+              width: 0.5,
+            ),
+          ),
+          child: SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 28,
+                  height: 3,
+                  margin: const EdgeInsets.symmetric(vertical: 8),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        AppTheme.darkBorder.withValues(alpha: 0.2),
+                        AppTheme.darkBorder.withValues(alpha: 0.08),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(1.5),
+                  ),
+                ),
+                if (onReply != null)
+                  _buildOption(
+                    context,
+                    icon: Icons.reply_rounded,
+                    title: 'رد',
+                    onTap: () {
+                      Navigator.pop(context);
+                      onReply!.call();
+                    },
+                  ),
+                _buildOption(
+                  context,
+                  icon: Icons.download_rounded,
+                  title: 'حفظ الصورة',
+                  onTap: () {
+                    Navigator.pop(context);
+                  },
+                ),
+                if (isMe)
+                  _buildOption(
+                    context,
+                    icon: Icons.delete_rounded,
+                    title: 'حذف',
+                    onTap: () {
+                      Navigator.pop(context);
+                    },
+                    isDestructive: true,
+                  ),
+                const SizedBox(height: 6),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildOption(
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
+    bool isDestructive = false,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        child: Row(
+          children: [
+            Container(
+              width: 28,
+              height: 28,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: isDestructive
+                      ? [
+                          AppTheme.error.withValues(alpha: 0.12),
+                          AppTheme.error.withValues(alpha: 0.06),
+                        ]
+                      : [
+                          AppTheme.primaryBlue.withValues(alpha: 0.08),
+                          AppTheme.primaryPurple.withValues(alpha: 0.04),
+                        ],
+                ),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Icon(
+                icon,
+                color: isDestructive
+                    ? AppTheme.error.withValues(alpha: 0.8)
+                    : AppTheme.primaryBlue.withValues(alpha: 0.8),
+                size: 16,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Text(
+              title,
+              style: AppTextStyles.bodyMedium.copyWith(
+                color: isDestructive
+                    ? AppTheme.error.withValues(alpha: 0.8)
+                    : AppTheme.textWhite.withValues(alpha: 0.8),
+                fontSize: 13,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

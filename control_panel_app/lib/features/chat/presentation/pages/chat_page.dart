@@ -718,6 +718,7 @@ class _ChatPageState extends State<ChatPage>
         onReply: () => _setReplyTo(message),
         onReaction: (reactionType) =>
             _addReaction(message, reactionType, userId),
+        // enable reply/reaction propagation in viewer/grid
       );
     }
 

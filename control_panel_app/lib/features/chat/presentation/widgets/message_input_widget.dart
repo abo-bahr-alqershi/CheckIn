@@ -57,7 +57,7 @@ class _MessageInputWidgetState extends State<MessageInputWidget>
   bool _showAttachmentOptions = false;
   String _recordingPath = '';
 
-  // Smooth progress tracking
+  // Smooth progress tracking (UI-only) — kept minimal and driven by true bytes progress
   Timer? _progressTimer;
   double _currentDisplayedProgress = 0.0;
   double _targetProgress = 0.0;
@@ -108,10 +108,11 @@ class _MessageInputWidgetState extends State<MessageInputWidget>
         return;
       }
 
-      // Smoothly interpolate towards target progress
+      // Smoothly interpolate towards target progress using easing towards target
       if (_currentDisplayedProgress < _targetProgress) {
-        // Increment by 1% every 50ms for smooth animation
-        _currentDisplayedProgress += 0.01;
+        // Move 10% of remaining gap per tick for responsive smoothing
+        final gap = _targetProgress - _currentDisplayedProgress;
+        _currentDisplayedProgress += gap * 0.1;
         if (_currentDisplayedProgress > _targetProgress) {
           _currentDisplayedProgress = _targetProgress;
         }
@@ -123,15 +124,17 @@ class _MessageInputWidgetState extends State<MessageInputWidget>
         final baseId =
             _currentUploadId!.substring(0, _currentUploadId!.lastIndexOf('_'));
 
-        // We don't know exact count, so update first 10 possible IDs
-        // (actual count will be filtered by bloc state)
-        for (int i = 0; i < 10; i++) {
-          final uploadId = '${baseId}_$i';
-          bloc.add(UpdateImageUploadProgressEvent(
-            conversationId: widget.conversationId,
-            uploadId: uploadId,
-            progress: _currentDisplayedProgress,
-          ));
+        // Update all current uploads for this conversation with same displayed progress
+        final state = bloc.state;
+        if (state is ChatLoaded) {
+          final currentUploads = state.uploadingImages[widget.conversationId] ?? const <ImageUploadInfo>[];
+          for (final u in currentUploads) {
+            bloc.add(UpdateImageUploadProgressEvent(
+              conversationId: widget.conversationId,
+              uploadId: u.id,
+              progress: _currentDisplayedProgress,
+            ));
+          }
         }
       }
 
@@ -688,7 +691,7 @@ class _MessageInputWidgetState extends State<MessageInputWidget>
           uploads: uploadInfos,
         ));
 
-    // بدء رفع الصور بالتتابع مع تقدم
+    // بدء رفع الصور بالتتابع مع تقدم حقيقي بالبايتات
     _uploadImagesWithProgress(images, tempMessageId, uploadInfos);
   }
 
@@ -705,22 +708,54 @@ class _MessageInputWidgetState extends State<MessageInputWidget>
     _startSmoothProgress('${tempMessageId}_0');
 
     try {
+      // Compute precise overall bytes across all images
+      final totalBytes = images
+          .map((f) => f.lengthSync())
+          .fold<int>(0, (a, b) => a + b);
+
+      int uploadedBytesSoFar = 0;
+
       await bloc.uploadImagesAndSendSingleMessage(
         conversationId: widget.conversationId,
         filePaths: filePaths,
         onProgress: (index, sent, total) {
-          // Calculate overall progress considering all images
-          final currentImageProgress = total > 0 ? sent / total : 0.0;
+          // Estimate bytes uploaded so far across completed previous files
+          uploadedBytesSoFar = 0;
+          for (int i = 0; i < images.length; i++) {
+            if (i < index) {
+              uploadedBytesSoFar += images[i].lengthSync();
+            } else if (i == index) {
+              // current file fractional progress
+              final currentTotal = total > 0 ? total : images[i].lengthSync();
+              final currentSent = sent.clamp(0, currentTotal);
+              uploadedBytesSoFar += currentSent;
+            }
+          }
 
-          // Each image contributes 1/totalImages to the overall progress
-          // For example with 3 images:
-          // Image 0 at 50%: (0 + 0.5) / 3 = 0.167 = 16.7%
-          // Image 1 at 30%: (1 + 0.3) / 3 = 0.433 = 43.3%
-          // Image 2 at 70%: (2 + 0.7) / 3 = 0.9 = 90%
-          final overallProgress = (index + currentImageProgress) / totalImages;
+          final overallProgress = totalBytes > 0
+              ? uploadedBytesSoFar / totalBytes
+              : 0.0;
 
           // Update target progress for smooth animation
           _updateTargetProgress(overallProgress);
+
+          // Also update each image's per-item progress precisely
+          for (int i = 0; i < uploadInfos.length; i++) {
+            double p;
+            if (i < index) {
+              p = 1.0;
+            } else if (i == index) {
+              final t = total > 0 ? total : images[i].lengthSync();
+              p = t > 0 ? sent / t : 0.0;
+            } else {
+              p = 0.0;
+            }
+            bloc.add(UpdateImageUploadProgressEvent(
+              conversationId: widget.conversationId,
+              uploadId: uploadInfos[i].id,
+              progress: p,
+            ));
+          }
         },
       );
 
