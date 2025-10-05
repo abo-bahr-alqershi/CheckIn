@@ -710,7 +710,9 @@ class _ImageMessageBubbleState extends State<ImageMessageBubble>
       builder: (context) {
         return _ImageMessageOptionsSheet(
           isMe: widget.isMe,
-          onReply: widget.onReply,
+          onReply: widget.onReply == null || widget.message.attachments.isEmpty
+              ? null
+              : () => widget.onReply!(widget.message.attachments.first),
         );
       },
     );

@@ -6,11 +6,11 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/widgets/cached_image_widget.dart';
 import '../../domain/entities/message.dart';
+import '../../domain/entities/attachment.dart';
 import 'attachment_preview_widget.dart';
 import 'message_status_indicator.dart';
 import 'reaction_picker_widget.dart';
 import '../bloc/chat_bloc.dart';
-import '../bloc/chat_state.dart';
 
 class MessageBubbleWidget extends StatefulWidget {
   final Message message;
