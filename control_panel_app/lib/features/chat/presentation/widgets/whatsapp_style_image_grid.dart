@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/widgets/cached_image_widget.dart';
 import '../../domain/entities/attachment.dart';
@@ -214,21 +213,22 @@ class WhatsAppStyleImageGrid extends StatelessWidget {
   }
 
   Widget _buildImageTile(Attachment image, int index) {
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.lightImpact();
-        _openImageViewer(context, index);
-      },
-      child: CachedImageWidget(
-        imageUrl: image.fileUrl,
-        fit: BoxFit.cover,
-        removeContainer: true,
+    return Builder(
+      builder: (context) => GestureDetector(
+        onTap: () {
+          HapticFeedback.lightImpact();
+          _openImageViewer(context, index);
+        },
+        child: CachedImageWidget(
+          imageUrl: image.fileUrl,
+          fit: BoxFit.cover,
+          removeContainer: true,
+        ),
       ),
     );
   }
 
   void _openImageViewer(BuildContext context, int initialIndex) {
-
     Navigator.push(
       context,
       PageRouteBuilder(

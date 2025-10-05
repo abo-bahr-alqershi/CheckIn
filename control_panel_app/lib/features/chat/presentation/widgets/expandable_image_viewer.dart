@@ -54,21 +54,21 @@ class _ExpandableImageViewerState extends State<ExpandableImageViewer> {
               _showImageOptions();
             },
             child: PhotoViewGallery.builder(
-            pageController: _pageController,
-            itemCount: widget.images.length,
-            onPageChanged: (index) => setState(() => _currentIndex = index),
-            builder: (context, index) {
-              final image = widget.images[index];
-              return PhotoViewGalleryPageOptions(
-                imageProvider: NetworkImage(image.fileUrl),
-                minScale: PhotoViewComputedScale.contained,
-                maxScale: PhotoViewComputedScale.covered * 3.0,
-                heroAttributes: PhotoViewHeroAttributes(tag: image.id),
-              );
-            },
-            loadingBuilder: (context, event) => const Center(
-              child: CircularProgressIndicator(strokeWidth: 2),
-            ),
+              pageController: _pageController,
+              itemCount: widget.images.length,
+              onPageChanged: (index) => setState(() => _currentIndex = index),
+              builder: (context, index) {
+                final image = widget.images[index];
+                return PhotoViewGalleryPageOptions(
+                  imageProvider: NetworkImage(image.fileUrl),
+                  minScale: PhotoViewComputedScale.contained,
+                  maxScale: PhotoViewComputedScale.covered * 3.0,
+                  heroAttributes: PhotoViewHeroAttributes(tag: image.id),
+                );
+              },
+              loadingBuilder: (context, event) => const Center(
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
               backgroundDecoration: const BoxDecoration(color: Colors.black),
             ),
           ),
@@ -128,12 +128,12 @@ class _ImageViewerOptionsSheet extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-        _reactionChip(context, '👍', 'like', onReact),
-        _reactionChip(context, '❤️', 'love', onReact),
-        _reactionChip(context, '😂', 'laugh', onReact),
-        _reactionChip(context, '😮', 'wow', onReact),
-        _reactionChip(context, '😢', 'sad', onReact),
-        _reactionChip(context, '😠', 'angry', onReact),
+              _reactionChip(context, '👍', 'like', onReact),
+              _reactionChip(context, '❤️', 'love', onReact),
+              _reactionChip(context, '😂', 'laugh', onReact),
+              _reactionChip(context, '😮', 'wow', onReact),
+              _reactionChip(context, '😢', 'sad', onReact),
+              _reactionChip(context, '😠', 'angry', onReact),
             ],
           ),
           const SizedBox(height: 12),
