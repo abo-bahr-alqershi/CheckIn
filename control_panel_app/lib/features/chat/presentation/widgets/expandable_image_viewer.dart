@@ -9,7 +9,7 @@ class ExpandableImageViewer extends StatefulWidget {
   final List<Attachment> images;
   final int initialIndex;
   final Function(String)? onReaction;
-  final VoidCallback? onReply;
+  final void Function(Attachment)? onReply;
 
   const ExpandableImageViewer({
     super.key,
@@ -115,6 +115,7 @@ class _ExpandableImageViewerState extends State<ExpandableImageViewer> {
           onReact: (type) => widget.onReaction?.call(type),
           onReply: widget.onReply,
           parentNavigatorContext: context,
+          currentAttachment: widget.images[_currentIndex],
         );
       },
     );
@@ -123,12 +124,14 @@ class _ExpandableImageViewerState extends State<ExpandableImageViewer> {
 
 class _ImageViewerOptionsSheet extends StatelessWidget {
   final void Function(String) onReact;
-  final VoidCallback? onReply;
+  final void Function(Attachment)? onReply;
   final BuildContext parentNavigatorContext;
+  final Attachment currentAttachment;
   const _ImageViewerOptionsSheet({
     required this.onReact,
     this.onReply,
     required this.parentNavigatorContext,
+    required this.currentAttachment,
   });
 
   @override
@@ -165,7 +168,7 @@ class _ImageViewerOptionsSheet extends StatelessWidget {
                     // Then close the viewer page
                     Navigator.pop(parentNavigatorContext);
                     // Finally notify parent to set reply and focus input
-                    onReply!();
+                    onReply!(currentAttachment);
                   }),
                 _actionTile(context, Icons.download_rounded, 'حفظ', () {
                   Navigator.pop(context);

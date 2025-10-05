@@ -63,6 +63,7 @@ class _ChatPageState extends State<ChatPage>
   bool _isTyping = false;
   bool _showScrollToBottom = false;
   String? _replyToMessageId;
+  Attachment? _replyToAttachment;
   Message? _editingMessage;
 
   String? _currentUserId; // سيتم ملؤه من AuthBloc
@@ -720,7 +721,6 @@ class _ChatPageState extends State<ChatPage>
         onReply: () => _setReplyTo(message),
         onReaction: (reactionType) =>
             _addReaction(message, reactionType, userId),
-        // enable reply/reaction propagation in viewer/grid
       );
     }
 
@@ -873,6 +873,7 @@ class _ChatPageState extends State<ChatPage>
           onCancelReply: () {
             setState(() {
               _replyToMessageId = null;
+              _replyToAttachment = null;
             });
           },
           onCancelEdit: () {
@@ -962,10 +963,11 @@ class _ChatPageState extends State<ChatPage>
                   ),
                   const SizedBox(width: 8),
                   GestureDetector(
-                    onTap: () {
+                onTap: () {
                       HapticFeedback.lightImpact();
                       setState(() {
-                        _replyToMessageId = null;
+                    _replyToMessageId = null;
+                    _replyToAttachment = null;
                       });
                     },
                     child: Container(
@@ -996,25 +998,27 @@ class _ChatPageState extends State<ChatPage>
   }
 
   Widget _buildReplyPreviewContent(Message replyMessage) {
+    if (_replyToAttachment != null) {
+      final url = _replyToAttachment!.thumbnailUrl ?? _replyToAttachment!.fileUrl;
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _buildMiniThumb(url),
+        ],
+      );
+    }
     if (replyMessage.attachments.isNotEmpty) {
       // If the replied message is of type image, treat all its attachments as images
       if (replyMessage.messageType == 'image') {
-        final display = replyMessage.attachments.take(3).toList();
-        final remaining = replyMessage.attachments.length - display.length;
+        // Fallback when no specific attachment selected: show first image only
+        final first = replyMessage.attachments.first;
+        final url = first.thumbnailUrl ?? first.fileUrl;
         return SizedBox(
           height: 36,
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              for (int i = 0; i < display.length; i++) ...[
-                _buildMiniThumb(
-                  display[i].thumbnailUrl ?? display[i].fileUrl,
-                  overlayText: (i == display.length - 1 && remaining > 0)
-                      ? '+$remaining'
-                      : null,
-                ),
-                if (i < display.length - 1) const SizedBox(width: 4),
-              ],
+              _buildMiniThumb(url),
             ],
           ),
         );
