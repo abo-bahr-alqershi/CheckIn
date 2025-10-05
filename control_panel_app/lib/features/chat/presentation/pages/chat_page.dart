@@ -10,6 +10,7 @@ import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/widgets/cached_image_widget.dart';
 import '../../domain/entities/conversation.dart';
 import '../../domain/entities/message.dart';
+import '../../domain/entities/attachment.dart';
 import '../bloc/chat_bloc.dart';
 import '../widgets/message_bubble_widget.dart';
 import '../widgets/image_message_bubble.dart';
@@ -996,8 +997,35 @@ class _ChatPageState extends State<ChatPage>
 
   Widget _buildReplyPreviewContent(Message replyMessage) {
     if (replyMessage.attachments.isNotEmpty) {
-      final images = replyMessage.attachments.where((a) => a.isImage).toList();
-      final videos = replyMessage.attachments.where((a) => a.isVideo).toList();
+      // If the replied message is of type image, treat all its attachments as images
+      if (replyMessage.messageType == 'image') {
+        final display = replyMessage.attachments.take(3).toList();
+        final remaining = replyMessage.attachments.length - display.length;
+        return SizedBox(
+          height: 36,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (int i = 0; i < display.length; i++) ...[
+                _buildMiniThumb(
+                  display[i].thumbnailUrl ?? display[i].fileUrl,
+                  overlayText: (i == display.length - 1 && remaining > 0)
+                      ? '+$remaining'
+                      : null,
+                ),
+                if (i < display.length - 1) const SizedBox(width: 4),
+              ],
+            ],
+          ),
+        );
+      }
+
+      final images = replyMessage.attachments
+          .where((a) => _isImageLikeAttachment(a))
+          .toList();
+      final videos = replyMessage.attachments
+          .where((a) => _isVideoLikeAttachment(a))
+          .toList();
       if (images.isNotEmpty) {
         final display = images.take(3).toList();
         final remaining = images.length - display.length;
@@ -1069,9 +1097,8 @@ class _ChatPageState extends State<ChatPage>
       );
     }
 
-    final isHttp = content.startsWith('http://') || content.startsWith('https://');
-    final isRelative = content.startsWith('/');
-    if (isHttp || isRelative) {
+    final looksLikeImageLink = _looksLikeImage(content);
+    if (looksLikeImageLink) {
       return Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -1097,6 +1124,44 @@ class _ChatPageState extends State<ChatPage>
       maxLines: 2,
       overflow: TextOverflow.ellipsis,
     );
+  }
+
+  bool _isImageLikeAttachment(Attachment a) {
+    return a.isImage ||
+        _looksLikeImage(a.fileUrl) ||
+        _looksLikeImage(a.url) ||
+        _looksLikeImage(a.fileName) ||
+        (a.thumbnailUrl != null && _looksLikeImage(a.thumbnailUrl!));
+  }
+
+  bool _isVideoLikeAttachment(Attachment a) {
+    return a.isVideo ||
+        _looksLikeVideo(a.fileUrl) ||
+        _looksLikeVideo(a.url) ||
+        _looksLikeVideo(a.fileName);
+  }
+
+  bool _looksLikeImage(String? s) {
+    if (s == null || s.isEmpty) return false;
+    final lower = s.toLowerCase();
+    return lower.endsWith('.jpg') ||
+        lower.endsWith('.jpeg') ||
+        lower.endsWith('.png') ||
+        lower.endsWith('.webp') ||
+        lower.endsWith('.gif') ||
+        lower.contains('/images/') ||
+        lower.contains('/image/') ||
+        lower.contains('mime=image');
+  }
+
+  bool _looksLikeVideo(String? s) {
+    if (s == null || s.isEmpty) return false;
+    final lower = s.toLowerCase();
+    return lower.endsWith('.mp4') ||
+        lower.endsWith('.mov') ||
+        lower.endsWith('.mkv') ||
+        lower.endsWith('.webm') ||
+        lower.endsWith('.avi');
   }
 
   Widget _buildMiniThumb(String url, {IconData? icon, String? overlayText}) {
