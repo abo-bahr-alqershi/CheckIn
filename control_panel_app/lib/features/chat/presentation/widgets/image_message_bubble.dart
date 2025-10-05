@@ -41,6 +41,8 @@ class _ImageMessageBubbleState extends State<ImageMessageBubble>
   late Animation<double> _scaleAnimation;
   late Animation<double> _fadeAnimation;
   bool _showReactions = false;
+  // Keep ephemeral per-attachment reactions for overlay display in this bubble
+  final Map<String, String> _attachmentReactions = {};
 
   @override
   void initState() {
@@ -215,12 +217,14 @@ class _ImageMessageBubbleState extends State<ImageMessageBubble>
                     widget.onReply!(attachment);
                   }
                 },
-            reactionsByAttachment: const {},
-            onReactForAttachment: (attachment, reaction) {
-              // When reacting inside the viewer to a specific image, propagate as a message reaction.
-              // The backend supports reactions per message, not per attachment; UI overlay remains per attachment.
-              widget.onReaction?.call(reaction);
-            },
+                reactionsByAttachment: _attachmentReactions,
+                onReactForAttachment: (attachment, reaction) {
+                  setState(() {
+                    _attachmentReactions[attachment.id] = reaction;
+                  });
+                  // Backend is message-level; still propagate
+                  widget.onReaction?.call(reaction);
+                },
               ),
             ),
           ),
@@ -327,8 +331,11 @@ class _ImageMessageBubbleState extends State<ImageMessageBubble>
           initialIndex: 0,
           onReaction: widget.onReaction,
           onReply: widget.onReply,
-          initialReactionsByAttachment: const {},
+          initialReactionsByAttachment: _attachmentReactions,
           onReactForAttachment: (att, reaction) {
+            setState(() {
+              _attachmentReactions[att.id] = reaction;
+            });
             widget.onReaction?.call(reaction);
           },
         ),
