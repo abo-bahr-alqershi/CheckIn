@@ -11,6 +11,7 @@ import '../../domain/entities/attachment.dart';
 import '../models/image_upload_info.dart';
 import 'message_status_indicator.dart';
 import 'whatsapp_style_image_grid.dart';
+import 'expandable_image_viewer.dart';
 import '../bloc/chat_bloc.dart';
 import 'reaction_picker_widget.dart';
 
@@ -258,37 +259,73 @@ class _ImageMessageBubbleState extends State<ImageMessageBubble>
     final maxWidth = screenWidth * 0.65;
     final bubbleWidth = maxWidth;
 
-    return Container(
-      width: bubbleWidth,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: widget.isMe
-              ? AppTheme.primaryBlue.withValues(alpha: 0.1)
-              : AppTheme.darkBorder.withValues(alpha: 0.05),
-          width: 0.5,
-        ),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: AspectRatio(
-          aspectRatio: 4 / 3,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              CachedImageWidget(
-                imageUrl: url,
-                fit: BoxFit.cover,
-                removeContainer: true,
-              ),
-              Positioned(
-                bottom: 4,
-                right: 8,
-                child: _buildMessageFooter(),
-              ),
-            ],
+    return GestureDetector(
+      onTap: () => _openViewerForSingleContentImage(url),
+      onLongPress: () => _openViewerForSingleContentImage(url),
+      child: Container(
+        width: bubbleWidth,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: widget.isMe
+                ? AppTheme.primaryBlue.withValues(alpha: 0.1)
+                : AppTheme.darkBorder.withValues(alpha: 0.05),
+            width: 0.5,
           ),
         ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: AspectRatio(
+            aspectRatio: 4 / 3,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                CachedImageWidget(
+                  imageUrl: url,
+                  fit: BoxFit.cover,
+                  removeContainer: true,
+                ),
+                Positioned(
+                  bottom: 4,
+                  right: 8,
+                  child: _buildMessageFooter(),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _openViewerForSingleContentImage(String url) {
+    final attachment = Attachment(
+      id: 'inline_${widget.message.id}',
+      conversationId: widget.message.conversationId,
+      fileName: url.split('/').isNotEmpty ? url.split('/').last : 'image.jpg',
+      contentType: 'image/jpeg',
+      fileSize: 0,
+      filePath: '',
+      fileUrl: url,
+      url: url,
+      uploadedBy: widget.message.senderId,
+      createdAt: widget.message.createdAt,
+    );
+
+    Navigator.push(
+      context,
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            ExpandableImageViewer(
+          images: [attachment],
+          initialIndex: 0,
+          onReaction: widget.onReaction,
+          onReply: widget.onReply,
+        ),
+        transitionDuration: const Duration(milliseconds: 300),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return FadeTransition(opacity: animation, child: child);
+        },
       ),
     );
   }

@@ -297,7 +297,8 @@ class _MessageBubbleWidgetState extends State<MessageBubbleWidget>
     final chatState = context.read<ChatBloc>().state;
     if (chatState is! ChatLoaded) return null;
     final List<Message> messages =
-        (chatState.messages[widget.message.conversationId] ?? []).cast<Message>();
+        (chatState.messages[widget.message.conversationId] ?? [])
+            .cast<Message>();
     for (final m in messages) {
       if (m.id == replyId) return m;
     }
@@ -308,10 +309,14 @@ class _MessageBubbleWidgetState extends State<MessageBubbleWidget>
     // Prefer showing a single representative thumbnail
     if (replyMessage.attachments.isNotEmpty) {
       // Try to find an image-like attachment (contentType or heuristics)
-      final image = replyMessage.attachments.firstWhere(
-        (a) => _isImageLikeAttachment(a),
-        orElse: () => replyMessage.attachments.first,
-      );
+      Attachment? image;
+      for (final a in replyMessage.attachments) {
+        if (_isImageLikeAttachment(a)) {
+          image = a;
+          break;
+        }
+      }
+      image ??= replyMessage.attachments.first;
 
       if (_isImageLikeAttachment(image)) {
         final url = image.thumbnailUrl ?? image.fileUrl;
@@ -331,7 +336,8 @@ class _MessageBubbleWidgetState extends State<MessageBubbleWidget>
         return Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _buildMiniThumb(image.thumbnailUrl ?? image.fileUrl, icon: Icons.videocam_rounded),
+            _buildMiniThumb(image.thumbnailUrl ?? image.fileUrl,
+                icon: Icons.videocam_rounded),
             const SizedBox(width: 6),
             Text(
               'فيديو',
@@ -422,28 +428,40 @@ class _MessageBubbleWidgetState extends State<MessageBubbleWidget>
 
   bool _isImageLikeAttachment(Attachment a) {
     if (a.isImage) return true;
-    return _looksLikeImage(a.fileUrl) || _looksLikeImage(a.url) || _looksLikeImage(a.fileName) ||
+    return _looksLikeImage(a.fileUrl) ||
+        _looksLikeImage(a.url) ||
+        _looksLikeImage(a.fileName) ||
         (a.thumbnailUrl != null && _looksLikeImage(a.thumbnailUrl!));
   }
 
   bool _isVideoLikeAttachment(Attachment a) {
     if (a.isVideo) return true;
-    return _looksLikeVideo(a.fileUrl) || _looksLikeVideo(a.url) || _looksLikeVideo(a.fileName);
+    return _looksLikeVideo(a.fileUrl) ||
+        _looksLikeVideo(a.url) ||
+        _looksLikeVideo(a.fileName);
   }
 
   bool _looksLikeImage(String? s) {
     if (s == null || s.trim().isEmpty) return false;
     final lower = s.toLowerCase();
-    return lower.endsWith('.jpg') || lower.endsWith('.jpeg') || lower.endsWith('.png') ||
-        lower.endsWith('.webp') || lower.endsWith('.gif') || lower.contains('/images/') ||
-        lower.contains('/image/') || lower.contains('mime=image');
+    return lower.endsWith('.jpg') ||
+        lower.endsWith('.jpeg') ||
+        lower.endsWith('.png') ||
+        lower.endsWith('.webp') ||
+        lower.endsWith('.gif') ||
+        lower.contains('/images/') ||
+        lower.contains('/image/') ||
+        lower.contains('mime=image');
   }
 
   bool _looksLikeVideo(String? s) {
     if (s == null || s.trim().isEmpty) return false;
     final lower = s.toLowerCase();
-    return lower.endsWith('.mp4') || lower.endsWith('.mov') || lower.endsWith('.mkv') ||
-        lower.endsWith('.webm') || lower.endsWith('.avi');
+    return lower.endsWith('.mp4') ||
+        lower.endsWith('.mov') ||
+        lower.endsWith('.mkv') ||
+        lower.endsWith('.webm') ||
+        lower.endsWith('.avi');
   }
 
   Widget _buildMiniThumb(String url, {IconData? icon, String? overlayText}) {
