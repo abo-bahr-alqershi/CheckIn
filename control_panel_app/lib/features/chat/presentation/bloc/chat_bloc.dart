@@ -715,13 +715,16 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
 
     // If UI already initialized a batch via StartImageUploadsEvent, reuse the next pending item id
     final existingBatch = currentState.uploadingImages[event.conversationId];
-    final bool usingUiBatch = (existingBatch != null && existingBatch.isNotEmpty);
+    final bool usingUiBatch =
+        (existingBatch != null && existingBatch.isNotEmpty);
 
     // Choose effective upload id (reuse first pending task if exists)
     String effectiveUploadId;
     if (usingUiBatch) {
-      final pending = existingBatch!.firstWhere(
-        (t) => !(t.isCompleted == true || t.isFailed == true) && (t.progress < 1.0),
+      final pending = existingBatch.firstWhere(
+        (t) =>
+            !(t.isCompleted == true || t.isFailed == true) &&
+            (t.progress < 1.0),
         orElse: () => ImageUploadInfo(
           id: 'upload_${DateTime.now().microsecondsSinceEpoch}',
           file: File(event.filePath),
@@ -732,8 +735,10 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
       );
       // If we synthesized a fallback (no real pending), we should append it to list
       if (!existingBatch.any((t) => t.id == pending.id)) {
-        final cloned = Map<String, List<ImageUploadInfo>>.from(currentState.uploadingImages);
-        final appended = List<ImageUploadInfo>.from(existingBatch)..add(pending);
+        final cloned = Map<String, List<ImageUploadInfo>>.from(
+            currentState.uploadingImages);
+        final appended = List<ImageUploadInfo>.from(existingBatch)
+          ..add(pending);
         cloned[event.conversationId] = appended;
         emit(currentState.copyWith(uploadingImages: cloned));
       }

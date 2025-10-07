@@ -14,6 +14,8 @@ namespace YemenBooking.Infrastructure.Services
     /// </summary>
     public class FirebaseService : IFirebaseService
     {
+        private static readonly TimeSpan NotificationTimeout = TimeSpan.FromSeconds(3);
+
         private readonly ILogger<FirebaseService> _logger;
 
         public FirebaseService(ILogger<FirebaseService> logger)
@@ -146,14 +148,32 @@ namespace YemenBooking.Infrastructure.Services
                     return false;
                 }
 
-                var response = await FirebaseMessaging.DefaultInstance.SendAsync(message, cancellationToken);
-                _logger.LogInformation("تم إرسال إشعار Firebase بنجاح: {Response}", response);
-                return true;
+                try
+                {
+                    var response = await FirebaseMessaging.DefaultInstance
+                        .SendAsync(message, cancellationToken)
+                        .WaitAsync(NotificationTimeout, cancellationToken);
+                    _logger.LogInformation("تم إرسال إشعار Firebase بنجاح: {Response}", response);
+                    return true;
+                }
+                catch (TimeoutException timeoutEx)
+                {
+                    _logger.LogWarning(timeoutEx, "انتهت مهلة إرسال إشعار Firebase بعد {TimeoutSeconds} ثواني للهدف {Target}", NotificationTimeout.TotalSeconds, topicOrToken);
+                    return false;
+                }
             }
             catch (FirebaseMessagingException fcmEx)
             {
                 _logger.LogError(fcmEx, "FirebaseMessagingException أثناء إرسال الإشعار. Code: {Code}, HttpResponse: {HttpResponse}", fcmEx.ErrorCode, fcmEx.HttpResponse);
                 return false;
+                }
+                catch (OperationCanceledException canceledEx)
+                {
+                    if (!cancellationToken.IsCancellationRequested)
+                    {
+                        _logger.LogWarning(canceledEx, "تم إلغاء إرسال إشعار Firebase للهدف {Target} قبل إتمامه", topicOrToken);
+                    }
+                    return false;
             }
             catch (Exception ex)
             {

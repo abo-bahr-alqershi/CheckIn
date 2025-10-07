@@ -114,7 +114,7 @@ namespace YemenBooking.Application.Handlers.Commands.Chat
                         }
 
                         // الطرف الآخر Admin أو عميل سبق مراسلة العقار
-                        var otherParticipants = conversation.Participants.Where(p => p.Id != userId).ToList();
+                        var otherParticipants = (conversation.Participants ?? Enumerable.Empty<User>()).Where(p => p.Id != userId).ToList();
                         if (otherParticipants.Count != 1)
                         {
                             return ResultDto<ChatMessageDto>.Failed("محادثات المالك/الموظف يجب أن تكون ثنائية", errorCode: "invalid_conversation_participants");
@@ -136,7 +136,7 @@ namespace YemenBooking.Application.Handlers.Commands.Chat
                     {
                         // عميل: يستطيع الإرسال في محادثة مع Admin أو مع محادثة لعقار
                         // إذا كانت المحادثة بدون PropertyId وليست مع Admin، نمنع
-                        var otherParticipants = conversation.Participants.Where(p => p.Id != userId).ToList();
+                        var otherParticipants = (conversation.Participants ?? Enumerable.Empty<User>()).Where(p => p.Id != userId).ToList();
                         var otherRoles = otherParticipants.SelectMany(p => (p.UserRoles ?? new List<UserRole>()).Select(ur => ur.Role?.Name?.ToLowerInvariant() ?? string.Empty)).ToList();
                         var anyAdmin = otherRoles.Contains("admin") || otherRoles.Contains("super_admin");
                         var isPropertyChat = conversation.PropertyId.HasValue;
@@ -243,16 +243,27 @@ namespace YemenBooking.Application.Handlers.Commands.Chat
                                             ?? conversation;
 
                 // إرسال إشعار صامت للمرسل لتحديث الواجهة فورًا، وإشعار مرئي للمستقبل
-                foreach (var p in conversationWithDetails.Participants)
+                var notificationTasks = new List<Task<bool>>();
+
+                foreach (var participant in conversationWithDetails.Participants)
                 {
-                    var isSender = p.Id == userId;
-                    await _firebaseService.SendNotificationAsync($"user_{p.Id}", isSender ? string.Empty : "رسالة جديدة", isSender ? string.Empty : (message.Content ?? string.Empty), new Dictionary<string, string>
+                    var isSender = participant.Id == userId;
+                    notificationTasks.Add(_firebaseService.SendNotificationAsync($"user_{participant.Id}", isSender ? string.Empty : "رسالة جديدة", isSender ? string.Empty : (message.Content ?? string.Empty), new Dictionary<string, string>
                     {
                         { "type", "new_message" },
                         { "conversation_id", request.ConversationId.ToString() },
                         { "message_id", message.Id.ToString() },
                         { "silent", isSender ? "true" : "false" }
-                    }, cancellationToken);
+                    }, cancellationToken));
+                }
+
+                if (notificationTasks.Count > 0)
+                {
+                    var results = await Task.WhenAll(notificationTasks);
+                    if (results.Any(sent => !sent))
+                    {
+                        _logger.LogWarning("تعذر إرسال بعض إشعارات Firebase للمحادثة {ConversationId}", request.ConversationId);
+                    }
                 }
 
                 return ResultDto<ChatMessageDto>.Ok(messageDto, "تم إرسال الرسالة بنجاح");
