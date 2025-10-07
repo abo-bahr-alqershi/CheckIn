@@ -87,7 +87,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     on<InitializeChatEvent>(_onInitializeChat);
     on<LoadConversationsEvent>(_onLoadConversations);
     on<LoadMessagesEvent>(_onLoadMessages);
-  on<LoadMoreMessagesEvent>(_onLoadMoreMessages);
+    on<LoadMoreMessagesEvent>(_onLoadMoreMessages);
     on<SendMessageEvent>(_onSendMessage);
     on<CreateConversationEvent>(_onCreateConversation);
     on<DeleteConversationEvent>(_onDeleteConversation);
@@ -1341,7 +1341,54 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
       UploadAttachmentEvent event, Emitter<ChatState> emit) async {
     if (state is! ChatLoaded) return;
     final current = state as ChatLoaded;
-    emit(current.copyWith(uploadingAttachment: null, uploadProgress: 0));
+    // Bootstrap a synthetic uploading bubble immediately for non-image files (e.g., audio)
+    try {
+      final fileName = event.filePath.split('/')..removeWhere((s) => s.isEmpty);
+      final name = (fileName.isNotEmpty) ? fileName.last : 'file';
+      String lower = name.toLowerCase();
+      String contentType = 'application/octet-stream';
+      if (lower.endsWith('.m4a') || lower.endsWith('.aac'))
+        contentType = 'audio/mp4';
+      else if (lower.endsWith('.mp3'))
+        contentType = 'audio/mpeg';
+      else if (lower.endsWith('.wav'))
+        contentType = 'audio/wav';
+      else if (lower.endsWith('.ogg') || lower.endsWith('.opus'))
+        contentType = 'audio/ogg';
+      else if (lower.endsWith('.mp4') ||
+          lower.contains('.mov') ||
+          lower.contains('.mkv') ||
+          lower.contains('.webm'))
+        contentType = 'video/mp4';
+      else if (lower.endsWith('.jpg') || lower.endsWith('.jpeg'))
+        contentType = 'image/jpeg';
+      else if (lower.endsWith('.png')) contentType = 'image/png';
+
+      // فقط أظهر الفقاعة المباشرة لغير الصور (الصوت/الفيديو/المستندات)
+      if (!contentType.startsWith('image/')) {
+        final tempAttachment = Attachment(
+          id: 'temp_${DateTime.now().microsecondsSinceEpoch}',
+          conversationId: event.conversationId,
+          fileName: name,
+          contentType: contentType,
+          fileSize: 0,
+          filePath: event.filePath,
+          fileUrl: '',
+          url: '',
+          uploadedBy: 'current_user',
+          createdAt: DateTime.now(),
+          duration: null,
+          downloadProgress: 0.0,
+        );
+        emit(current.copyWith(
+            uploadingAttachment: tempAttachment, uploadProgress: 0.0));
+      } else {
+        // الصور تُدار عبر مسار الرفع الجماعي الحالي
+        emit(current.copyWith(uploadingAttachment: null, uploadProgress: 0));
+      }
+    } catch (_) {
+      emit(current.copyWith(uploadingAttachment: null, uploadProgress: 0));
+    }
 
     final result = await uploadAttachmentUseCase(
       UploadAttachmentParams(
@@ -1363,18 +1410,22 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
         ));
       },
       (attachment) async {
-        // Mark upload done
-        emit(current.copyWith(
-          uploadingAttachment: attachment,
-          uploadProgress: 1.0,
-        ));
+        // Show progress bubble immediately for non-image attachments
+        if (attachment.contentType.startsWith('audio/') ||
+            attachment.contentType.startsWith('video/') ||
+            (!attachment.contentType.startsWith('image/'))) {
+          emit(current.copyWith(
+            uploadingAttachment: attachment,
+            uploadProgress: 1.0,
+          ));
+        }
 
         // Immediately send a message referencing this attachment
         final sendResult = await sendMessageUseCase(
           SendMessageParams(
             conversationId: event.conversationId,
             messageType: event.messageType,
-            content: attachment.fileUrl,
+            content: null, // لا نعرض الرابط داخل الفقاعة
             location: null,
             replyToMessageId: null,
             attachmentIds: [attachment.id],
@@ -1426,6 +1477,8 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
                 event.conversationId: updatedMessages,
               },
               conversations: conversations,
+              uploadingAttachment: null,
+              uploadProgress: null,
             ));
           },
         );

@@ -897,10 +897,15 @@ class _ChatPageState extends State<ChatPage>
   Widget _buildMessagesList(
       ChatLoaded state, List<Message> messages, List<String> typingUsers,
       {required String userId}) {
-    final uploading = state.uploadingImages[widget.conversation.id] ?? const [];
-    final hasUploading = uploading.isNotEmpty;
+    final uploadingImages =
+        state.uploadingImages[widget.conversation.id] ?? const [];
+    final hasUploadingImages = uploadingImages.isNotEmpty;
+    final hasUploadingAttachment =
+        state.uploadingAttachment != null && state.uploadProgress != null;
 
-    final baseExtra = (typingUsers.isNotEmpty ? 1 : 0) + (hasUploading ? 1 : 0);
+    final baseExtra = (typingUsers.isNotEmpty ? 1 : 0) +
+        (hasUploadingImages ? 1 : 0) +
+        (hasUploadingAttachment ? 1 : 0);
 
     return Stack(
       children: [
@@ -928,7 +933,7 @@ class _ChatPageState extends State<ChatPage>
 
             cursor += typingUsers.isNotEmpty ? 1 : 0;
 
-            if (hasUploading && index == cursor) {
+            if (hasUploadingImages && index == cursor) {
               final synthetic = Message(
                 id: 'uploading_${widget.conversation.id}',
                 conversationId: widget.conversation.id,
@@ -944,12 +949,59 @@ class _ChatPageState extends State<ChatPage>
                 child: ImageMessageBubble(
                   message: synthetic,
                   isMe: true,
-                  uploadingImages: uploading,
+                  uploadingImages: uploadingImages,
                 ),
               );
             }
 
-            cursor += hasUploading ? 1 : 0;
+            cursor += hasUploadingImages ? 1 : 0;
+
+            if (hasUploadingAttachment && index == cursor) {
+              // فقّاعة مؤقتة لمرفق واحد (صوت/فيديو/مستند) قيد الرفع
+              final att = state.uploadingAttachment!;
+              final progress =
+                  (state.uploadProgress ?? 0).clamp(0, 1).toDouble();
+              final synthetic = Message(
+                id: 'uploading_single_${widget.conversation.id}',
+                conversationId: widget.conversation.id,
+                senderId: userId.isNotEmpty ? userId : 'current_user',
+                messageType: att.isAudio
+                    ? 'audio'
+                    : (att.isVideo ? 'video' : 'document'),
+                content: null,
+                createdAt: DateTime.now(),
+                updatedAt: DateTime.now(),
+                status: 'sending',
+                attachments: [
+                  Attachment(
+                    id: att.id,
+                    conversationId: att.conversationId,
+                    fileName: att.fileName,
+                    contentType: att.contentType,
+                    fileSize: att.fileSize,
+                    filePath: att.filePath,
+                    fileUrl: att.fileUrl,
+                    url: att.url,
+                    uploadedBy: att.uploadedBy,
+                    createdAt: att.createdAt,
+                    thumbnailUrl: att.thumbnailUrl,
+                    metadata: att.metadata,
+                    duration: att.duration,
+                    downloadProgress: progress,
+                  ),
+                ],
+              );
+
+              return Align(
+                alignment: Alignment.centerRight,
+                child: MessageBubbleWidget(
+                  message: synthetic,
+                  isMe: true,
+                ),
+              );
+            }
+
+            cursor += hasUploadingAttachment ? 1 : 0;
 
             final messageIndex = index - cursor;
             final message = messages[messageIndex];

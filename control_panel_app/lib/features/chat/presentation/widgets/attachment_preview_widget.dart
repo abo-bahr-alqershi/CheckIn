@@ -334,7 +334,9 @@ class _AttachmentPreviewWidgetState extends State<AttachmentPreviewWidget>
     _ensureAudioInitialized();
     final totalSeconds = widget.attachment.duration ?? _duration.inSeconds;
     final pos = _position;
-    final dur = _duration.inMilliseconds > 0 ? _duration : Duration(seconds: totalSeconds);
+    final dur = _duration.inMilliseconds > 0
+        ? _duration
+        : Duration(seconds: totalSeconds);
     final isPlaying = _playerState?.playing == true;
 
     return Container(
@@ -402,7 +404,9 @@ class _AttachmentPreviewWidgetState extends State<AttachmentPreviewWidget>
                       ],
                     ),
                     child: Icon(
-                      isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                      isPlaying
+                          ? Icons.pause_rounded
+                          : Icons.play_arrow_rounded,
                       color: widget.isMe ? AppTheme.primaryBlue : Colors.white,
                       size: 18, // Reduced from 24
                     ),
@@ -415,7 +419,8 @@ class _AttachmentPreviewWidgetState extends State<AttachmentPreviewWidget>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildMinimalWaveform(),
+                      _buildUploadAwareWaveform(
+                          widget.attachment.downloadProgress ?? 1.0),
                       const SizedBox(height: 4),
                       Row(
                         children: [
@@ -431,11 +436,23 @@ class _AttachmentPreviewWidgetState extends State<AttachmentPreviewWidget>
                           const SizedBox(width: 6),
                           Expanded(
                             child: Slider(
-                              value: dur.inMilliseconds == 0
-                                  ? 0
-                                  : (pos.inMilliseconds.clamp(0, dur.inMilliseconds) /
-                                      dur.inMilliseconds),
+                              value: (widget.attachment.downloadProgress !=
+                                          null &&
+                                      (widget.attachment.downloadProgress ??
+                                              0) <
+                                          1.0)
+                                  ? (widget.attachment.downloadProgress!
+                                      .clamp(0.0, 1.0))
+                                  : (dur.inMilliseconds == 0
+                                      ? 0
+                                      : (pos.inMilliseconds
+                                              .clamp(0, dur.inMilliseconds) /
+                                          dur.inMilliseconds)),
                               onChanged: (v) async {
+                                // أثناء الرفع نمنع السحب (لأن الملف غير متاح بعد)
+                                if ((widget.attachment.downloadProgress ??
+                                        1.0) <
+                                    1.0) return;
                                 if (dur.inMilliseconds > 0) {
                                   final target = Duration(
                                       milliseconds:
@@ -466,6 +483,25 @@ class _AttachmentPreviewWidgetState extends State<AttachmentPreviewWidget>
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildUploadAwareWaveform(double progress) {
+    return SizedBox(
+      height: 24,
+      child: AnimatedBuilder(
+        animation: _shimmerAnimation,
+        builder: (context, child) {
+          return CustomPaint(
+            painter: _MinimalWaveformPainter(
+              color: widget.isMe ? Colors.white : AppTheme.primaryBlue,
+              progress: progress,
+              shimmerPosition: _shimmerAnimation.value,
+            ),
+            child: const SizedBox.expand(),
+          );
+        },
       ),
     );
   }
