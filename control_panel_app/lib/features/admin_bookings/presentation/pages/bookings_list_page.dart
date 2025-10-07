@@ -740,6 +740,17 @@ class _BookingsListPageState extends State<BookingsListPage>
             ),
           );
         }
+        if (state is BookingOperationFailure) {
+          return Positioned(
+            bottom: 16,
+            left: 16,
+            right: 16,
+            child: CustomErrorWidget(
+              message: state.message,
+              onRetry: () => context.read<BookingsListBloc>().add(RefreshBookingsEvent()),
+            ),
+          );
+        }
         return const SizedBox.shrink();
       },
     );
