@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'dart:ui';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -9,6 +10,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/app_dimensions.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../domain/entities/message.dart';
+import '../bloc/chat_bloc.dart';
 
 class MessageInputWidget extends StatefulWidget {
   final TextEditingController controller;
@@ -36,6 +38,34 @@ class MessageInputWidget extends StatefulWidget {
     this.onCancelEdit,
   });
 
+  static MessageInputWidget createWithBloc({
+    Key? key,
+    required TextEditingController controller,
+    required FocusNode focusNode,
+    required String conversationId,
+    String? replyToMessageId,
+    Message? editingMessage,
+    required Function(String) onSend,
+    VoidCallback? onAttachment,
+    VoidCallback? onLocation,
+    VoidCallback? onCancelReply,
+    VoidCallback? onCancelEdit,
+  }) {
+    return MessageInputWidget(
+      key: key,
+      controller: controller,
+      focusNode: focusNode,
+      conversationId: conversationId,
+      replyToMessageId: replyToMessageId,
+      editingMessage: editingMessage,
+      onSend: onSend,
+      onAttachment: onAttachment,
+      onLocation: onLocation,
+      onCancelReply: onCancelReply,
+      onCancelEdit: onCancelEdit,
+    );
+  }
+
   @override
   State<MessageInputWidget> createState() => _MessageInputWidgetState();
 }
@@ -45,12 +75,14 @@ class _MessageInputWidgetState extends State<MessageInputWidget>
   late AnimationController _animationController;
   late Animation<double> _sendButtonAnimation;
   late Animation<double> _recordAnimation;
-  
+
   final AudioRecorder _audioRecorder = AudioRecorder();
   bool _isRecording = false;
   bool _showAttachmentOptions = false;
   String _recordingPath = '';
   Duration _recordingDuration = Duration.zero;
+
+  ChatBloc? get _chatBloc => context.read<ChatBloc>();
 
   @override
   void initState() {
@@ -481,8 +513,14 @@ class _MessageInputWidgetState extends State<MessageInputWidget>
     }
   }
 
-  void _sendAudioMessage(String path) {
-    // Implement audio message sending
+  void _sendAudioMessage(String path) async {
+    try {
+      // Upload the audio file as part of the message sending process
+      await _sendMessageWithAudioFile(path);
+    } catch (e) {
+      // Handle error appropriately
+      print('Error sending audio message: $e');
+    }
   }
 
   Future<void> _pickImage(ImageSource source) async {
@@ -527,6 +565,25 @@ class _MessageInputWidgetState extends State<MessageInputWidget>
   void _insertEmoji() {
     HapticFeedback.lightImpact();
     // Show emoji picker
+  }
+
+  Future<void> _sendMessageWithAudioFile(String filePath) async {
+    if (_chatBloc == null) {
+      print('ChatBloc not available');
+      return;
+    }
+
+    try {
+      // Send the audio message using the new dedicated event
+      _chatBloc!.add(SendAudioMessageEvent(
+        conversationId: widget.conversationId,
+        filePath: filePath,
+        replyToMessageId: widget.replyToMessageId,
+      ));
+
+    } catch (e) {
+      print('Error sending audio message: $e');
+    }
   }
 }
 

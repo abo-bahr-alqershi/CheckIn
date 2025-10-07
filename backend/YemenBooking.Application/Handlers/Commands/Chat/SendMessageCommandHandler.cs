@@ -29,6 +29,7 @@ namespace YemenBooking.Application.Handlers.Commands.Chat
         private readonly IUnitOfWork _unitOfWork;
         private readonly ICurrentUserService _currentUserService;
         private readonly IFileStorageService _fileStorageService;
+        private readonly IMediaMetadataService _mediaMetadataService;
         private readonly IMapper _mapper;
         private readonly IFirebaseService _firebaseService;
         private readonly ChatAttachmentSettings _attachmentSettings;
@@ -41,6 +42,7 @@ namespace YemenBooking.Application.Handlers.Commands.Chat
             IUnitOfWork unitOfWork,
             ICurrentUserService currentUserService,
             IFileStorageService fileStorageService,
+            IMediaMetadataService mediaMetadataService,
             IMapper mapper,
             IFirebaseService firebaseService,
             IOptions<ChatAttachmentSettings> attachmentSettings,
@@ -52,6 +54,7 @@ namespace YemenBooking.Application.Handlers.Commands.Chat
             _unitOfWork = unitOfWork;
             _currentUserService = currentUserService;
             _fileStorageService = fileStorageService;
+            _mediaMetadataService = mediaMetadataService;
             _mapper = mapper;
             _firebaseService = firebaseService;
             _attachmentSettings = attachmentSettings.Value;
@@ -185,6 +188,27 @@ namespace YemenBooking.Application.Handlers.Commands.Chat
                                 UploadedBy = userId,
                                 CreatedAt = DateTime.UtcNow
                             };
+
+                            // استخراج مدة الملف إذا كان صوتًا أو فيديو
+                            if (!string.IsNullOrEmpty(result.FilePath) &&
+                                (result.ContentType?.StartsWith("audio/", StringComparison.OrdinalIgnoreCase) == true ||
+                                 result.ContentType?.StartsWith("video/", StringComparison.OrdinalIgnoreCase) == true))
+                            {
+                                try
+                                {
+                                    var duration = await _mediaMetadataService.TryGetDurationSecondsAsync(result.FilePath, result.ContentType, cancellationToken);
+                                    if (duration.HasValue)
+                                    {
+                                        attachment.DurationSeconds = duration.Value;
+                                        _logger.LogInformation("تم استخراج مدة الملف الصوتي/الفيديو: {FileName} = {Duration} ثانية", file.FileName, duration.Value);
+                                    }
+                                }
+                                catch (Exception ex)
+                                {
+                                    _logger.LogWarning(ex, "فشل في استخراج مدة الملف: {FileName}", file.FileName);
+                                }
+                            }
+
                             await _unitOfWork.Repository<ChatAttachment>().AddAsync(attachment, cancellationToken);
                         }
                     }

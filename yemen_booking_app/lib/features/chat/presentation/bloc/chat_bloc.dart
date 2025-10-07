@@ -95,6 +95,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     on<RemoveReactionEvent>(_onRemoveReaction);
     on<MarkMessagesAsReadEvent>(_onMarkMessagesAsRead);
     on<UploadAttachmentEvent>(_onUploadAttachment);
+    on<SendAudioMessageEvent>(_onSendAudioMessage);
     on<SearchChatsEvent>(_onSearchChats);
     on<LoadAvailableUsersEvent>(_onLoadAvailableUsers);
     on<LoadAdminUsersEvent>(_onLoadAdminUsers);
@@ -603,7 +604,78 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
 
   Future<void> _onUploadAttachment(
       UploadAttachmentEvent event, Emitter<ChatState> emit) async {
-    // Implementation
+    if (state is! ChatLoaded) return;
+
+    final currentState = state as ChatLoaded;
+
+    try {
+      final result = await uploadAttachmentUseCase(
+        UploadAttachmentParams(
+          conversationId: event.conversationId,
+          filePath: event.filePath,
+          messageType: event.messageType,
+          onSendProgress: event.onProgress,
+        ),
+      );
+
+      await result.fold(
+        (failure) async {
+          // Handle upload failure - could emit an error state
+          print('Upload failed: ${_mapFailureToMessage(failure)}');
+        },
+        (attachment) async {
+          // Upload successful - the attachment is now available for use
+          // In a more sophisticated implementation, we might want to store
+          // the attachment ID and use it when sending the message
+          print('Audio attachment uploaded successfully: ${attachment.id}');
+        },
+      );
+    } catch (e) {
+      print('Error during attachment upload: $e');
+    }
+  }
+
+  Future<void> _onSendAudioMessage(
+      SendAudioMessageEvent event, Emitter<ChatState> emit) async {
+    if (state is! ChatLoaded) return;
+
+    // First upload the audio file as an attachment
+    final uploadResult = await uploadAttachmentUseCase(
+      UploadAttachmentParams(
+        conversationId: event.conversationId,
+        filePath: event.filePath,
+        messageType: 'audio',
+      ),
+    );
+
+    await uploadResult.fold(
+      (failure) async {
+        // Handle upload failure
+        print('Audio upload failed: ${_mapFailureToMessage(failure)}');
+      },
+      (attachment) async {
+        // Upload successful, now send the message with the attachment ID
+        final messageResult = await sendMessageUseCase(
+          SendMessageParams(
+            conversationId: event.conversationId,
+            messageType: 'audio',
+            content: null,
+            location: null,
+            replyToMessageId: event.replyToMessageId,
+            attachmentIds: [attachment.id],
+          ),
+        );
+
+        await messageResult.fold(
+          (failure) async {
+            print('Sending audio message failed: ${_mapFailureToMessage(failure)}');
+          },
+          (message) async {
+            print('Audio message sent successfully: ${message.id}');
+          },
+        );
+      },
+    );
   }
 
   Future<void> _onSearchChats(
