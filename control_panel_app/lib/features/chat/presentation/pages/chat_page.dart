@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:ui';
 import 'dart:math' as math;
-import 'package:bookn_cp_app/services/websocket_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -18,8 +17,7 @@ import '../widgets/message_input_widget.dart';
 import '../widgets/typing_indicator_widget.dart';
 import '../widgets/chat_app_bar.dart';
 import 'chat_settings_page.dart';
-import 'package:provider/provider.dart';
-import '../providers/typing_indicator_provider.dart';
+// Provider typing indicator removed; rely on ChatBloc.state
 import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../../auth/presentation/bloc/auth_state.dart';
 
@@ -65,7 +63,6 @@ class _ChatPageState extends State<ChatPage>
 
   String? _currentUserId;
   StreamSubscription<AuthState>? _authSubscription;
-  StreamSubscription? _wsMessagesSubscription;
   StreamSubscription<ChatState>? _chatStateSubscription;
 
   bool _isScrollingToReply = false;
@@ -81,8 +78,7 @@ class _ChatPageState extends State<ChatPage>
     _loadMessages();
     _scrollController.addListener(_onScroll);
     _messageController.addListener(_onTypingChanged);
-    _initializeTypingIndicator();
-    _subscribeToIncomingMessagesForAutoRead();
+    // Typing indicator and WebSocket subscriptions are handled in ChatBloc
     _subscribeToChatStateForAutoRead();
   }
 
@@ -142,31 +138,7 @@ class _ChatPageState extends State<ChatPage>
     }
   }
 
-  void _initializeTypingIndicator() {
-    final typingProvider = context.read<TypingIndicatorProvider>();
-
-    context.read<ChatBloc>().webSocketService.typingEvents.listen((event) {
-      for (final userId in event.typingUserIds) {
-        typingProvider.setUserTyping(
-          conversationId: event.conversationId,
-          userId: userId,
-          isTyping: true,
-        );
-      }
-    });
-  }
-
-  void _subscribeToIncomingMessagesForAutoRead() {
-    final ws = context.read<ChatBloc>().webSocketService;
-    _wsMessagesSubscription = ws.messageEvents.listen((evt) {
-      if (!mounted) return;
-      if (evt.type == MessageEventType.newMessage &&
-          evt.conversationId == widget.conversation.id) {
-        WidgetsBinding.instance
-            .addPostFrameCallback((_) => _markMessagesAsRead());
-      }
-    });
-  }
+  // WebSocket subscriptions removed here; BLoC emits state updates we listen to below
 
   void _subscribeToChatStateForAutoRead() {
     final bloc = context.read<ChatBloc>();
@@ -191,7 +163,6 @@ class _ChatPageState extends State<ChatPage>
     _glowController.dispose();
     _typingTimer?.cancel();
     _authSubscription?.cancel();
-    _wsMessagesSubscription?.cancel();
     _chatStateSubscription?.cancel();
     _loadingOverlay?.remove();
     super.dispose();
@@ -301,10 +272,7 @@ class _ChatPageState extends State<ChatPage>
 
   // FIX: إصلاح المشكلة 1 - التنقل للرد (محسّن بالكامل)
   void _scrollToMessage(String messageId) {
-    print('🔥 DEBUG: _scrollToMessage called with messageId: $messageId');
-
     if (_isScrollingToReply) {
-      print('🔥 DEBUG: Already scrolling, ignoring...');
       return;
     }
 
@@ -312,28 +280,21 @@ class _ChatPageState extends State<ChatPage>
     final bloc = context.read<ChatBloc>();
     final state = bloc.state;
 
-    if (state is! ChatLoaded) {
-      print('🔥 DEBUG: State is not ChatLoaded');
-      return;
-    }
+    if (state is! ChatLoaded) return;
 
     final convoId = widget.conversation.id;
     final List<Message> currentMessages =
         (state.messages[convoId] ?? []).cast<Message>();
 
-    print('🔥 DEBUG: Current messages count: ${currentMessages.length}');
 
     // البحث عن الرسالة في القائمة الحالية
     final messageExists = currentMessages.any((m) => m.id == messageId);
 
-    print('🔥 DEBUG: Message exists in current list: $messageExists');
 
     if (messageExists) {
       // الرسالة موجودة - انتظر دورة بناء واحدة ثم مرر
       WidgetsBinding.instance.addPostFrameCallback((_) {
         final key = _messageKeys[messageId];
-        print(
-            '🔥 DEBUG: Key found: ${key != null}, Context: ${key?.currentContext != null}');
 
         if (key?.currentContext != null) {
           _isScrollingToReply = true;
@@ -345,12 +306,10 @@ class _ChatPageState extends State<ChatPage>
           ).then((_) {
             _isScrollingToReply = false;
             _highlightMessage(messageId);
-            print('🔥 DEBUG: Scrolling completed successfully');
           });
           HapticFeedback.lightImpact();
         } else {
           // المفتاح غير جاهز بعد - انتظر دورة أخرى
-          print('🔥 DEBUG: Key not ready, waiting 100ms...');
           Future.delayed(const Duration(milliseconds: 100), () {
             final key2 = _messageKeys[messageId];
             if (key2?.currentContext != null) {
@@ -363,18 +322,16 @@ class _ChatPageState extends State<ChatPage>
               ).then((_) {
                 _isScrollingToReply = false;
                 _highlightMessage(messageId);
-                print('🔥 DEBUG: Scrolling completed after retry');
               });
               HapticFeedback.lightImpact();
             } else {
-              print('🔥 DEBUG: Key still not ready after retry');
+              // ignore
             }
           });
         }
       });
     } else {
       // الرسالة غير موجودة - ابدأ التحميل
-      print('🔥 DEBUG: Message not found, starting to load older messages...');
       _showLoadingIndicator();
       _isScrollingToReply = true;
       _loadOlderMessagesUntilFound(messageId, bloc, convoId);
@@ -393,15 +350,12 @@ class _ChatPageState extends State<ChatPage>
       }
 
       attempts++;
-      print('🔥 DEBUG: Load attempt $attempts/$maxAttempts');
 
       WidgetsBinding.instance.addPostFrameCallback((_) {
         final st = bloc.state;
         if (st is ChatLoaded) {
           final msgs = (st.messages[convoId] ?? []).cast<Message>();
           final found = msgs.any((m) => m.id == messageId);
-
-          print('🔥 DEBUG: Found after load: $found');
 
           if (found) {
             _hideLoadingIndicator();
@@ -417,20 +371,17 @@ class _ChatPageState extends State<ChatPage>
                 ).then((_) {
                   _isScrollingToReply = false;
                   _highlightMessage(messageId);
-                  print('🔥 DEBUG: Successfully scrolled to loaded message');
                 });
                 HapticFeedback.lightImpact();
               } else {
                 _isScrollingToReply = false;
                 _showNotFoundSnackbar();
-                print('🔥 DEBUG: Message found but key not available');
               }
             });
           } else {
             if (msgs.isNotEmpty &&
                 !st.isLoadingMessages &&
                 attempts < maxAttempts) {
-              print('🔥 DEBUG: Loading more messages...');
               bloc.add(LoadMessagesEvent(
                 conversationId: convoId,
                 pageNumber: (msgs.length ~/ 50) + 1,
@@ -442,7 +393,6 @@ class _ChatPageState extends State<ChatPage>
               _hideLoadingIndicator();
               _isScrollingToReply = false;
               _showNotFoundSnackbar();
-              print('🔥 DEBUG: Max attempts reached or no more messages');
             }
           }
         } else {
@@ -681,33 +631,28 @@ class _ChatPageState extends State<ChatPage>
       opacity: _fadeAnimation,
       child: ScaleTransition(
         scale: _scaleAnimation,
-        child: Consumer<TypingIndicatorProvider>(
-          builder: (context, typingProvider, child) {
-            final typingUsers = typingProvider.getTypingUsersForConversation(
-              widget.conversation.id,
-            );
-            return BlocBuilder<ChatBloc, ChatState>(
-              builder: (context, state) {
-                if (state is! ChatLoaded) {
-                  return _buildPremiumLoadingState();
-                }
+        child: BlocBuilder<ChatBloc, ChatState>(
+          builder: (context, state) {
+            if (state is! ChatLoaded) {
+              return _buildPremiumLoadingState();
+            }
 
-                final List<Message> messages =
-                    (state.messages[widget.conversation.id] ?? [])
-                        .cast<Message>();
+            final typingUsers = state.typingUsers[widget.conversation.id] ?? const <String>[];
 
-                if (messages.isEmpty) {
-                  return _buildPremiumEmptyState();
-                }
+            final List<Message> messages =
+                (state.messages[widget.conversation.id] ?? [])
+                    .cast<Message>();
 
-                for (final message in messages) {
-                  _messageKeys[message.id] ??= GlobalKey();
-                }
+            if (messages.isEmpty) {
+              return _buildPremiumEmptyState();
+            }
 
-                return _buildMessagesList(state, messages, typingUsers,
-                    userId: userId);
-              },
-            );
+            for (final message in messages) {
+              _messageKeys[message.id] ??= GlobalKey();
+            }
+
+            return _buildMessagesList(state, messages, typingUsers,
+                userId: userId);
           },
         ),
       ),
@@ -1091,13 +1036,11 @@ class _ChatPageState extends State<ChatPage>
         onReaction: (reactionType) =>
             _addReaction(message, reactionType, userId),
         // FIX: تمرير onReplyTap للصور
-        onReplyTap: message.replyToMessageId != null
-            ? () {
-                print(
-                    '🔥 DEBUG: ImageMessageBubble onReplyTap called for: ${message.replyToMessageId}');
-                _scrollToMessage(message.replyToMessageId!);
-              }
-            : null,
+      onReplyTap: message.replyToMessageId != null
+          ? () {
+              _scrollToMessage(message.replyToMessageId!);
+            }
+          : null,
       );
     }
 
@@ -1113,8 +1056,6 @@ class _ChatPageState extends State<ChatPage>
       // FIX: تمرير onReplyTap للرسائل النصية
       onReplyTap: message.replyToMessageId != null
           ? () {
-              print(
-                  '🔥 DEBUG: MessageBubbleWidget onReplyTap called for: ${message.replyToMessageId}');
               _scrollToMessage(message.replyToMessageId!);
             }
           : null,
@@ -1296,8 +1237,6 @@ class _ChatPageState extends State<ChatPage>
 
     return GestureDetector(
       onTap: () {
-        print(
-            '🔥 DEBUG: Reply section tapped, scrolling to: $_replyToMessageId');
         _scrollToMessage(replyMessage!.id);
       },
       child: Container(

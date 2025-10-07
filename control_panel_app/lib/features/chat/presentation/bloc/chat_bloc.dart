@@ -134,6 +134,10 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     on<MarkMessagesAsReadEvent>(_onMarkMessagesAsRead);
     on<UploadAttachmentEvent>(_onUploadAttachment);
     on<UploadMultipleAttachmentsEvent>(_onUploadMultipleAttachments);
+    // In-bubble image upload UI-driven events
+    on<StartImageUploadsEvent>(_onStartImageUploads);
+    on<UpdateImageUploadProgressEvent>(_onUpdateImageUploadProgress);
+    on<FinishImageUploadsEvent>(_onFinishImageUploads);
     on<SearchChatsEvent>(_onSearchChats);
     on<LoadAvailableUsersEvent>(_onLoadAvailableUsers);
     on<LoadAdminUsersEvent>(_onLoadAdminUsers);
@@ -709,27 +713,54 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     final currentState = state;
     if (currentState is! ChatLoaded) return;
 
-    final uploadId = 'upload_${DateTime.now().microsecondsSinceEpoch}';
-    final task = ImageUploadInfo(
-      id: uploadId,
-      file: File(event.filePath),
-      progress: 0.0,
-      isCompleted: false,
-      isFailed: false,
-    );
+    // If UI already initialized a batch via StartImageUploadsEvent, reuse the next pending item id
+    final existingBatch = currentState.uploadingImages[event.conversationId];
+    final bool usingUiBatch = (existingBatch != null && existingBatch.isNotEmpty);
 
-    final updatedUploads = Map<String, List<ImageUploadInfo>>.from(
-      currentState.uploadingImages,
-    );
-    final list = List<ImageUploadInfo>.from(
-      updatedUploads[event.conversationId] ?? const [],
-    )..add(task);
-    updatedUploads[event.conversationId] = list;
-    emit(currentState.copyWith(uploadingImages: updatedUploads));
+    // Choose effective upload id (reuse first pending task if exists)
+    String effectiveUploadId;
+    if (usingUiBatch) {
+      final pending = existingBatch!.firstWhere(
+        (t) => !(t.isCompleted == true || t.isFailed == true) && (t.progress < 1.0),
+        orElse: () => ImageUploadInfo(
+          id: 'upload_${DateTime.now().microsecondsSinceEpoch}',
+          file: File(event.filePath),
+          progress: 0.0,
+          isCompleted: false,
+          isFailed: false,
+        ),
+      );
+      // If we synthesized a fallback (no real pending), we should append it to list
+      if (!existingBatch.any((t) => t.id == pending.id)) {
+        final cloned = Map<String, List<ImageUploadInfo>>.from(currentState.uploadingImages);
+        final appended = List<ImageUploadInfo>.from(existingBatch)..add(pending);
+        cloned[event.conversationId] = appended;
+        emit(currentState.copyWith(uploadingImages: cloned));
+      }
+      effectiveUploadId = pending.id;
+    } else {
+      // No UI batch; create a single-task list entry for visual progress
+      effectiveUploadId = 'upload_${DateTime.now().microsecondsSinceEpoch}';
+      final task = ImageUploadInfo(
+        id: effectiveUploadId,
+        file: File(event.filePath),
+        progress: 0.0,
+        isCompleted: false,
+        isFailed: false,
+      );
+      final updatedUploads = Map<String, List<ImageUploadInfo>>.from(
+        currentState.uploadingImages,
+      );
+      final list = List<ImageUploadInfo>.from(
+        updatedUploads[event.conversationId] ?? const [],
+      )..add(task);
+      updatedUploads[event.conversationId] = list;
+      emit(currentState.copyWith(uploadingImages: updatedUploads));
+    }
 
     try {
       final controller = UploadController();
-      _activeUploads[uploadId] = UploadTask(
+      _activeUploads[effectiveUploadId] = UploadTask(
         controller: controller,
         filePath: event.filePath,
       );
@@ -745,11 +776,12 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
               emit,
               currentState,
               event.conversationId,
-              uploadId,
+              effectiveUploadId,
               progress,
             );
             event.onProgress?.call(sent, total);
           },
+          replyToMessageId: event.replyToMessageId,
         ),
       );
 
@@ -759,7 +791,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
             emit,
             currentState,
             event.conversationId,
-            uploadId,
+            effectiveUploadId,
             isFailed: true,
             error: _mapFailureToMessage(failure),
           );
@@ -769,7 +801,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
             emit,
             currentState,
             event.conversationId,
-            uploadId,
+            effectiveUploadId,
             isCompleted: true,
           );
 
@@ -779,6 +811,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
             messageType: event.messageType,
             attachmentIds: [attachment.id],
             currentUserId: currentState.currentUserId,
+            replyToMessageId: event.replyToMessageId,
           ));
         },
       );
@@ -787,20 +820,93 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
         emit,
         currentState,
         event.conversationId,
-        uploadId,
+        effectiveUploadId,
         isFailed: true,
         error: e.toString(),
       );
     } finally {
-      _activeUploads.remove(uploadId);
+      _activeUploads.remove(effectiveUploadId);
     }
 
-    // إزالة من قائمة الرفع بعد الانتهاء/الفشل
-    final finalUploads = Map<String, List<ImageUploadInfo>>.from(
+    // إذا كان الرفع ضمن دفعة تديرها الواجهة، لا تقم بمسح القائمة الآن؛ سيتم مسحها مع FinishImageUploadsEvent
+    if (!usingUiBatch) {
+      final finalUploads = Map<String, List<ImageUploadInfo>>.from(
+        currentState.uploadingImages,
+      );
+      finalUploads.remove(event.conversationId);
+      emit(currentState.copyWith(uploadingImages: finalUploads));
+    }
+  }
+
+  /// بدء دفعة رفع صور (تهيئة العناصر في الحالة)
+  Future<void> _onStartImageUploads(
+    StartImageUploadsEvent event,
+    Emitter<ChatState> emit,
+  ) async {
+    final currentState = state;
+    if (currentState is! ChatLoaded) return;
+
+    final updated = Map<String, List<ImageUploadInfo>>.from(
       currentState.uploadingImages,
     );
-    finalUploads.remove(event.conversationId);
-    emit(currentState.copyWith(uploadingImages: finalUploads));
+    final existing = List<ImageUploadInfo>.from(
+      updated[event.conversationId] ?? const [],
+    );
+
+    // دمج بحسب المعرف لتفادي التكرار
+    final existingIds = existing.map((e) => e.id).toSet();
+    final merged = [
+      ...existing,
+      ...event.uploads.where((u) => !existingIds.contains(u.id)),
+    ];
+    updated[event.conversationId] = merged;
+    emit(currentState.copyWith(uploadingImages: updated));
+  }
+
+  /// تحديث تقدّم/حالة عنصر رفع واحد داخل الدفعة
+  Future<void> _onUpdateImageUploadProgress(
+    UpdateImageUploadProgressEvent event,
+    Emitter<ChatState> emit,
+  ) async {
+    final currentState = state;
+    if (currentState is! ChatLoaded) return;
+
+    final updated = Map<String, List<ImageUploadInfo>>.from(
+      currentState.uploadingImages,
+    );
+    final list = List<ImageUploadInfo>.from(
+      updated[event.conversationId] ?? const [],
+    );
+
+    final mapped = list.map((t) {
+      if (t.id == event.uploadId) {
+        return t.copyWith(
+          progress: event.progress ?? t.progress,
+          isCompleted: event.isCompleted ?? t.isCompleted,
+          isFailed: event.isFailed ?? t.isFailed,
+          error: event.error ?? t.error,
+        );
+      }
+      return t;
+    }).toList();
+
+    updated[event.conversationId] = mapped;
+    emit(currentState.copyWith(uploadingImages: updated));
+  }
+
+  /// إنهاء دفعة الرفع لمسح واجهة الرفع المؤقتة
+  Future<void> _onFinishImageUploads(
+    FinishImageUploadsEvent event,
+    Emitter<ChatState> emit,
+  ) async {
+    final currentState = state;
+    if (currentState is! ChatLoaded) return;
+
+    final updated = Map<String, List<ImageUploadInfo>>.from(
+      currentState.uploadingImages,
+    );
+    updated.remove(event.conversationId);
+    emit(currentState.copyWith(uploadingImages: updated));
   }
 
   // واجهة مساعدة عامة حتى تتمكن الواجهة من تتبع التقدم بدقة
@@ -816,6 +922,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
       conversationId: conversationId,
       filePath: filePath,
       messageType: messageType,
+      replyToMessageId: replyToMessageId,
       onProgress: onProgress,
     ));
   }
