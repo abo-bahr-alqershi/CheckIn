@@ -199,6 +199,21 @@ class UploadAttachmentEvent extends ChatEvent {
   List<Object?> get props => [conversationId, filePath, messageType];
 }
 
+class SendAudioMessageEvent extends ChatEvent {
+  final String conversationId;
+  final String filePath;
+  final String? replyToMessageId;
+
+  const SendAudioMessageEvent({
+    required this.conversationId,
+    required this.filePath,
+    this.replyToMessageId,
+  });
+
+  @override
+  List<Object?> get props => [conversationId, filePath, replyToMessageId];
+}
+
 class SearchChatsEvent extends ChatEvent {
   final String query;
   final String? conversationId;
