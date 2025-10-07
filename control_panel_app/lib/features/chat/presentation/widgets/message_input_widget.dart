@@ -772,7 +772,15 @@ class _MessageInputWidgetState extends State<MessageInputWidget>
         final showSend = _sendButtonAnimation.value > 0.5;
 
         return GestureDetector(
-          onTap: showSend ? _sendMessage : null,
+          onTap: () {
+            if (_isRecording) {
+              _stopRecording();
+            } else if (showSend) {
+              _sendMessage();
+            } else {
+              _startRecording();
+            }
+          },
           onLongPress: !showSend ? _startRecording : null,
           onLongPressEnd: !showSend ? (_) => _stopRecording() : null,
           onLongPressMoveUpdate: !showSend
