@@ -38,7 +38,8 @@ class LoadMessagesEvent extends ChatEvent {
   });
 
   @override
-  List<Object?> get props => [conversationId, pageNumber, pageSize, beforeMessageId];
+  List<Object?> get props =>
+      [conversationId, pageNumber, pageSize, beforeMessageId];
 }
 
 class SendMessageEvent extends ChatEvent {
@@ -60,13 +61,13 @@ class SendMessageEvent extends ChatEvent {
 
   @override
   List<Object?> get props => [
-    conversationId,
-    messageType,
-    content,
-    location,
-    replyToMessageId,
-    attachmentIds,
-  ];
+        conversationId,
+        messageType,
+        content,
+        location,
+        replyToMessageId,
+        attachmentIds,
+      ];
 }
 
 class CreateConversationEvent extends ChatEvent {
@@ -86,12 +87,12 @@ class CreateConversationEvent extends ChatEvent {
 
   @override
   List<Object?> get props => [
-    participantIds,
-    conversationType,
-    title,
-    description,
-    propertyId,
-  ];
+        participantIds,
+        conversationType,
+        title,
+        description,
+        propertyId,
+      ];
 }
 
 class DeleteConversationEvent extends ChatEvent {
@@ -237,15 +238,15 @@ class SearchChatsEvent extends ChatEvent {
 
   @override
   List<Object?> get props => [
-    query,
-    conversationId,
-    messageType,
-    senderId,
-    dateFrom,
-    dateTo,
-    page,
-    limit,
-  ];
+        query,
+        conversationId,
+        messageType,
+        senderId,
+        dateFrom,
+        dateTo,
+        page,
+        limit,
+      ];
 }
 
 class LoadAvailableUsersEvent extends ChatEvent {
@@ -301,15 +302,15 @@ class UpdateChatSettingsEvent extends ChatEvent {
 
   @override
   List<Object?> get props => [
-    notificationsEnabled,
-    soundEnabled,
-    showReadReceipts,
-    showTypingIndicator,
-    theme,
-    fontSize,
-    autoDownloadMedia,
-    backupMessages,
-  ];
+        notificationsEnabled,
+        soundEnabled,
+        showReadReceipts,
+        showTypingIndicator,
+        theme,
+        fontSize,
+        autoDownloadMedia,
+        backupMessages,
+      ];
 }
 
 class SendTypingIndicatorEvent extends ChatEvent {
@@ -369,4 +370,66 @@ class WebSocketPresenceUpdateEvent extends ChatEvent {
 
   @override
   List<Object?> get props => [userId, status, lastSeen];
+}
+
+/// حدث رفع مرفقات متعددة
+class UploadMultipleAttachmentsEvent extends ChatEvent {
+  final String conversationId;
+  final List<String> filePaths;
+  final String messageType;
+  final Function(int index, int sent, int total)? onProgress;
+
+  const UploadMultipleAttachmentsEvent({
+    required this.conversationId,
+    required this.filePaths,
+    required this.messageType,
+    this.onProgress,
+  });
+
+  @override
+  List<Object?> get props => [conversationId, filePaths, messageType];
+}
+
+/// حدث مسح ذاكرة التخزين المؤقت للمحادثة
+class ClearConversationCacheEvent extends ChatEvent {
+  final String conversationId;
+
+  const ClearConversationCacheEvent({required this.conversationId});
+
+  @override
+  List<Object> get props => [conversationId];
+}
+
+/// حدث تحديث المحادثة
+class RefreshConversationEvent extends ChatEvent {
+  final String conversationId;
+
+  const RefreshConversationEvent({required this.conversationId});
+
+  @override
+  List<Object> get props => [conversationId];
+}
+
+/// حدث إعادة محاولة إرسال رسالة فاشلة
+class RetryFailedMessageEvent extends ChatEvent {
+  final String conversationId;
+  final String messageId;
+
+  const RetryFailedMessageEvent({
+    required this.conversationId,
+    required this.messageId,
+  });
+
+  @override
+  List<Object> get props => [conversationId, messageId];
+}
+
+/// حدث إلغاء عملية الرفع
+class CancelUploadEvent extends ChatEvent {
+  final String uploadId;
+
+  const CancelUploadEvent({required this.uploadId});
+
+  @override
+  List<Object> get props => [uploadId];
 }
