@@ -57,6 +57,10 @@ class _MessageInputWidgetState extends State<MessageInputWidget>
   bool _showAttachmentOptions = false;
   bool _showEmojiPicker = false;
   String _recordingPath = '';
+  DateTime? _recordStartAt;
+  Timer? _recordTimer;
+  String _recordElapsedText = '0:00';
+  bool _recordCancelled = false;
 
   Timer? _progressTimer;
   double _currentDisplayedProgress = 0.0;
@@ -293,6 +297,7 @@ class _MessageInputWidgetState extends State<MessageInputWidget>
   @override
   void dispose() {
     _progressTimer?.cancel();
+    _recordTimer?.cancel();
     _animationController.dispose();
     _emojiScrollController.dispose();
     super.dispose();
@@ -392,6 +397,7 @@ class _MessageInputWidgetState extends State<MessageInputWidget>
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              if (_isRecording) _buildRecordingOverlay(),
               if (_showAttachmentOptions) _buildMinimalAttachmentOptions(),
               if (_showEmojiPicker) _buildProfessionalEmojiPicker(),
               Row(
@@ -769,6 +775,14 @@ class _MessageInputWidgetState extends State<MessageInputWidget>
           onTap: showSend ? _sendMessage : null,
           onLongPress: !showSend ? _startRecording : null,
           onLongPressEnd: !showSend ? (_) => _stopRecording() : null,
+          onLongPressMoveUpdate: !showSend
+              ? (details) {
+                  // Slide left to cancel
+                  if (!_recordCancelled && details.offsetFromOrigin.dx < -60) {
+                    _cancelRecording();
+                  }
+                }
+              : null,
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
             width: 32,
@@ -889,9 +903,28 @@ class _MessageInputWidgetState extends State<MessageInputWidget>
 
       setState(() {
         _isRecording = true;
+        _recordCancelled = false;
+        _recordStartAt = DateTime.now();
+        _recordElapsedText = '0:00';
       });
 
       _animationController.repeat(reverse: true);
+
+      _recordTimer?.cancel();
+      _recordTimer = Timer.periodic(const Duration(milliseconds: 200), (_) {
+        if (!mounted || !_isRecording || _recordStartAt == null) return;
+        final elapsed = DateTime.now().difference(_recordStartAt!);
+        if (elapsed.inSeconds >= 180) {
+          // حد أقصى 3 دقائق
+          _stopRecording();
+          return;
+        }
+        setState(() {
+          final m = elapsed.inMinutes;
+          final s = elapsed.inSeconds % 60;
+          _recordElapsedText = '$m:${s.toString().padLeft(2, '0')}';
+        });
+      });
     }
   }
 
@@ -907,8 +940,16 @@ class _MessageInputWidgetState extends State<MessageInputWidget>
       _isRecording = false;
     });
 
+    _recordTimer?.cancel();
+
     if (path != null) {
-      _sendAudioMessage(path);
+      if (_recordCancelled) {
+        try {
+          File(path).existsSync() ? File(path).deleteSync() : null;
+        } catch (_) {}
+      } else {
+        _sendAudioMessage(path);
+      }
     }
   }
 
@@ -922,6 +963,63 @@ class _MessageInputWidgetState extends State<MessageInputWidget>
         messageType: 'audio',
       ));
     } catch (_) {}
+  }
+
+  void _cancelRecording() {
+    if (!_isRecording || _recordCancelled) return;
+    HapticFeedback.lightImpact();
+    setState(() {
+      _recordCancelled = true;
+    });
+    // Stop immediately
+    _stopRecording();
+  }
+
+  Widget _buildRecordingOverlay() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppTheme.error.withValues(alpha: 0.15),
+            AppTheme.error.withValues(alpha: 0.08),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: AppTheme.error.withValues(alpha: 0.25),
+          width: 0.5,
+        ),
+      ),
+      child: Row(
+        children: [
+          // pulsating red dot
+          _buildMinimalRecordingIndicator(),
+          const SizedBox(width: 8),
+          Text(
+            _recordElapsedText,
+            style: AppTextStyles.bodyMedium.copyWith(
+              color: AppTheme.textWhite.withValues(alpha: 0.9),
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              _recordCancelled ? 'تم الإلغاء' : 'اسحب لليسار للإلغاء',
+              style: AppTextStyles.caption.copyWith(
+                color: AppTheme.textMuted.withValues(alpha: 0.7),
+                fontSize: 11,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _pickImage(ImageSource source) async {
