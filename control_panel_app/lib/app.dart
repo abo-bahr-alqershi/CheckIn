@@ -5,7 +5,6 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:bookn_cp_app/core/bloc/theme/theme_bloc.dart';
 import 'package:bookn_cp_app/core/bloc/theme/theme_state.dart';
-import 'package:bookn_cp_app/features/chat/presentation/providers/typing_indicator_provider.dart';
 import 'package:bookn_cp_app/core/localization/app_localizations.dart';
 import 'package:bookn_cp_app/core/localization/locale_manager.dart';
 import 'package:bookn_cp_app/routes/app_router.dart';
@@ -21,9 +20,7 @@ class YemenBookingApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(
-          create: (_) => TypingIndicatorProvider(),
-        ),
+        // TypingIndicatorProvider removed; ChatBloc maintains typingUsers state
         ...AppBloc.providers,
       ],
       child: BlocBuilder<ThemeBloc, ThemeState>(

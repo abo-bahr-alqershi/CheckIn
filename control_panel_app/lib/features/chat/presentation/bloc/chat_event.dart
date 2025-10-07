@@ -212,16 +212,18 @@ class UploadAttachmentEvent extends ChatEvent {
   final String filePath;
   final String messageType;
   final Function(int, int)? onProgress;
+  final String? replyToMessageId;
 
   const UploadAttachmentEvent({
     required this.conversationId,
     required this.filePath,
     required this.messageType,
     this.onProgress,
+    this.replyToMessageId,
   });
 
   @override
-  List<Object?> get props => [conversationId, filePath, messageType];
+  List<Object?> get props => [conversationId, filePath, messageType, replyToMessageId];
 }
 
 // Legacy SendImagesEvent and UpdateImageUploadProgressEvent removed. UI now

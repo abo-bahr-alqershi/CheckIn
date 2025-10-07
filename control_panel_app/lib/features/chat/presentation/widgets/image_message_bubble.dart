@@ -329,10 +329,6 @@ class _ImageMessageBubbleState extends State<ImageMessageBubble>
 
     return GestureDetector(
       onTap: () {
-        print('🔥 DEBUG: Reply card tapped in ImageMessageBubble!');
-        print('🔥 DEBUG: onReplyTap is null? ${widget.onReplyTap == null}');
-        print('🔥 DEBUG: replyToMessageId: ${widget.message.replyToMessageId}');
-
         if (widget.onReplyTap != null) {
           HapticFeedback.selectionClick();
           widget.onReplyTap!();
