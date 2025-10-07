@@ -1257,18 +1257,12 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
           error: 'فشل في إضافة التفاعل',
         ));
       },
-      (reaction) async {
-        // نجح - استبدال التفاعل المتفائل بالفعلي
-        final finalMessages = _replaceOptimisticReaction(
-          currentState.messages,
-          event.messageId,
-          optimisticReaction.id,
-          reaction,
-        );
-        emit(currentState.copyWith(
-          messages: finalMessages,
-          error: null,
-        ));
+      (_) async {
+        // نجح - تأكيد حالة التفاعل مع إبقاء التحديث المتفائل
+        final latestState = state;
+        if (latestState is ChatLoaded) {
+          emit(latestState.copyWith(error: null));
+        }
       },
     );
   }
