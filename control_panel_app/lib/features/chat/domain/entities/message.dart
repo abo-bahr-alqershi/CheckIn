@@ -6,10 +6,12 @@ class Message extends Equatable {
   final String conversationId;
   final String senderId;
   final String? senderName;
+  final String? senderAvatar;
   final String messageType;
   final String? content;
   final Location? location;
   final String? replyToMessageId;
+  final Message? replyToMessage;
   final List<MessageReaction> reactions;
   final List<Attachment> attachments;
   final DateTime createdAt;
@@ -19,17 +21,27 @@ class Message extends Equatable {
   final DateTime? editedAt;
   final DeliveryReceipt? deliveryReceipt;
   final bool isDeleted;
+  final DateTime? deletedAt;
   final String? failureReason; // إضافة سبب الفشل
+  final bool isForwarded;
+  final String? forwardedFrom;
+  final List<String> mentions;
+  final bool isPinned;
+  final bool isStarred;
+  final List<String> readBy;
+  final Map<String, dynamic>? metadata;
 
   const Message({
     required this.id,
     required this.conversationId,
     required this.senderId,
     this.senderName,
+    this.senderAvatar,
     required this.messageType,
     this.content,
     this.location,
     this.replyToMessageId,
+    this.replyToMessage,
     this.reactions = const [],
     this.attachments = const [],
     required this.createdAt,
@@ -39,7 +51,15 @@ class Message extends Equatable {
     this.editedAt,
     this.deliveryReceipt,
     this.isDeleted = false,
+    this.deletedAt,
     this.failureReason,
+    this.isForwarded = false,
+    this.forwardedFrom,
+    this.mentions = const [],
+    this.isPinned = false,
+    this.isStarred = false,
+    this.readBy = const [],
+    this.metadata,
   });
 
   @override
@@ -48,10 +68,12 @@ class Message extends Equatable {
         conversationId,
         senderId,
         senderName,
+        senderAvatar,
         messageType,
         content,
         location,
         replyToMessageId,
+        replyToMessage,
         reactions,
         attachments,
         createdAt,
@@ -61,7 +83,15 @@ class Message extends Equatable {
         editedAt,
         deliveryReceipt,
         isDeleted,
+        deletedAt,
         failureReason,
+        isForwarded,
+        forwardedFrom,
+        mentions,
+        isPinned,
+        isStarred,
+        readBy,
+        metadata,
       ];
 
   // Helper methods
@@ -77,15 +107,19 @@ class Location extends Equatable {
   final double latitude;
   final double longitude;
   final String? address;
+  final String? placeName;
+  final double? accuracy;
 
   const Location({
     required this.latitude,
     required this.longitude,
     this.address,
+    this.placeName,
+    this.accuracy,
   });
 
   @override
-  List<Object?> get props => [latitude, longitude, address];
+  List<Object?> get props => [latitude, longitude, address, placeName, accuracy];
 }
 
 class MessageReaction extends Equatable {

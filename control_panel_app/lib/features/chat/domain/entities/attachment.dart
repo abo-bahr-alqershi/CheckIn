@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'dart:io';
 
 class Attachment extends Equatable {
   final String id;
@@ -16,6 +17,13 @@ class Attachment extends Equatable {
   // New optional fields used by UI
   final int? duration; // in seconds for audio/video
   final double? downloadProgress; // 0.0 - 1.0 (transient, not from backend)
+  final double? uploadProgress; // 0.0 - 1.0 (transient)
+  final bool isUploading;
+  final String? uploadError;
+  final File? localFile;
+  final int? width;
+  final int? height;
+  final String? blurhash;
 
   const Attachment({
     required this.id,
@@ -32,6 +40,13 @@ class Attachment extends Equatable {
     this.metadata,
     this.duration,
     this.downloadProgress,
+    this.uploadProgress,
+    this.isUploading = false,
+    this.uploadError,
+    this.localFile,
+    this.width,
+    this.height,
+    this.blurhash,
   });
 
   @override
@@ -50,6 +65,13 @@ class Attachment extends Equatable {
         metadata,
         duration,
         downloadProgress,
+        uploadProgress,
+        isUploading,
+        uploadError,
+        localFile,
+        width,
+        height,
+        blurhash,
       ];
 
   // Helper methods

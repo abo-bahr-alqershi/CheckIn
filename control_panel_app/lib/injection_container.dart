@@ -283,6 +283,7 @@ import 'features/chat/domain/usecases/get_admin_users_usecase.dart';
 import 'features/chat/domain/usecases/update_user_status_usecase.dart';
 import 'features/chat/domain/usecases/get_chat_settings_usecase.dart';
 import 'features/chat/domain/usecases/update_chat_settings_usecase.dart';
+import 'features/chat/domain/usecases/send_typing_indicator_usecase.dart';
 
 // Features - Admin Units
 import 'features/admin_units/presentation/bloc/units_list/units_list_bloc.dart';
@@ -919,15 +920,17 @@ void _initChat() {
       editMessageUseCase: sl(),
       addReactionUseCase: sl(),
       removeReactionUseCase: sl(),
-      markAsReadUseCase: sl(),
+      markMessagesAsReadUseCase: sl(),
       uploadAttachmentUseCase: sl(),
       searchChatsUseCase: sl(),
       getAvailableUsersUseCase: sl(),
-      getAdminUsersUseCase: sl(),
       updateUserStatusUseCase: sl(),
       getChatSettingsUseCase: sl(),
       updateChatSettingsUseCase: sl(),
+      sendTypingIndicatorUseCase: sl(),
+      getCurrentUserUseCase: sl(),
       webSocketService: sl(),
+      getAdminUsersUseCase: sl(),
     ),
   );
 
@@ -951,6 +954,7 @@ void _initChat() {
   sl.registerLazySingleton(() => UpdateUserStatusUseCase(sl()));
   sl.registerLazySingleton(() => GetChatSettingsUseCase(sl()));
   sl.registerLazySingleton(() => UpdateChatSettingsUseCase(sl()));
+  sl.registerLazySingleton(() => SendTypingIndicatorUseCase(sl()));
 
   // Repository
   sl.registerLazySingleton<ChatRepository>(

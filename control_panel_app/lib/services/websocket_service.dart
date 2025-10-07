@@ -46,6 +46,10 @@ class ChatWebSocketService {
       _connectionStatusController.stream;
   Stream<Conversation> get conversationUpdates =>
       _conversationController.stream;
+  // Compatibility stream expected by ChatBloc
+  Stream<ConversationEventWS> get conversationEvents =>
+      _conversationController.stream
+          .map((c) => ConversationEventWS(conversation: c));
   Stream<MessageEvent> get messageEvents => _messageController.stream;
   Stream<TypingEvent> get typingEvents => _typingController.stream;
   Stream<PresenceEvent> get presenceEvents => _presenceController.stream;
@@ -154,9 +158,9 @@ class ChatWebSocketService {
 
   void _handleMessageEdited(Map<String, dynamic> message) {
     try {
-      final msg = MessageModel.fromJson(message['data']);
+      final msg = MessageModel.fromJson(message[ 'data']);
       _messageController.add(MessageEvent(
-        type: MessageEventType.edited,
+        type: MessageEventType.messageUpdated,
         message: msg,
         conversationId: msg.conversationId,
       ));
@@ -169,7 +173,7 @@ class ChatWebSocketService {
     try {
       final data = message['data'];
       _messageController.add(MessageEvent(
-        type: MessageEventType.deleted,
+        type: MessageEventType.messageDeleted,
         messageId: data['messageId'],
         conversationId: data['conversationId'],
       ));
@@ -419,6 +423,12 @@ class TypingEvent {
   });
 }
 
+// Wrapper class for conversation updates to satisfy ChatBloc event type
+class ConversationEventWS {
+  final Conversation? conversation;
+  ConversationEventWS({this.conversation});
+}
+
 class PresenceEvent {
   final String userId;
   final String status;
@@ -453,8 +463,8 @@ enum ConnectionStatus {
 
 enum MessageEventType {
   newMessage,
-  edited,
-  deleted,
+  messageUpdated,
+  messageDeleted,
   statusUpdated,
   reactionAdded,
   reactionRemoved,

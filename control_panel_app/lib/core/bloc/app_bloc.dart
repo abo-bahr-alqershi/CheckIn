@@ -71,15 +71,17 @@ class AppBloc {
       editMessageUseCase: sl(),
       addReactionUseCase: sl(),
       removeReactionUseCase: sl(),
-      markAsReadUseCase: sl(),
+      markMessagesAsReadUseCase: sl(),
       uploadAttachmentUseCase: sl(),
       searchChatsUseCase: sl(),
       getAvailableUsersUseCase: sl(),
+      getAdminUsersUseCase: sl(),
       updateUserStatusUseCase: sl(),
       getChatSettingsUseCase: sl(),
       updateChatSettingsUseCase: sl(),
+      sendTypingIndicatorUseCase: sl(),
+      getCurrentUserUseCase: sl(),
       webSocketService: sl(), 
-      getAdminUsersUseCase: sl(),
     );
 
     // Removed other feature blocs

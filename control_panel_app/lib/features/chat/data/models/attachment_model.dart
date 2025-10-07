@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 import '../../domain/entities/attachment.dart';
 
 /// نموذج المرفقات مع دعم كامل لجميع أنواع الوسائط

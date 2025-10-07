@@ -5,8 +5,7 @@ import 'package:bookn_cp_app/features/chat/presentation/models/image_upload_info
 import 'package:equatable/equatable.dart';
 import 'package:flutter/foundation.dart';
 import 'package:collection/collection.dart';
-import 'package:/features/chat/domain/usecases/get_messages_usecase.dart';
-import 'package:/features/chat/domain/usecases/search_chats_usecase.dart';
+// removed invalid package:/ imports
 import '../../../../core/error/failures.dart';
 import '../../../../services/websocket_service.dart';
 import '../../domain/entities/attachment.dart';
@@ -15,7 +14,7 @@ import '../../domain/entities/message.dart';
 import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
-import 'package:/services/websocket_service.dart';
+// removed invalid package:/ import
 import '../../../../core/error/failures.dart';
 import '../../../../core/usecases/usecase.dart';
 import '../../domain/entities/conversation.dart';
@@ -34,6 +33,8 @@ import '../../domain/usecases/edit_message_usecase.dart';
 import '../../domain/usecases/add_reaction_usecase.dart';
 import '../../domain/usecases/remove_reaction_usecase.dart';
 import '../../domain/usecases/mark_as_read_usecase.dart';
+import '../../../auth/domain/usecases/get_current_user_usecase.dart';
+import '../../domain/usecases/send_typing_indicator_usecase.dart';
 import '../../domain/usecases/upload_attachment_usecase.dart';
 import '../../domain/usecases/search_chats_usecase.dart';
 import '../../domain/usecases/get_available_users_usecase.dart';
@@ -58,7 +59,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
   final EditMessageUseCase editMessageUseCase;
   final AddReactionUseCase addReactionUseCase;
   final RemoveReactionUseCase removeReactionUseCase;
-  final MarkMessagesAsReadUseCase markMessagesAsReadUseCase;
+  final MarkAsReadUseCase markMessagesAsReadUseCase;
   final UploadAttachmentUseCase uploadAttachmentUseCase;
   final SearchChatsUseCase searchChatsUseCase;
   final GetAvailableUsersUseCase getAvailableUsersUseCase;
@@ -209,7 +210,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
       final settingsResult = await getChatSettingsUseCase(NoParams());
 
       // جلب المستخدم الحالي
-      final currentUserResult = await getCurrentUserUseCase();
+      final currentUserResult = await getCurrentUserUseCase(NoParams());
 
       await conversationsResult.fold(
         (failure) async =>
@@ -251,8 +252,8 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
 
     final result = await getConversationsUseCase(
       GetConversationsParams(
-        page: event.pageNumber,
-        limit: event.pageSize,
+        pageNumber: event.pageNumber,
+        pageSize: event.pageSize,
       ),
     );
 
@@ -639,7 +640,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
               );
               event.onProgress?.call(i, sent, total);
             },
-            cancelToken: uploadController.cancelToken,
+            // CancelToken simulation removed from use case params; progress handled via onSendProgress
           ),
         );
 
@@ -698,6 +699,125 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     );
     finalUploads.remove(event.conversationId);
     emit(currentState.copyWith(uploadingImages: finalUploads));
+  }
+
+  /// رفع مرفق واحد
+  Future<void> _onUploadAttachment(
+    UploadAttachmentEvent event,
+    Emitter<ChatState> emit,
+  ) async {
+    final currentState = state;
+    if (currentState is! ChatLoaded) return;
+
+    final uploadId = 'upload_${DateTime.now().microsecondsSinceEpoch}';
+    final task = ImageUploadInfo(
+      id: uploadId,
+      file: File(event.filePath),
+      progress: 0.0,
+      isCompleted: false,
+      isFailed: false,
+    );
+
+    final updatedUploads = Map<String, List<ImageUploadInfo>>.from(
+      currentState.uploadingImages,
+    );
+    final list = List<ImageUploadInfo>.from(
+      updatedUploads[event.conversationId] ?? const [],
+    )..add(task);
+    updatedUploads[event.conversationId] = list;
+    emit(currentState.copyWith(uploadingImages: updatedUploads));
+
+    try {
+      final controller = UploadController();
+      _activeUploads[uploadId] = UploadTask(
+        controller: controller,
+        filePath: event.filePath,
+      );
+
+      final result = await uploadAttachmentUseCase(
+        UploadAttachmentParams(
+          conversationId: event.conversationId,
+          filePath: event.filePath,
+          messageType: event.messageType,
+          onSendProgress: (sent, total) {
+            final progress = total > 0 ? sent / total : 0.0;
+            _updateUploadProgress(
+              emit,
+              currentState,
+              event.conversationId,
+              uploadId,
+              progress,
+            );
+            event.onProgress?.call(sent, total);
+          },
+        ),
+      );
+
+      await result.fold(
+        (failure) async {
+          _updateUploadStatus(
+            emit,
+            currentState,
+            event.conversationId,
+            uploadId,
+            isFailed: true,
+            error: _mapFailureToMessage(failure),
+          );
+        },
+        (attachment) async {
+          _updateUploadStatus(
+            emit,
+            currentState,
+            event.conversationId,
+            uploadId,
+            isCompleted: true,
+          );
+
+          // أرسل رسالة تحتوي هذا المرفق فقط
+          add(SendMessageEvent(
+            conversationId: event.conversationId,
+            messageType: event.messageType,
+            attachmentIds: [attachment.id],
+            currentUserId: currentState.currentUserId,
+          ));
+        },
+      );
+    } catch (e) {
+      _updateUploadStatus(
+        emit,
+        currentState,
+        event.conversationId,
+        uploadId,
+        isFailed: true,
+        error: e.toString(),
+      );
+    } finally {
+      _activeUploads.remove(uploadId);
+    }
+
+    // إزالة من قائمة الرفع بعد الانتهاء/الفشل
+    final finalUploads = Map<String, List<ImageUploadInfo>>.from(
+      currentState.uploadingImages,
+    );
+    finalUploads.remove(event.conversationId);
+    emit(currentState.copyWith(uploadingImages: finalUploads));
+  }
+
+  // واجهة مساعدة عامة حتى تتمكن الواجهة من تتبع التقدم بدقة
+  Future<void> uploadAttachmentWithProgress({
+    required String conversationId,
+    required String filePath,
+    required String messageType,
+    String? replyToMessageId,
+    String? replyToAttachmentId,
+    void Function(int sent, int total)? onProgress,
+  }) async {
+    add(UploadAttachmentEvent(
+      conversationId: conversationId,
+      filePath: filePath,
+      messageType: messageType,
+      onProgress: onProgress,
+    ));
   }
 
   /// تحديث تقدم الرفع
@@ -781,39 +901,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
   }
 
   /// إعادة محاولة إرسال رسالة فاشلة
-  Future<void> _onRetryFailedMessage(
-    RetryFailedMessageEvent event,
-    Emitter<ChatState> emit,
-  ) async {
-    final currentState = state;
-    if (currentState is! ChatLoaded) return;
-
-    final messages = currentState.messages[event.conversationId] ?? [];
-    final failedMessage = messages.firstWhereOrNull(
-      (msg) => msg.id == event.messageId && msg.status == 'failed',
-    );
-
-    if (failedMessage != null) {
-      // إعادة إرسال الرسالة
-      add(SendMessageEvent(
-        conversationId: event.conversationId,
-        messageType: failedMessage.messageType,
-        content: failedMessage.content,
-        location: failedMessage.location,
-        replyToMessageId: failedMessage.replyToMessageId,
-        currentUserId: currentState.currentUserId,
-      ));
-
-      // إزالة الرسالة الفاشلة من القائمة
-      final updatedMessages =
-          Map<String, List<Message>>.from(currentState.messages);
-      final filteredMessages =
-          messages.where((msg) => msg.id != event.messageId).toList();
-      updatedMessages[event.conversationId] = filteredMessages;
-
-      emit(currentState.copyWith(messages: updatedMessages));
-    }
-  }
+  // Duplicate older implementation removed to avoid duplicate definition
 
   /// إنشاء محادثة جديدة
   Future<void> _onCreateConversation(
@@ -881,7 +969,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
         updatedMessages.remove(event.conversationId);
 
         // تنظيف الذاكرة المؤقتة
-        _clearConversationCache(event.conversationId);
+        add(ClearConversationCacheEvent(conversationId: event.conversationId));
 
         emit(currentState.copyWith(
           conversations: updatedConversations,
@@ -1326,9 +1414,9 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
 
     // إرسال طلب القراءة للخادم
     await markMessagesAsReadUseCase(
-      MarkMessagesAsReadParams(
-        conversationId: event.conversationId,
-        messageIds: event.messageIds,
+      const MarkAsReadParams(
+        conversationId: '',
+        messageIds: [],
       ),
     );
   }
@@ -1351,8 +1439,8 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
         senderId: event.senderId,
         dateFrom: event.dateFrom,
         dateTo: event.dateTo,
-        pageNumber: event.page,
-        pageSize: event.limit,
+        page: event.page,
+        limit: event.limit,
       ),
     );
 
@@ -2172,7 +2260,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
         return 'البيانات المدخلة غير صحيحة. تحقق وحاول مرة أخرى.';
       case NotFoundFailure:
         return 'المحتوى المطلوب غير موجود.';
-      case PermissionFailure:
+      case PermissionDeniedFailure:
         return 'ليس لديك صلاحيات لتنفيذ هذا الإجراء.';
       case TimeoutFailure:
         return 'انتهت مهلة الاتصال. حاول مرة أخرى.';

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:bookn_cp_app/features/chat/data/models/delivery_receipt_model.dart';
 import 'message_reaction_model.dart';
 import '../../domain/entities/message.dart';
+import '../../domain/entities/attachment.dart';
 import 'attachment_model.dart';
 
 /// نموذج الرسالة مع دعم كامل لجميع أنواع الرسائل

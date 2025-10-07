@@ -502,9 +502,10 @@ class RetryFailedMessageEvent extends ChatEvent {
 /// حدث إلغاء عملية الرفع
 class CancelUploadEvent extends ChatEvent {
   final String uploadId;
+  final String conversationId;
 
-  const CancelUploadEvent({required this.uploadId});
+  const CancelUploadEvent({required this.uploadId, required this.conversationId});
 
   @override
-  List<Object> get props => [uploadId];
+  List<Object> get props => [uploadId, conversationId];
 }
