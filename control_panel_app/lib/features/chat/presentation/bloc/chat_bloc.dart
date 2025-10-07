@@ -781,7 +781,6 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
             );
             event.onProgress?.call(sent, total);
           },
-          replyToMessageId: event.replyToMessageId,
         ),
       );
 
@@ -1707,7 +1706,16 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     emit(currentState.copyWith(settings: updatedSettings));
 
     final result = await updateChatSettingsUseCase(
-      UpdateChatSettingsParams(settings: updatedSettings),
+      UpdateChatSettingsParams(
+        notificationsEnabled: updatedSettings.notificationsEnabled,
+        soundEnabled: updatedSettings.soundEnabled,
+        showReadReceipts: updatedSettings.showReadReceipts,
+        showTypingIndicator: updatedSettings.showTypingIndicator,
+        theme: updatedSettings.theme,
+        fontSize: updatedSettings.fontSize,
+        autoDownloadMedia: updatedSettings.autoDownloadMedia,
+        backupMessages: updatedSettings.backupMessages,
+      ),
     );
 
     await result.fold(
