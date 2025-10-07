@@ -446,3 +446,65 @@ class _UploadProgressInternal extends ChatEvent {
   @override
   List<Object> get props => [sent, total];
 }
+
+/// حدث رفع مرفقات متعددة
+class UploadMultipleAttachmentsEvent extends ChatEvent {
+  final String conversationId;
+  final List<String> filePaths;
+  final String messageType;
+  final Function(int index, int sent, int total)? onProgress;
+
+  const UploadMultipleAttachmentsEvent({
+    required this.conversationId,
+    required this.filePaths,
+    required this.messageType,
+    this.onProgress,
+  });
+
+  @override
+  List<Object?> get props => [conversationId, filePaths, messageType];
+}
+
+/// حدث مسح ذاكرة التخزين المؤقت للمحادثة
+class ClearConversationCacheEvent extends ChatEvent {
+  final String conversationId;
+
+  const ClearConversationCacheEvent({required this.conversationId});
+
+  @override
+  List<Object> get props => [conversationId];
+}
+
+/// حدث تحديث المحادثة
+class RefreshConversationEvent extends ChatEvent {
+  final String conversationId;
+
+  const RefreshConversationEvent({required this.conversationId});
+
+  @override
+  List<Object> get props => [conversationId];
+}
+
+/// حدث إعادة محاولة إرسال رسالة فاشلة
+class RetryFailedMessageEvent extends ChatEvent {
+  final String conversationId;
+  final String messageId;
+
+  const RetryFailedMessageEvent({
+    required this.conversationId,
+    required this.messageId,
+  });
+
+  @override
+  List<Object> get props => [conversationId, messageId];
+}
+
+/// حدث إلغاء عملية الرفع
+class CancelUploadEvent extends ChatEvent {
+  final String uploadId;
+
+  const CancelUploadEvent({required this.uploadId});
+
+  @override
+  List<Object> get props => [uploadId];
+}

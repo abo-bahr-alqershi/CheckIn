@@ -26,11 +26,16 @@ class ChatLoaded extends ChatState {
   final SearchResult? searchResult;
   final bool isLoadingMessages;
   final bool isLoadingMore;
+  final bool isSearching;
+  final bool isSendingMessage;
   final String? error;
   final Attachment? uploadingAttachment;
   final double? uploadProgress;
-  final Map<String, List<ImageUploadInfo>>
-      uploadingImages; // صور قيد الرفع لكل محادثة
+  final Map<String, List<ImageUploadInfo>> uploadingImages;
+  final String? currentUserId;
+  final String? currentUserName;
+  final String? loadingConversationId;
+  final String? sendingConversationId;
 
   const ChatLoaded({
     this.conversations = const [],
@@ -43,10 +48,16 @@ class ChatLoaded extends ChatState {
     this.searchResult,
     this.isLoadingMessages = false,
     this.isLoadingMore = false,
+    this.isSearching = false,
+    this.isSendingMessage = false,
     this.error,
     this.uploadingAttachment,
     this.uploadProgress,
     this.uploadingImages = const {},
+    this.currentUserId,
+    this.currentUserName,
+    this.loadingConversationId,
+    this.sendingConversationId,
   });
 
   ChatLoaded copyWith({
@@ -60,10 +71,16 @@ class ChatLoaded extends ChatState {
     SearchResult? searchResult,
     bool? isLoadingMessages,
     bool? isLoadingMore,
+    bool? isSearching,
+    bool? isSendingMessage,
     String? error,
     Attachment? uploadingAttachment,
     double? uploadProgress,
     Map<String, List<ImageUploadInfo>>? uploadingImages,
+    String? currentUserId,
+    String? currentUserName,
+    String? loadingConversationId,
+    String? sendingConversationId,
   }) {
     return ChatLoaded(
       conversations: conversations ?? this.conversations,
@@ -76,10 +93,16 @@ class ChatLoaded extends ChatState {
       searchResult: searchResult ?? this.searchResult,
       isLoadingMessages: isLoadingMessages ?? this.isLoadingMessages,
       isLoadingMore: isLoadingMore ?? this.isLoadingMore,
+      isSearching: isSearching ?? this.isSearching,
+      isSendingMessage: isSendingMessage ?? this.isSendingMessage,
       error: error,
       uploadingAttachment: uploadingAttachment,
       uploadProgress: uploadProgress,
       uploadingImages: uploadingImages ?? this.uploadingImages,
+      currentUserId: currentUserId ?? this.currentUserId,
+      currentUserName: currentUserName ?? this.currentUserName,
+      loadingConversationId: loadingConversationId,
+      sendingConversationId: sendingConversationId,
     );
   }
 
@@ -95,10 +118,16 @@ class ChatLoaded extends ChatState {
         searchResult,
         isLoadingMessages,
         isLoadingMore,
+        isSearching,
+        isSendingMessage,
         error,
         uploadingAttachment,
         uploadProgress,
         uploadingImages,
+        currentUserId,
+        currentUserName,
+        loadingConversationId,
+        sendingConversationId,
       ];
 }
 

@@ -5,7 +5,8 @@ class Message extends Equatable {
   final String id;
   final String conversationId;
   final String senderId;
-  final String messageType; // "text", "image", "audio", "video", "document", "location"
+  final String? senderName;
+  final String messageType;
   final String? content;
   final Location? location;
   final String? replyToMessageId;
@@ -13,17 +14,18 @@ class Message extends Equatable {
   final List<Attachment> attachments;
   final DateTime createdAt;
   final DateTime updatedAt;
-  final String status; // "sent", "delivered", "read", "failed"
+  final String status;
   final bool isEdited;
   final DateTime? editedAt;
   final DeliveryReceipt? deliveryReceipt;
   final bool isDeleted;
-  final String? senderName;
+  final String? failureReason; // إضافة سبب الفشل
 
   const Message({
     required this.id,
     required this.conversationId,
     required this.senderId,
+    this.senderName,
     required this.messageType,
     this.content,
     this.location,
@@ -37,29 +39,30 @@ class Message extends Equatable {
     this.editedAt,
     this.deliveryReceipt,
     this.isDeleted = false,
-    this.senderName,
+    this.failureReason,
   });
 
   @override
   List<Object?> get props => [
-    id,
-    conversationId,
-    senderId,
-    messageType,
-    content,
-    location,
-    replyToMessageId,
-    reactions,
-    attachments,
-    createdAt,
-    updatedAt,
-    status,
-    isEdited,
-    editedAt,
-    deliveryReceipt,
-    isDeleted,
-    senderName,
-  ];
+        id,
+        conversationId,
+        senderId,
+        senderName,
+        messageType,
+        content,
+        location,
+        replyToMessageId,
+        reactions,
+        attachments,
+        createdAt,
+        updatedAt,
+        status,
+        isEdited,
+        editedAt,
+        deliveryReceipt,
+        isDeleted,
+        failureReason,
+      ];
 
   // Helper methods
   bool get isTextMessage => messageType == 'text';
@@ -116,6 +119,7 @@ class DeliveryReceipt extends Equatable {
   @override
   List<Object?> get props => [deliveredAt, readAt, readBy];
 }
+
 extension LocationExtension on Location {
   Map<String, dynamic> toJson() {
     return {
