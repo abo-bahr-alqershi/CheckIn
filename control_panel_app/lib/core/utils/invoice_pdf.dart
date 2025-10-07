@@ -159,10 +159,17 @@ class InvoicePdfGenerator {
       );
     }
 
+    final arabicFont = await pw.Font.ttf(await PdfGoogleFonts.amiriRegular());
+    final arabicBold = await pw.Font.ttf(await PdfGoogleFonts.amiriBold());
+
     doc.addPage(
       pw.MultiPage(
         pageTheme: const pw.PageTheme(
           margin: pw.EdgeInsets.all(24),
+        ),
+        theme: pw.ThemeData.withFont(
+          base: arabicFont,
+          bold: arabicBold,
         ),
         build: (context) => [
           buildHeader(),
