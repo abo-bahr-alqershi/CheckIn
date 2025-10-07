@@ -48,14 +48,22 @@ namespace YemenBooking.Application.Handlers.Commands.Chat
                 var settings = await _settingsRepo.GetByUserIdAsync(userId, cancellationToken)
                     ?? new ChatSettings { UserId = userId, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow };
 
-                settings.NotificationsEnabled = request.NotificationsEnabled;
-                settings.SoundEnabled = request.SoundEnabled;
-                settings.ShowReadReceipts = request.ShowReadReceipts;
-                settings.ShowTypingIndicator = request.ShowTypingIndicator;
-                settings.Theme = request.Theme;
-                settings.FontSize = request.FontSize;
-                settings.AutoDownloadMedia = request.AutoDownloadMedia;
-                settings.BackupMessages = request.BackupMessages;
+                if (request.NotificationsEnabled.HasValue)
+                    settings.NotificationsEnabled = request.NotificationsEnabled!.Value;
+                if (request.SoundEnabled.HasValue)
+                    settings.SoundEnabled = request.SoundEnabled!.Value;
+                if (request.ShowReadReceipts.HasValue)
+                    settings.ShowReadReceipts = request.ShowReadReceipts!.Value;
+                if (request.ShowTypingIndicator.HasValue)
+                    settings.ShowTypingIndicator = request.ShowTypingIndicator!.Value;
+                if (!string.IsNullOrWhiteSpace(request.Theme))
+                    settings.Theme = request.Theme!;
+                if (!string.IsNullOrWhiteSpace(request.FontSize))
+                    settings.FontSize = request.FontSize!;
+                if (request.AutoDownloadMedia.HasValue)
+                    settings.AutoDownloadMedia = request.AutoDownloadMedia!.Value;
+                if (request.BackupMessages.HasValue)
+                    settings.BackupMessages = request.BackupMessages!.Value;
                 settings.UpdatedAt = DateTime.UtcNow;
 
                 if (settings.Id == default)

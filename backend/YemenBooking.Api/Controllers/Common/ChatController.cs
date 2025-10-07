@@ -42,8 +42,12 @@ namespace YemenBooking.Api.Controllers.Common
             return Ok(new
             {
                 conversations = data.Items,
+                total = data.TotalCount,
+                totalCount = data.TotalCount,
                 total_count = data.TotalCount,
+                hasMore = data.HasNextPage,
                 has_more = data.HasNextPage,
+                nextPage = data.NextPageNumber,
                 next_page = data.NextPageNumber
             });
         }
@@ -92,8 +96,12 @@ namespace YemenBooking.Api.Controllers.Common
             return Ok(new
             {
                 messages = data.Items,
+                total = data.TotalCount,
+                totalCount = data.TotalCount,
                 total_count = data.TotalCount,
+                hasMore = data.HasNextPage,
                 has_more = data.HasNextPage,
+                nextPage = data.NextPageNumber,
                 next_page = data.NextPageNumber
             });
         }
@@ -181,8 +189,12 @@ namespace YemenBooking.Api.Controllers.Common
             {
                 messages = data.Messages,
                 conversations = data.Conversations,
+                total = data.TotalCount,
+                totalCount = data.TotalCount,
                 total_count = data.TotalCount,
+                hasMore = data.HasMore,
                 has_more = data.HasMore,
+                nextPage = data.NextPageNumber,
                 next_page = data.NextPageNumber
             });
         }
@@ -227,7 +239,14 @@ namespace YemenBooking.Api.Controllers.Common
         public async Task<IActionResult> GetChatSettings()
         {
             var result = await _mediator.Send(new GetChatSettingsQuery());
-            if (!result.Success) return BadRequest(result);
+            if (!result.Success)
+            {
+                if (string.Equals(result.ErrorCode, "not_found", StringComparison.OrdinalIgnoreCase))
+                {
+                    return NotFound(new { message = result.Message, success = false, errorCode = result.ErrorCode });
+                }
+                return BadRequest(result);
+            }
             return Ok(result.Data);
         }
 
