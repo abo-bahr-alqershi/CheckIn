@@ -18,9 +18,10 @@ import 'reaction_picker_widget.dart';
 class ImageMessageBubble extends StatefulWidget {
   final Message message;
   final bool isMe;
-  final List<ImageUploadInfo>? uploadingImages; // معلومات الرفع
+  final List<ImageUploadInfo>? uploadingImages;
   final void Function(Attachment)? onReply;
   final Function(String)? onReaction;
+  final VoidCallback? onReplyTap; // FIX: إضافة دعم النقر على الرد
 
   const ImageMessageBubble({
     super.key,
@@ -29,6 +30,7 @@ class ImageMessageBubble extends StatefulWidget {
     this.uploadingImages,
     this.onReply,
     this.onReaction,
+    this.onReplyTap, // FIX: إضافة parameter
   });
 
   @override
@@ -41,7 +43,6 @@ class _ImageMessageBubbleState extends State<ImageMessageBubble>
   late Animation<double> _scaleAnimation;
   late Animation<double> _fadeAnimation;
   bool _showReactions = false;
-  // Keep ephemeral per-attachment reactions for overlay display in this bubble
   final Map<String, String> _attachmentReactions = {};
 
   @override
@@ -69,6 +70,29 @@ class _ImageMessageBubbleState extends State<ImageMessageBubble>
     ));
 
     _animationController.forward();
+    _loadExistingReactions();
+  }
+
+  void _loadExistingReactions() {
+    if (widget.message.reactions.isNotEmpty &&
+        widget.message.attachments.isNotEmpty) {
+      for (var i = 0;
+          i < widget.message.reactions.length &&
+              i < widget.message.attachments.length;
+          i++) {
+        _attachmentReactions[widget.message.attachments[i].id] =
+            widget.message.reactions[i].reactionType;
+      }
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant ImageMessageBubble oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // FIX المشكلة 2: تحديث فوري عند تغيير الـ reactions
+    if (oldWidget.message.reactions.length != widget.message.reactions.length) {
+      _loadExistingReactions();
+    }
   }
 
   @override
@@ -104,26 +128,19 @@ class _ImageMessageBubbleState extends State<ImageMessageBubble>
   }
 
   Widget _buildBubbleContent() {
-    // إذا كانت الصور لا تزال قيد الرفع
     if (widget.uploadingImages != null && widget.uploadingImages!.isNotEmpty) {
-      // Check if ALL images are completed successfully
       final allCompleted =
           widget.uploadingImages!.every((img) => img.isCompleted);
-
-      // If all completed, don't show the uploading bubble anymore
       if (allCompleted) {
         return const SizedBox.shrink();
       }
-
       return _buildUploadingBubble();
     }
 
-    // إذا كانت الرسالة تحتوي على مرفقات
     if (widget.message.attachments.isNotEmpty) {
       return _buildCompletedBubble();
     }
 
-    // fallback: في حال كانت رسالة صورة بدون مرفقات لكن المحتوى يحمل رابط صورة
     if (widget.message.messageType == 'image' &&
         (widget.message.content != null &&
             widget.message.content!.isNotEmpty)) {
@@ -137,17 +154,7 @@ class _ImageMessageBubbleState extends State<ImageMessageBubble>
     final images = widget.uploadingImages!;
     final screenWidth = MediaQuery.of(context).size.width;
     final maxWidth = screenWidth * 0.65;
-
-    // حساب العرض المناسب بناءً على عدد الصور
-    double bubbleWidth;
-    if (images.length == 1) {
-      // اجعل عرض الفقاعة مكافئًا للبقية لإزالة أي هوامش زائدة
-      bubbleWidth = maxWidth;
-    } else if (images.length == 2) {
-      bubbleWidth = maxWidth;
-    } else {
-      bubbleWidth = maxWidth;
-    }
+    double bubbleWidth = maxWidth;
 
     return Container(
       width: bubbleWidth,
@@ -164,10 +171,7 @@ class _ImageMessageBubbleState extends State<ImageMessageBubble>
         borderRadius: BorderRadius.circular(12),
         child: Stack(
           children: [
-            // الصور مع التخطيط الشبكي
             _buildImageGrid(images),
-
-            // Overlay للتقدم
             _buildProgressOverlay(images),
           ],
         ),
@@ -178,92 +182,231 @@ class _ImageMessageBubbleState extends State<ImageMessageBubble>
   Widget _buildCompletedBubble() {
     final screenWidth = MediaQuery.of(context).size.width;
     final maxWidth = screenWidth * 0.65;
+    double bubbleWidth = maxWidth;
 
-    // حساب العرض المناسب بناءً على عدد المرفقات
-    double bubbleWidth;
-    if (widget.message.attachments.length == 1) {
-      // توحيد العرض مع تخطيطات الصور المتعددة لتجنب أي حواف داخلية
-      bubbleWidth = maxWidth;
-    } else if (widget.message.attachments.length == 2) {
-      bubbleWidth = maxWidth;
-    } else {
-      bubbleWidth = maxWidth;
-    }
+    return BlocBuilder<ChatBloc, ChatState>(
+      builder: (context, state) {
+        // FIX المشكلة 2: تحديث الريآكشنات من الحالة الحالية
+        if (state is ChatLoaded) {
+          final List<Message> messages =
+              (state.messages[widget.message.conversationId] ?? [])
+                  .cast<Message>();
+          final currentMessage = messages.firstWhere(
+            (m) => m.id == widget.message.id,
+            orElse: () => widget.message,
+          );
 
-    final bubble = Container(
-      width: bubbleWidth,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: widget.isMe
-              ? AppTheme.primaryBlue.withValues(alpha: 0.1)
-              : AppTheme.darkBorder.withValues(alpha: 0.05),
-          width: 0.5,
-        ),
-      ),
-      child: Stack(
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: GestureDetector(
-              // For single image, show options on long-press (not viewer)
-              onLongPress:
-                  widget.message.attachments.length == 1 ? _showOptions : null,
-              onDoubleTap: _handleDoubleTap,
-              child: WhatsAppStyleImageGrid(
-                images: widget.message.attachments,
-                isMe: widget.isMe,
-                onReaction: widget.onReaction,
-                onReply: (attachment) {
-                  if (widget.onReply != null) {
-                    widget.onReply!(attachment);
+          // مزامنة التفاعلات فوراً
+          if (currentMessage.reactions.isNotEmpty) {
+            for (var i = 0;
+                i < currentMessage.reactions.length &&
+                    i < currentMessage.attachments.length;
+                i++) {
+              final newReaction = currentMessage.reactions[i].reactionType;
+              final attachmentId = currentMessage.attachments[i].id;
+              if (_attachmentReactions[attachmentId] != newReaction) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted) {
+                    setState(() {
+                      _attachmentReactions[attachmentId] = newReaction;
+                    });
                   }
-                },
-                reactionsByAttachment: _attachmentReactions,
-                onReactForAttachment: (attachment, reaction) {
-                  setState(() {
-                    _attachmentReactions[attachment.id] = reaction;
-                  });
-                  // Backend is message-level; still propagate
-                  widget.onReaction?.call(reaction);
-                },
-              ),
+                });
+              }
+            }
+          }
+        }
+
+        final bubble = Container(
+          width: bubbleWidth,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: widget.isMe
+                  ? AppTheme.primaryBlue.withValues(alpha: 0.1)
+                  : AppTheme.darkBorder.withValues(alpha: 0.05),
+              width: 0.5,
             ),
           ),
-
-          // Footer مع الوقت والحالة
-          Positioned(
-            bottom: 4,
-            right: 8,
-            child: _buildMessageFooter(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // FIX: إضافة بطاقة الرد في رسائل الصور
+              if (widget.message.replyToMessageId != null)
+                Padding(
+                  padding: const EdgeInsets.all(8),
+                  child: _buildReplyPreviewForImage(),
+                ),
+              Stack(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: GestureDetector(
+                      onLongPress: widget.message.attachments.length == 1
+                          ? _showOptions
+                          : null,
+                      onDoubleTap: _handleDoubleTap,
+                      child: WhatsAppStyleImageGrid(
+                        images: widget.message.attachments,
+                        isMe: widget.isMe,
+                        onReaction: (reactionType) {
+                          widget.onReaction?.call(reactionType);
+                        },
+                        onReply: (attachment) {
+                          if (widget.onReply != null) {
+                            widget.onReply!(attachment);
+                          }
+                        },
+                        reactionsByAttachment: _attachmentReactions,
+                        onReactForAttachment: (attachment, reaction) {
+                          // FIX المشكلة 2: تحديث فوري في الحالة المحلية
+                          setState(() {
+                            _attachmentReactions[attachment.id] = reaction;
+                          });
+                          // إرسال للـ Bloc
+                          widget.onReaction?.call(reaction);
+                        },
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    bottom: 4,
+                    right: 8,
+                    child: _buildMessageFooter(),
+                  ),
+                ],
+              ),
+            ],
           ),
-        ],
+        );
+
+        if (widget.message.reactions.isNotEmpty || _showReactions) {
+          return Column(
+            crossAxisAlignment:
+                widget.isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              bubble,
+              const SizedBox(height: 4),
+              if (_showReactions)
+                ReactionPickerWidget(
+                  onReaction: (reaction) {
+                    widget.onReaction?.call(reaction);
+                    setState(() => _showReactions = false);
+                  },
+                )
+              else
+                _buildMinimalReactions(),
+            ],
+          );
+        }
+
+        return bubble;
+      },
+    );
+  }
+
+  Message? _findReplyMessage() {
+    final replyId = widget.message.replyToMessageId;
+    if (replyId == null) return null;
+
+    final chatBloc = context.read<ChatBloc>();
+    final chatState = chatBloc.state;
+    if (chatState is! ChatLoaded) return null;
+
+    final List<Message> messages =
+        (chatState.messages[widget.message.conversationId] ?? [])
+            .cast<Message>();
+
+    for (final m in messages) {
+      if (m.id == replyId) return m;
+    }
+    return null;
+  }
+
+  Widget _buildReplyPreviewForImage() {
+    final replyMessage = _findReplyMessage();
+
+    return GestureDetector(
+      onTap: () {
+        print('🔥 DEBUG: Reply card tapped in ImageMessageBubble!');
+        print('🔥 DEBUG: onReplyTap is null? ${widget.onReplyTap == null}');
+        print('🔥 DEBUG: replyToMessageId: ${widget.message.replyToMessageId}');
+
+        if (widget.onReplyTap != null) {
+          HapticFeedback.selectionClick();
+          widget.onReplyTap!();
+        }
+      },
+      child: Container(
+        padding: const EdgeInsets.all(6),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: widget.isMe
+                ? [
+                    Colors.white.withValues(alpha: 0.12),
+                    Colors.white.withValues(alpha: 0.06),
+                  ]
+                : [
+                    AppTheme.primaryBlue.withValues(alpha: 0.06),
+                    AppTheme.primaryBlue.withValues(alpha: 0.03),
+                  ],
+          ),
+          borderRadius: BorderRadius.circular(8),
+          border: Border(
+            left: BorderSide(
+              color: widget.isMe
+                  ? Colors.white.withValues(alpha: 0.5)
+                  : AppTheme.primaryBlue.withValues(alpha: 0.8),
+              width: 2,
+            ),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.reply,
+                  size: 12,
+                  color: widget.isMe
+                      ? Colors.white.withValues(alpha: 0.7)
+                      : AppTheme.primaryBlue.withValues(alpha: 0.7),
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  'رد على رسالة',
+                  style: AppTextStyles.caption.copyWith(
+                    color: widget.isMe
+                        ? Colors.white.withValues(alpha: 0.8)
+                        : AppTheme.primaryBlue.withValues(alpha: 0.8),
+                    fontSize: 9,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 3),
+            Text(
+              replyMessage?.content ?? 'رسالة محذوفة',
+              style: AppTextStyles.caption.copyWith(
+                color: widget.isMe
+                    ? Colors.white.withValues(alpha: 0.7)
+                    : AppTheme.textMuted.withValues(alpha: 0.6),
+                fontSize: 10,
+                fontStyle:
+                    replyMessage == null ? FontStyle.italic : FontStyle.normal,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
       ),
     );
-
-    // عرض تفاعلات الرسالة أو منتقي التفاعل أسفل الفقاعة
-    if (widget.message.reactions.isNotEmpty || _showReactions) {
-      return Column(
-        crossAxisAlignment:
-            widget.isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          bubble,
-          const SizedBox(height: 4),
-          if (_showReactions)
-            ReactionPickerWidget(
-              onReaction: (reaction) {
-                widget.onReaction?.call(reaction);
-                setState(() => _showReactions = false);
-              },
-            )
-          else
-            _buildMinimalReactions(),
-        ],
-      );
-    }
-
-    return bubble;
   }
 
   Widget _buildSingleContentImage(String url) {
@@ -324,6 +467,7 @@ class _ImageMessageBubbleState extends State<ImageMessageBubble>
       createdAt: widget.message.createdAt,
     );
 
+    // FIX المشكلة 2: callback فوري عند العودة
     Navigator.push(
       context,
       PageRouteBuilder(
@@ -335,9 +479,12 @@ class _ImageMessageBubbleState extends State<ImageMessageBubble>
           onReply: widget.onReply,
           initialReactionsByAttachment: _attachmentReactions,
           onReactForAttachment: (att, reaction) {
-            setState(() {
-              _attachmentReactions[att.id] = reaction;
-            });
+            // تحديث فوري
+            if (mounted) {
+              setState(() {
+                _attachmentReactions[att.id] = reaction;
+              });
+            }
             widget.onReaction?.call(reaction);
           },
         ),
@@ -346,7 +493,12 @@ class _ImageMessageBubbleState extends State<ImageMessageBubble>
           return FadeTransition(opacity: animation, child: child);
         },
       ),
-    );
+    ).then((_) {
+      // FIX المشكلة 2: إعادة بناء عند العودة لضمان التحديث
+      if (mounted) {
+        setState(() {});
+      }
+    });
   }
 
   Widget _buildImageGrid(List<ImageUploadInfo> images) {
@@ -378,8 +530,6 @@ class _ImageMessageBubbleState extends State<ImageMessageBubble>
               color: Colors.black.withValues(alpha: 0.2),
               colorBlendMode: BlendMode.darken,
             ),
-
-          // Progress indicator في المنتصف
           if (image.progress < 1.0)
             Center(
               child: _buildCircularProgress(image.progress),
@@ -394,13 +544,9 @@ class _ImageMessageBubbleState extends State<ImageMessageBubble>
       aspectRatio: 4 / 3,
       child: Row(
         children: [
-          Expanded(
-            child: _buildImageUploadTile(images[0]),
-          ),
+          Expanded(child: _buildImageUploadTile(images[0])),
           const SizedBox(width: 2),
-          Expanded(
-            child: _buildImageUploadTile(images[1]),
-          ),
+          Expanded(child: _buildImageUploadTile(images[1])),
         ],
       ),
     );
@@ -419,13 +565,9 @@ class _ImageMessageBubbleState extends State<ImageMessageBubble>
           Expanded(
             child: Column(
               children: [
-                Expanded(
-                  child: _buildImageUploadTile(images[1]),
-                ),
+                Expanded(child: _buildImageUploadTile(images[1])),
                 const SizedBox(height: 2),
-                Expanded(
-                  child: _buildImageUploadTile(images[2]),
-                ),
+                Expanded(child: _buildImageUploadTile(images[2])),
               ],
             ),
           ),
@@ -442,13 +584,9 @@ class _ImageMessageBubbleState extends State<ImageMessageBubble>
           Expanded(
             child: Row(
               children: [
-                Expanded(
-                  child: _buildImageUploadTile(images[0]),
-                ),
+                Expanded(child: _buildImageUploadTile(images[0])),
                 const SizedBox(width: 2),
-                Expanded(
-                  child: _buildImageUploadTile(images[1]),
-                ),
+                Expanded(child: _buildImageUploadTile(images[1])),
               ],
             ),
           ),
@@ -456,13 +594,9 @@ class _ImageMessageBubbleState extends State<ImageMessageBubble>
           Expanded(
             child: Row(
               children: [
-                Expanded(
-                  child: _buildImageUploadTile(images[2]),
-                ),
+                Expanded(child: _buildImageUploadTile(images[2])),
                 const SizedBox(width: 2),
-                Expanded(
-                  child: _buildImageUploadTile(images[3]),
-                ),
+                Expanded(child: _buildImageUploadTile(images[3])),
               ],
             ),
           ),
@@ -482,13 +616,9 @@ class _ImageMessageBubbleState extends State<ImageMessageBubble>
           Expanded(
             child: Row(
               children: [
-                Expanded(
-                  child: _buildImageUploadTile(displayImages[0]),
-                ),
+                Expanded(child: _buildImageUploadTile(displayImages[0])),
                 const SizedBox(width: 2),
-                Expanded(
-                  child: _buildImageUploadTile(displayImages[1]),
-                ),
+                Expanded(child: _buildImageUploadTile(displayImages[1])),
               ],
             ),
           ),
@@ -496,9 +626,7 @@ class _ImageMessageBubbleState extends State<ImageMessageBubble>
           Expanded(
             child: Row(
               children: [
-                Expanded(
-                  child: _buildImageUploadTile(displayImages[2]),
-                ),
+                Expanded(child: _buildImageUploadTile(displayImages[2])),
                 const SizedBox(width: 2),
                 Expanded(
                   child: Stack(
@@ -543,8 +671,6 @@ class _ImageMessageBubbleState extends State<ImageMessageBubble>
                 : null,
             colorBlendMode: image.progress < 1.0 ? BlendMode.darken : null,
           ),
-
-        // Progress indicator
         if (image.progress < 1.0)
           Container(
             color: Colors.black.withValues(alpha: 0.3),
@@ -552,8 +678,6 @@ class _ImageMessageBubbleState extends State<ImageMessageBubble>
               child: _buildCircularProgress(image.progress),
             ),
           ),
-
-        // Error indicator
         if (image.isFailed)
           Container(
             color: AppTheme.error.withValues(alpha: 0.3),
@@ -578,8 +702,6 @@ class _ImageMessageBubbleState extends State<ImageMessageBubble>
               ),
             ),
           ),
-
-        // Success checkmark
         if (image.isCompleted && !image.isFailed)
           Positioned(
             top: 8,
@@ -623,7 +745,6 @@ class _ImageMessageBubbleState extends State<ImageMessageBubble>
   }
 
   Widget _buildProgressOverlay(List<ImageUploadInfo> images) {
-    // احسب متوسط التقدم الحقيقي عبر جميع الصور
     final totalProgress = images.isEmpty
         ? 0.0
         : images.map((img) => img.progress).fold<double>(0.0, (a, b) => a + b) /
@@ -661,7 +782,6 @@ class _ImageMessageBubbleState extends State<ImageMessageBubble>
             ),
             child: Row(
               children: [
-                // إجمالي التقدم
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -700,8 +820,6 @@ class _ImageMessageBubbleState extends State<ImageMessageBubble>
                     ],
                   ),
                 ),
-
-                // زر إعادة المحاولة إذا فشل
                 if (failedCount > 0) ...[
                   const SizedBox(width: 8),
                   GestureDetector(

@@ -1,12 +1,10 @@
 import 'dart:async';
-import 'dart:io';
 import 'package:bookn_cp_app/features/chat/presentation/models/image_upload_info.dart';
 import 'package:bookn_cp_app/services/notification_service.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:bookn_cp_app/services/websocket_service.dart';
 import 'package:get_it/get_it.dart';
-import 'dart:io';
 import '../../../../core/error/failures.dart';
 import '../../../../core/usecases/usecase.dart';
 import '../../domain/entities/conversation.dart';
@@ -33,7 +31,6 @@ import '../../domain/usecases/get_admin_users_usecase.dart';
 import '../../domain/usecases/update_user_status_usecase.dart';
 import '../../domain/usecases/get_chat_settings_usecase.dart';
 import '../../domain/usecases/update_chat_settings_usecase.dart';
-import 'package:collection/collection.dart';
 
 part 'chat_event.dart';
 part 'chat_state.dart';
@@ -90,6 +87,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     on<InitializeChatEvent>(_onInitializeChat);
     on<LoadConversationsEvent>(_onLoadConversations);
     on<LoadMessagesEvent>(_onLoadMessages);
+  on<LoadMoreMessagesEvent>(_onLoadMoreMessages);
     on<SendMessageEvent>(_onSendMessage);
     on<CreateConversationEvent>(_onCreateConversation);
     on<DeleteConversationEvent>(_onDeleteConversation);
@@ -242,6 +240,81 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     );
   }
 
+  Future<void> _onLoadMoreMessages(
+    LoadMoreMessagesEvent event,
+    Emitter<ChatState> emit,
+  ) async {
+    if (state is! ChatLoaded) return;
+
+    final currentState = state as ChatLoaded;
+    if (currentState.isLoadingMore) return;
+
+    final currentMessages =
+        List<Message>.from(currentState.messages[event.conversationId] ?? []);
+
+    if (currentMessages.isEmpty) {
+      add(LoadMessagesEvent(
+        conversationId: event.conversationId,
+        pageNumber: 1,
+        pageSize: event.pageSize,
+      ));
+      return;
+    }
+
+    final oldestMessageId = currentMessages.last.id;
+
+    emit(currentState.copyWith(
+      isLoadingMore: true,
+      error: null,
+    ));
+
+    final result = await getMessagesUseCase(
+      GetMessagesParams(
+        conversationId: event.conversationId,
+        pageNumber: 1,
+        pageSize: event.pageSize,
+        beforeMessageId: oldestMessageId,
+      ),
+    );
+
+    await result.fold(
+      (failure) async => emit(currentState.copyWith(
+        isLoadingMore: false,
+        error: _mapFailureToMessage(failure),
+      )),
+      (messages) async {
+        if (messages.isEmpty) {
+          emit(currentState.copyWith(isLoadingMore: false));
+          return;
+        }
+
+        final merged = [
+          ...currentMessages,
+          ...messages.where(
+            (msg) => currentMessages.every((existing) => existing.id != msg.id),
+          ),
+        ];
+
+        emit(currentState.copyWith(
+          messages: {
+            ...currentState.messages,
+            event.conversationId: merged,
+          },
+          isLoadingMore: false,
+        ));
+
+        if (event.targetMessageId != null &&
+            merged.every((m) => m.id != event.targetMessageId)) {
+          add(LoadMoreMessagesEvent(
+            conversationId: event.conversationId,
+            targetMessageId: event.targetMessageId,
+            pageSize: event.pageSize,
+          ));
+        }
+      },
+    );
+  }
+
   Future<void> _onSendMessage(
     SendMessageEvent event,
     Emitter<ChatState> emit,
@@ -265,6 +338,8 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
       createdAt: DateTime.now(),
       updatedAt: DateTime.now(),
       status: 'sending',
+      isDeleted: false,
+      senderName: null,
     );
 
     final currentMessages = currentState.messages[event.conversationId] ?? [];
@@ -461,6 +536,8 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
                   isEdited: m.isEdited,
                   editedAt: m.editedAt,
                   deliveryReceipt: m.deliveryReceipt,
+                  isDeleted: m.isDeleted,
+                  senderName: m.senderName,
                 );
               }
               return m;
@@ -567,6 +644,8 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
                     isEdited: m.isEdited,
                     editedAt: m.editedAt,
                     deliveryReceipt: m.deliveryReceipt,
+                    isDeleted: m.isDeleted,
+                    senderName: m.senderName,
                   );
                   // Update lastMessage in conversation if this is the last one
                   _bumpConversationForMessage(currentState,
@@ -595,6 +674,8 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
                     isEdited: m.isEdited,
                     editedAt: m.editedAt,
                     deliveryReceipt: m.deliveryReceipt,
+                    isDeleted: m.isDeleted,
+                    senderName: m.senderName,
                   );
                   _bumpConversationForMessage(currentState,
                       messageEvent.conversationId, updatedMessage);
@@ -660,9 +741,6 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
           ));
         }
         break;
-
-      default:
-        break;
     }
   }
 
@@ -673,8 +751,6 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     if (state is! ChatLoaded) return;
 
     final currentState = state as ChatLoaded;
-    final existingIndex = currentState.conversations
-        .indexWhere((c) => c.id == event.conversation.id);
     // Merge or insert, then sort by updatedAt desc to keep list stable
     final List<Conversation> merged = [];
     bool inserted = false;
@@ -720,6 +796,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
         return c;
       }).toList();
       conversations.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+      // ignore: invalid_use_of_visible_for_testing_member
       emit(currentState.copyWith(conversations: conversations));
     } catch (_) {}
   }
@@ -1095,6 +1172,8 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
               isEdited: m.isEdited,
               editedAt: m.editedAt,
               deliveryReceipt: m.deliveryReceipt,
+              isDeleted: m.isDeleted,
+              senderName: m.senderName,
             );
           }
           return m;
@@ -1138,6 +1217,8 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
                   isEdited: m.isEdited,
                   editedAt: m.editedAt,
                   deliveryReceipt: m.deliveryReceipt,
+                  isDeleted: m.isDeleted,
+                  senderName: m.senderName,
                 );
                 break;
               }
@@ -1183,6 +1264,8 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
               isEdited: m.isEdited,
               editedAt: m.editedAt,
               deliveryReceipt: m.deliveryReceipt,
+              isDeleted: m.isDeleted,
+              senderName: m.senderName,
             );
           }
           return m;
@@ -1539,7 +1622,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
         // Compose content with optional reply attachment token for precise reply previews
         String content = attachment.fileUrl;
         if (replyToAttachmentId != null && replyToAttachmentId.isNotEmpty) {
-          content = '::attref='+replyToAttachmentId+'::'+content;
+          content = '::attref=$replyToAttachmentId::$content';
         }
 
         final sendResult = await sendMessageUseCase(

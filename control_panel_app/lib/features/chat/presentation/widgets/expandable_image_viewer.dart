@@ -106,7 +106,7 @@ class _ExpandableImageViewerState extends State<ExpandableImageViewer> {
             right: 0,
             child: _buildReactionOverlay(),
           ),
-          
+
           // Reaction Picker Widget - ظاهر دائماً
           if (_showReactionPicker)
             Positioned(
@@ -129,7 +129,7 @@ class _ExpandableImageViewerState extends State<ExpandableImageViewer> {
                 ),
               ),
             ),
-          
+
           Positioned(
             top: MediaQuery.of(context).padding.top + 8,
             left: 8,
@@ -153,7 +153,7 @@ class _ExpandableImageViewerState extends State<ExpandableImageViewer> {
               ),
             ),
           ),
-          
+
           // زر إظهار الريآكشنات
           Positioned(
             bottom: MediaQuery.of(context).padding.bottom + 16,
@@ -168,7 +168,7 @@ class _ExpandableImageViewerState extends State<ExpandableImageViewer> {
               child: Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: _showReactionPicker 
+                  color: _showReactionPicker
                       ? Colors.white.withOpacity(0.25)
                       : Colors.white.withOpacity(0.15),
                   shape: BoxShape.circle,

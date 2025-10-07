@@ -42,10 +42,8 @@ class _ChatPageState extends State<ChatPage>
   final FocusNode _messageFocusNode = FocusNode();
   final GlobalKey<AnimatedListState> _listKey = GlobalKey<AnimatedListState>();
 
-  // Message keys for scrolling to reply
   final Map<String, GlobalKey> _messageKeys = {};
 
-  // Animation Controllers
   late AnimationController _fadeController;
   late AnimationController _backgroundController;
   late AnimationController _particleController;
@@ -56,7 +54,6 @@ class _ChatPageState extends State<ChatPage>
   late Animation<double> _scaleAnimation;
   late Animation<double> _glowAnimation;
 
-  // Particles for background
   final List<_ChatParticle> _particles = [];
 
   Timer? _typingTimer;
@@ -66,13 +63,13 @@ class _ChatPageState extends State<ChatPage>
   Attachment? _replyToAttachment;
   Message? _editingMessage;
 
-  String? _currentUserId; // سيتم ملؤه من AuthBloc
-  StreamSubscription<AuthState>?
-      _authSubscription; // للاشتراك في تغييرات حالة المصادقة
-  StreamSubscription?
-      _wsMessagesSubscription; // للاشتراك برسائل FCM داخل الشاشة
-  StreamSubscription<ChatState>?
-      _chatStateSubscription; // لمتابعة تغييرات حالة الشات وتطبيق القراءة التلقائية
+  String? _currentUserId;
+  StreamSubscription<AuthState>? _authSubscription;
+  StreamSubscription? _wsMessagesSubscription;
+  StreamSubscription<ChatState>? _chatStateSubscription;
+
+  bool _isScrollingToReply = false;
+  OverlayEntry? _loadingOverlay;
 
   @override
   void initState() {
@@ -159,28 +156,23 @@ class _ChatPageState extends State<ChatPage>
     });
   }
 
-  // عندما تصل رسالة جديدة أثناء فتح شاشة المحادثة، ضعها كمقروء فوراً
   void _subscribeToIncomingMessagesForAutoRead() {
     final ws = context.read<ChatBloc>().webSocketService;
     _wsMessagesSubscription = ws.messageEvents.listen((evt) {
       if (!mounted) return;
       if (evt.type == MessageEventType.newMessage &&
           evt.conversationId == widget.conversation.id) {
-        // انتظر دورة بناء قصيرة لضمان تحديث القائمة ثم علّم كمقروء
         WidgetsBinding.instance
             .addPostFrameCallback((_) => _markMessagesAsRead());
       }
     });
   }
 
-  // في حال وصول الأحداث مباشرة إلى الـ Bloc عبر NotificationService،
-  // نراقب تغيّر الحالة لتفعيل التعليم كمقروء عند تحديث رسائل هذه المحادثة.
   void _subscribeToChatStateForAutoRead() {
     final bloc = context.read<ChatBloc>();
     _chatStateSubscription = bloc.stream.listen((state) {
       if (!mounted) return;
       if (state is ChatLoaded) {
-        // جدولة بعد الإطار الحالي لتفادي تعارض مع البناء
         WidgetsBinding.instance
             .addPostFrameCallback((_) => _markMessagesAsRead());
       }
@@ -201,6 +193,7 @@ class _ChatPageState extends State<ChatPage>
     _authSubscription?.cancel();
     _wsMessagesSubscription?.cancel();
     _chatStateSubscription?.cancel();
+    _loadingOverlay?.remove();
     super.dispose();
   }
 
@@ -217,7 +210,6 @@ class _ChatPageState extends State<ChatPage>
             conversationId: widget.conversation.id,
           ),
         );
-    // بعد التحميل مباشرةً، حاول وضع علامة مقروء إذا كانت الشاشة مفتوحة
     WidgetsBinding.instance.addPostFrameCallback((_) => _markMessagesAsRead());
   }
 
@@ -242,37 +234,6 @@ class _ChatPageState extends State<ChatPage>
     if (state is ChatLoaded && !state.isLoadingMessages) {
       final messages = state.messages[widget.conversation.id] ?? [];
       if (messages.isNotEmpty) {
-        // Show a small top progress bar while fetching older messages
-        final overlay = Overlay.of(context);
-        final entry = OverlayEntry(builder: (_) {
-          return Positioned(
-            top: MediaQuery.of(context).padding.top + 44,
-            left: 0,
-            right: 0,
-            child: Align(
-              alignment: Alignment.topCenter,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                  child: Container(
-                    width: 140,
-                    height: 18,
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.25),
-                      border: Border.all(
-                        color: AppTheme.primaryBlue.withValues(alpha: 0.15),
-                        width: 0.5,
-                      ),
-                    ),
-                    child: const LinearProgressIndicator(minHeight: 2),
-                  ),
-                ),
-              ),
-            ),
-          );
-        });
-        overlay.insert(entry);
         context.read<ChatBloc>().add(
               LoadMessagesEvent(
                 conversationId: widget.conversation.id,
@@ -280,10 +241,6 @@ class _ChatPageState extends State<ChatPage>
                 beforeMessageId: messages.last.id,
               ),
             );
-        // Remove overlay after a short delay or on next frame
-        Future.delayed(const Duration(milliseconds: 600), () {
-          entry.remove();
-        });
       }
     }
   }
@@ -318,7 +275,6 @@ class _ChatPageState extends State<ChatPage>
     if (userId == null || userId.isEmpty) return;
     final state = context.read<ChatBloc>().state;
     if (state is ChatLoaded) {
-      // Strong cast to Message to avoid generic runtime issues
       final List<Message> messages =
           (state.messages[widget.conversation.id] ?? []).cast<Message>();
       final unreadMessages = messages
@@ -340,101 +296,158 @@ class _ChatPageState extends State<ChatPage>
   @override
   void didUpdateWidget(covariant ChatPage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // إذا تغيّر المحادثة أو جرى إعادة البناء بعد إظهار الرسائل، ضع علامة مقروء
     WidgetsBinding.instance.addPostFrameCallback((_) => _markMessagesAsRead());
   }
 
-  // FIXED: Scroll to reply message
+  // FIX: إصلاح المشكلة 1 - التنقل للرد (محسّن بالكامل)
   void _scrollToMessage(String messageId) {
-    final key = _messageKeys[messageId];
-    if (key?.currentContext != null) {
-      Scrollable.ensureVisible(
-        key!.currentContext!,
-        duration: const Duration(milliseconds: 500),
-        curve: Curves.easeOutExpo,
-        alignment: 0.5,
-      );
+    print('🔥 DEBUG: _scrollToMessage called with messageId: $messageId');
 
-      // Highlight animation
-      HapticFeedback.lightImpact();
+    if (_isScrollingToReply) {
+      print('🔥 DEBUG: Already scrolling, ignoring...');
       return;
     }
 
-    // If not found in current list, attempt to load older messages until found or no more
+    // أولاً: تحقق من وجود الرسالة في القائمة الحالية
     final bloc = context.read<ChatBloc>();
     final state = bloc.state;
-    if (state is! ChatLoaded) return;
+
+    if (state is! ChatLoaded) {
+      print('🔥 DEBUG: State is not ChatLoaded');
+      return;
+    }
+
     final convoId = widget.conversation.id;
-    final List<Message> current =
+    final List<Message> currentMessages =
         (state.messages[convoId] ?? []).cast<Message>();
-    if (current.isEmpty) return;
 
-    // Show inline loading overlay at top
-    final overlay = Overlay.of(context);
-    final entry = OverlayEntry(builder: (_) {
-      return Positioned(
-        top: MediaQuery.of(context).padding.top + 44,
-        left: 0,
-        right: 0,
-        child: Align(
-          alignment: Alignment.topCenter,
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-              child: Container(
-                width: 160,
-                height: 20,
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.25),
-                  border: Border.all(
-                    color: AppTheme.primaryBlue.withValues(alpha: 0.15),
-                    width: 0.5,
-                  ),
-                ),
-                child: const LinearProgressIndicator(minHeight: 2),
-              ),
-            ),
-          ),
-        ),
-      );
-    });
-    overlay.insert(entry);
+    print('🔥 DEBUG: Current messages count: ${currentMessages.length}');
 
-    void tryFindAfterLoad() {
+    // البحث عن الرسالة في القائمة الحالية
+    final messageExists = currentMessages.any((m) => m.id == messageId);
+
+    print('🔥 DEBUG: Message exists in current list: $messageExists');
+
+    if (messageExists) {
+      // الرسالة موجودة - انتظر دورة بناء واحدة ثم مرر
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        final key2 = _messageKeys[messageId];
-        if (key2?.currentContext != null) {
-          entry.remove();
+        final key = _messageKeys[messageId];
+        print(
+            '🔥 DEBUG: Key found: ${key != null}, Context: ${key?.currentContext != null}');
+
+        if (key?.currentContext != null) {
+          _isScrollingToReply = true;
           Scrollable.ensureVisible(
-            key2!.currentContext!,
+            key!.currentContext!,
             duration: const Duration(milliseconds: 500),
             curve: Curves.easeOutExpo,
             alignment: 0.5,
-          );
+          ).then((_) {
+            _isScrollingToReply = false;
+            _highlightMessage(messageId);
+            print('🔥 DEBUG: Scrolling completed successfully');
+          });
           HapticFeedback.lightImpact();
         } else {
-          // Continue loading older if possible
-          final st2 = bloc.state;
-          if (st2 is ChatLoaded) {
-            final msgs = st2.messages[convoId] ?? [];
-            if (msgs.isNotEmpty && !st2.isLoadingMessages) {
+          // المفتاح غير جاهز بعد - انتظر دورة أخرى
+          print('🔥 DEBUG: Key not ready, waiting 100ms...');
+          Future.delayed(const Duration(milliseconds: 100), () {
+            final key2 = _messageKeys[messageId];
+            if (key2?.currentContext != null) {
+              _isScrollingToReply = true;
+              Scrollable.ensureVisible(
+                key2!.currentContext!,
+                duration: const Duration(milliseconds: 500),
+                curve: Curves.easeOutExpo,
+                alignment: 0.5,
+              ).then((_) {
+                _isScrollingToReply = false;
+                _highlightMessage(messageId);
+                print('🔥 DEBUG: Scrolling completed after retry');
+              });
+              HapticFeedback.lightImpact();
+            } else {
+              print('🔥 DEBUG: Key still not ready after retry');
+            }
+          });
+        }
+      });
+    } else {
+      // الرسالة غير موجودة - ابدأ التحميل
+      print('🔥 DEBUG: Message not found, starting to load older messages...');
+      _showLoadingIndicator();
+      _isScrollingToReply = true;
+      _loadOlderMessagesUntilFound(messageId, bloc, convoId);
+    }
+  }
+
+  void _loadOlderMessagesUntilFound(
+      String messageId, ChatBloc bloc, String convoId) {
+    int attempts = 0;
+    const maxAttempts = 10;
+
+    void tryFindAfterLoad() {
+      if (!mounted || !_isScrollingToReply) {
+        _hideLoadingIndicator();
+        return;
+      }
+
+      attempts++;
+      print('🔥 DEBUG: Load attempt $attempts/$maxAttempts');
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final st = bloc.state;
+        if (st is ChatLoaded) {
+          final msgs = (st.messages[convoId] ?? []).cast<Message>();
+          final found = msgs.any((m) => m.id == messageId);
+
+          print('🔥 DEBUG: Found after load: $found');
+
+          if (found) {
+            _hideLoadingIndicator();
+
+            Future.delayed(const Duration(milliseconds: 150), () {
+              final key = _messageKeys[messageId];
+              if (key?.currentContext != null) {
+                Scrollable.ensureVisible(
+                  key!.currentContext!,
+                  duration: const Duration(milliseconds: 500),
+                  curve: Curves.easeOutExpo,
+                  alignment: 0.5,
+                ).then((_) {
+                  _isScrollingToReply = false;
+                  _highlightMessage(messageId);
+                  print('🔥 DEBUG: Successfully scrolled to loaded message');
+                });
+                HapticFeedback.lightImpact();
+              } else {
+                _isScrollingToReply = false;
+                _showNotFoundSnackbar();
+                print('🔥 DEBUG: Message found but key not available');
+              }
+            });
+          } else {
+            if (msgs.isNotEmpty &&
+                !st.isLoadingMessages &&
+                attempts < maxAttempts) {
+              print('🔥 DEBUG: Loading more messages...');
               bloc.add(LoadMessagesEvent(
                 conversationId: convoId,
                 pageNumber: (msgs.length ~/ 50) + 1,
                 beforeMessageId: msgs.last.id,
               ));
-              // Re-try after next frame
               Future.delayed(
-                  const Duration(milliseconds: 400), tryFindAfterLoad);
+                  const Duration(milliseconds: 600), tryFindAfterLoad);
             } else {
-              // Stop if no more
-              Future.delayed(
-                  const Duration(milliseconds: 200), () => entry.remove());
+              _hideLoadingIndicator();
+              _isScrollingToReply = false;
+              _showNotFoundSnackbar();
+              print('🔥 DEBUG: Max attempts reached or no more messages');
             }
-          } else {
-            entry.remove();
           }
+        } else {
+          _hideLoadingIndicator();
+          _isScrollingToReply = false;
         }
       });
     }
@@ -442,18 +455,142 @@ class _ChatPageState extends State<ChatPage>
     tryFindAfterLoad();
   }
 
+  void _showLoadingIndicator() {
+    _loadingOverlay?.remove();
+    _loadingOverlay = OverlayEntry(
+      builder: (context) => Positioned(
+        top: MediaQuery.of(context).padding.top + 60,
+        left: 0,
+        right: 0,
+        child: Center(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      AppTheme.darkCard.withValues(alpha: 0.9),
+                      AppTheme.darkCard.withValues(alpha: 0.8),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: AppTheme.primaryBlue.withValues(alpha: 0.2),
+                    width: 0.5,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          AppTheme.primaryBlue.withValues(alpha: 0.8),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      'جاري البحث عن الرسالة...',
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: AppTheme.textWhite.withValues(alpha: 0.9),
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    Overlay.of(context).insert(_loadingOverlay!);
+  }
+
+  void _hideLoadingIndicator() {
+    _loadingOverlay?.remove();
+    _loadingOverlay = null;
+  }
+
+  void _highlightMessage(String messageId) {
+    final key = _messageKeys[messageId];
+    if (key?.currentContext == null) return;
+
+    final overlay = Overlay.of(context);
+    final renderBox = key!.currentContext!.findRenderObject() as RenderBox?;
+    if (renderBox == null) return;
+
+    final position = renderBox.localToGlobal(Offset.zero);
+    final size = renderBox.size;
+
+    OverlayEntry? highlightEntry;
+    highlightEntry = OverlayEntry(
+      builder: (context) => Positioned(
+        left: position.dx,
+        top: position.dy,
+        width: size.width,
+        height: size.height,
+        child: TweenAnimationBuilder<double>(
+          tween: Tween(begin: 0.3, end: 0.0),
+          duration: const Duration(milliseconds: 800),
+          curve: Curves.easeOut,
+          builder: (context, value, child) {
+            return Container(
+              decoration: BoxDecoration(
+                color: AppTheme.primaryBlue.withValues(alpha: value),
+                borderRadius: BorderRadius.circular(12),
+              ),
+            );
+          },
+          onEnd: () {
+            Future.delayed(const Duration(milliseconds: 100), () {
+              try {
+                highlightEntry?.remove();
+              } catch (_) {}
+            });
+          },
+        ),
+      ),
+    );
+
+    overlay.insert(highlightEntry);
+  }
+
+  void _showNotFoundSnackbar() {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'لم يتم العثور على الرسالة',
+          style: AppTextStyles.bodySmall.copyWith(color: Colors.white),
+        ),
+        backgroundColor: AppTheme.error.withValues(alpha: 0.9),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        margin: const EdgeInsets.all(16),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
   void _syncCurrentUser() {
-    // محاولة الحصول مباشرةً من حالة AuthBloc الحالية
     final authState = context.read<AuthBloc>().state;
     if (authState is AuthAuthenticated) {
-      _currentUserId = authState.user.userId; // استخدام userId الصحيح
+      _currentUserId = authState.user.userId;
     }
-    // الاستماع للتغييرات المستقبلية مع إلغاء الاشتراك عند التخلص
     _authSubscription = context.read<AuthBloc>().stream.listen((state) {
       if (state is AuthAuthenticated && mounted) {
         if (_currentUserId != state.user.userId) {
           setState(() {
-            _currentUserId = state.user.userId; // استخدام userId الصحيح
+            _currentUserId = state.user.userId;
           });
           _markMessagesAsRead();
         }
@@ -463,19 +600,13 @@ class _ChatPageState extends State<ChatPage>
 
   @override
   Widget build(BuildContext context) {
-    final effectiveUserId =
-        _currentUserId ?? ''; // fallback مؤقت حتى يتم تحميل المستخدم
+    final effectiveUserId = _currentUserId ?? '';
     return Scaffold(
       backgroundColor: AppTheme.darkBackground,
       body: Stack(
         children: [
-          // Premium animated background
           _buildPremiumBackground(),
-
-          // Floating particles
           _buildFloatingParticles(),
-
-          // Main content
           SafeArea(
             child: Column(
               children: [
@@ -561,7 +692,6 @@ class _ChatPageState extends State<ChatPage>
                   return _buildPremiumLoadingState();
                 }
 
-                // Strong cast to concrete Message list (underlying objects may be MessageModel)
                 final List<Message> messages =
                     (state.messages[widget.conversation.id] ?? [])
                         .cast<Message>();
@@ -570,7 +700,6 @@ class _ChatPageState extends State<ChatPage>
                   return _buildPremiumEmptyState();
                 }
 
-                // Store message keys for scrolling
                 for (final message in messages) {
                   _messageKeys[message.id] ??= GlobalKey();
                 }
@@ -586,45 +715,94 @@ class _ChatPageState extends State<ChatPage>
   }
 
   Widget _buildPremiumLoadingState() {
-    // Elegant skeleton placeholders matching message layout
     return ListView.builder(
       reverse: true,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-      itemCount: 10,
+      itemCount: 8,
       itemBuilder: (context, index) {
         final isMe = index % 2 == 0;
-        return Align(
-          alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-          child: Container(
-            margin: EdgeInsets.only(
-              left: isMe ? MediaQuery.of(context).size.width * 0.2 : 8,
-              right: isMe ? 8 : MediaQuery.of(context).size.width * 0.2,
-              top: 8,
-              bottom: 4,
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                child: Container(
-                  height: 54 + (index % 3) * 10,
-                  width: MediaQuery.of(context).size.width * 0.6,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        AppTheme.darkCard.withValues(alpha: 0.35),
-                        AppTheme.darkCard.withValues(alpha: 0.2),
-                      ],
+        return TweenAnimationBuilder<double>(
+          key: ValueKey('skeleton_$index'),
+          tween: Tween(begin: 0.0, end: 1.0),
+          duration: Duration(milliseconds: 400 + (index * 50)),
+          curve: Curves.easeOutCubic,
+          builder: (context, value, child) {
+            return Opacity(
+              opacity: value,
+              child: Transform.translate(
+                offset: Offset(0, 20 * (1 - value)),
+                child: Align(
+                  alignment:
+                      isMe ? Alignment.centerRight : Alignment.centerLeft,
+                  child: Container(
+                    margin: EdgeInsets.only(
+                      left: isMe ? MediaQuery.of(context).size.width * 0.2 : 8,
+                      right: isMe ? 8 : MediaQuery.of(context).size.width * 0.2,
+                      top: 8,
+                      bottom: 4,
                     ),
-                    border: Border.all(
-                      color: AppTheme.darkBorder.withValues(alpha: 0.08),
-                      width: 0.5,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Stack(
+                        children: [
+                          BackdropFilter(
+                            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                            child: Container(
+                              height: 60 + (index % 3) * 15,
+                              width: MediaQuery.of(context).size.width *
+                                  (0.5 + (index % 3) * 0.1),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [
+                                    AppTheme.darkCard.withValues(alpha: 0.4),
+                                    AppTheme.darkCard.withValues(alpha: 0.25),
+                                  ],
+                                ),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: AppTheme.darkBorder
+                                      .withValues(alpha: 0.08),
+                                  width: 0.5,
+                                ),
+                              ),
+                            ),
+                          ),
+                          Positioned.fill(
+                            child: AnimatedBuilder(
+                              animation: _backgroundController,
+                              builder: (context, child) {
+                                return Container(
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                      colors: [
+                                        Colors.white.withValues(alpha: 0.0),
+                                        Colors.white.withValues(alpha: 0.05),
+                                        Colors.white.withValues(alpha: 0.0),
+                                      ],
+                                      stops: [
+                                        (_backgroundController.value - 0.3)
+                                            .clamp(0.0, 1.0),
+                                        _backgroundController.value
+                                            .clamp(0.0, 1.0),
+                                        (_backgroundController.value + 0.3)
+                                            .clamp(0.0, 1.0),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-          ),
+            );
+          },
         );
       },
     );
@@ -722,88 +900,120 @@ class _ChatPageState extends State<ChatPage>
     final uploading = state.uploadingImages[widget.conversation.id] ?? const [];
     final hasUploading = uploading.isNotEmpty;
 
-    // Items: [typing?] + [uploading?] + messages
     final baseExtra = (typingUsers.isNotEmpty ? 1 : 0) + (hasUploading ? 1 : 0);
 
-    return ListView.builder(
-      key: _listKey,
-      controller: _scrollController,
-      reverse: true,
-      padding: const EdgeInsets.symmetric(
-        horizontal: 8,
-        vertical: 8,
-      ),
-      physics: const BouncingScrollPhysics(),
-      itemCount: messages.length + baseExtra,
-      itemBuilder: (context, index) {
-        int cursor = 0;
-        // Typing indicator at the very top
-        if (typingUsers.isNotEmpty && index == cursor) {
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: TypingIndicatorWidget(
-              typingUserIds: typingUsers,
-              conversation: widget.conversation,
+    return Stack(
+      children: [
+        ListView.builder(
+          key: _listKey,
+          controller: _scrollController,
+          reverse: true,
+          padding: const EdgeInsets.symmetric(
+            horizontal: 8,
+            vertical: 8,
+          ),
+          physics: const BouncingScrollPhysics(),
+          itemCount: messages.length + baseExtra,
+          itemBuilder: (context, index) {
+            int cursor = 0;
+            if (typingUsers.isNotEmpty && index == cursor) {
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: TypingIndicatorWidget(
+                  typingUserIds: typingUsers,
+                  conversation: widget.conversation,
+                ),
+              );
+            }
+
+            cursor += typingUsers.isNotEmpty ? 1 : 0;
+
+            if (hasUploading && index == cursor) {
+              final synthetic = Message(
+                id: 'uploading_${widget.conversation.id}',
+                conversationId: widget.conversation.id,
+                senderId: userId.isNotEmpty ? userId : 'current_user',
+                messageType: 'image',
+                content: null,
+                createdAt: DateTime.now(),
+                updatedAt: DateTime.now(),
+                status: 'sending',
+              );
+              return Align(
+                alignment: Alignment.centerRight,
+                child: ImageMessageBubble(
+                  message: synthetic,
+                  isMe: true,
+                  uploadingImages: uploading,
+                ),
+              );
+            }
+
+            cursor += hasUploading ? 1 : 0;
+
+            final messageIndex = index - cursor;
+            final message = messages[messageIndex];
+            final previousMessage = messageIndex < messages.length - 1
+                ? messages[messageIndex + 1]
+                : null;
+            final nextMessage =
+                messageIndex > 0 ? messages[messageIndex - 1] : null;
+
+            final showDateSeparator = previousMessage == null ||
+                !_isSameDay(message.createdAt, previousMessage.createdAt);
+            final isMe = message.senderId == userId && userId.isNotEmpty;
+
+            return Column(
+              key: _messageKeys[message.id],
+              children: [
+                if (showDateSeparator)
+                  _buildPremiumDateSeparator(message.createdAt),
+                Align(
+                  alignment:
+                      isMe ? Alignment.centerRight : Alignment.centerLeft,
+                  child: _buildMessageBubbleFor(
+                      message, isMe, previousMessage, nextMessage, userId),
+                ),
+              ],
+            );
+          },
+        ),
+        if (state.isLoadingMessages)
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: ClipRRect(
+              borderRadius: const BorderRadius.vertical(
+                bottom: Radius.circular(8),
+              ),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                child: Container(
+                  height: 3,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        AppTheme.primaryBlue.withValues(alpha: 0.8),
+                        AppTheme.primaryPurple.withValues(alpha: 0.6),
+                      ],
+                    ),
+                  ),
+                  child: const LinearProgressIndicator(
+                    minHeight: 3,
+                    backgroundColor: Colors.transparent,
+                    valueColor:
+                        AlwaysStoppedAnimation<Color>(Colors.transparent),
+                  ),
+                ),
+              ),
             ),
-          );
-        }
-
-        cursor += typingUsers.isNotEmpty ? 1 : 0;
-
-        // Uploading images bubble just below typing indicator (if any)
-        if (hasUploading && index == cursor) {
-          // Synthetic message to carry meta for alignment/time
-          final synthetic = Message(
-            id: 'uploading_${widget.conversation.id}',
-            conversationId: widget.conversation.id,
-            senderId: userId.isNotEmpty ? userId : 'current_user',
-            messageType: 'image',
-            content: null,
-            createdAt: DateTime.now(),
-            updatedAt: DateTime.now(),
-            status: 'sending',
-          );
-          return Align(
-            alignment: Alignment.centerRight,
-            child: ImageMessageBubble(
-              message: synthetic,
-              isMe: true,
-              uploadingImages: uploading,
-            ),
-          );
-        }
-
-        cursor += hasUploading ? 1 : 0;
-
-        final messageIndex = index - cursor;
-        final message = messages[messageIndex];
-        final previousMessage = messageIndex < messages.length - 1
-            ? messages[messageIndex + 1]
-            : null;
-        final nextMessage =
-            messageIndex > 0 ? messages[messageIndex - 1] : null;
-
-        final showDateSeparator = previousMessage == null ||
-            !_isSameDay(message.createdAt, previousMessage.createdAt);
-        final isMe = message.senderId == userId && userId.isNotEmpty;
-
-        // FIXED: Proper alignment for message bubbles
-        return Column(
-          key: _messageKeys[message.id],
-          children: [
-            if (showDateSeparator)
-              _buildPremiumDateSeparator(message.createdAt),
-            Align(
-              alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-              child: _buildMessageBubbleFor(
-                  message, isMe, previousMessage, nextMessage, userId),
-            ),
-          ],
-        );
-      },
+          ),
+      ],
     );
   }
 
+  // FIX: تمرير onReplyTap بشكل صحيح لكلا النوعين من الرسائل
   Widget _buildMessageBubbleFor(
     Message message,
     bool isMe,
@@ -828,6 +1038,14 @@ class _ChatPageState extends State<ChatPage>
         },
         onReaction: (reactionType) =>
             _addReaction(message, reactionType, userId),
+        // FIX: تمرير onReplyTap للصور
+        onReplyTap: message.replyToMessageId != null
+            ? () {
+                print(
+                    '🔥 DEBUG: ImageMessageBubble onReplyTap called for: ${message.replyToMessageId}');
+                _scrollToMessage(message.replyToMessageId!);
+              }
+            : null,
       );
     }
 
@@ -840,13 +1058,16 @@ class _ChatPageState extends State<ChatPage>
       onEdit: isMe ? () => _startEditingMessage(message) : null,
       onDelete: isMe ? () => _deleteMessage(message) : null,
       onReaction: (reactionType) => _addReaction(message, reactionType, userId),
+      // FIX: تمرير onReplyTap للرسائل النصية
       onReplyTap: message.replyToMessageId != null
-          ? () => _scrollToMessage(message.replyToMessageId!)
+          ? () {
+              print(
+                  '🔥 DEBUG: MessageBubbleWidget onReplyTap called for: ${message.replyToMessageId}');
+              _scrollToMessage(message.replyToMessageId!);
+            }
           : null,
     );
   }
-
-  // Removed legacy _buildMessageItem which referenced undefined identifiers
 
   Widget _buildPremiumDateSeparator(DateTime date) {
     final text = _getDateSeparatorText(date);
@@ -973,7 +1194,6 @@ class _ChatPageState extends State<ChatPage>
           focusNode: _messageFocusNode,
           conversationId: widget.conversation.id,
           replyToMessageId: _replyToMessageId,
-          // cancel token mapping is handled inside input widget
           editingMessage: _editingMessage,
           onSend: _sendMessage,
           onAttachment: _pickAttachment,
@@ -1023,7 +1243,11 @@ class _ChatPageState extends State<ChatPage>
             : 'مستخدم';
 
     return GestureDetector(
-      onTap: () => _scrollToMessage(replyMessage!.id),
+      onTap: () {
+        print(
+            '🔥 DEBUG: Reply section tapped, scrolling to: $_replyToMessageId');
+        _scrollToMessage(replyMessage!.id);
+      },
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         child: ClipRRect(
@@ -1065,7 +1289,15 @@ class _ChatPageState extends State<ChatPage>
                           overflow: TextOverflow.ellipsis,
                         ),
                         const SizedBox(height: 4),
-                        _buildReplyPreviewContent(replyMessage),
+                        Text(
+                          replyMessage.content ?? '[محتوى غير نصي]',
+                          style: AppTextStyles.caption.copyWith(
+                            color: AppTheme.textWhite.withValues(alpha: 0.7),
+                            fontSize: 10,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ],
                     ),
                   ),
@@ -1100,249 +1332,6 @@ class _ChatPageState extends State<ChatPage>
               ),
             ),
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildReplyPreviewContent(Message replyMessage) {
-    if (_replyToAttachment != null) {
-      final url =
-          _replyToAttachment!.thumbnailUrl ?? _replyToAttachment!.fileUrl;
-      return Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _buildMiniThumb(url),
-        ],
-      );
-    }
-    if (replyMessage.attachments.isNotEmpty) {
-      // If the replied message is of type image, treat all its attachments as images
-      if (replyMessage.messageType == 'image') {
-        // Fallback when no specific attachment selected: show first image only
-        final first = replyMessage.attachments.first;
-        final url = first.thumbnailUrl ?? first.fileUrl;
-        return SizedBox(
-          height: 36,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildMiniThumb(url),
-            ],
-          ),
-        );
-      }
-
-      final images = replyMessage.attachments
-          .where((a) => _isImageLikeAttachment(a))
-          .toList();
-      final videos = replyMessage.attachments
-          .where((a) => _isVideoLikeAttachment(a))
-          .toList();
-      if (images.isNotEmpty) {
-        final display = images.take(3).toList();
-        final remaining = images.length - display.length;
-        return SizedBox(
-          height: 36,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              for (int i = 0; i < display.length; i++) ...[
-                _buildMiniThumb(
-                  display[i].fileUrl,
-                  overlayText: (i == display.length - 1 && remaining > 0)
-                      ? '+$remaining'
-                      : null,
-                ),
-                if (i < display.length - 1) const SizedBox(width: 4),
-              ],
-            ],
-          ),
-        );
-      }
-      if (videos.isNotEmpty) {
-        return Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _buildMiniThumb(videos.first.thumbnailUrl ?? videos.first.fileUrl,
-                icon: Icons.videocam_rounded),
-            const SizedBox(width: 6),
-            Text(
-              'فيديو',
-              style: AppTextStyles.bodySmall.copyWith(
-                color: AppTheme.textWhite.withValues(alpha: 0.7),
-                fontSize: 11,
-              ),
-            ),
-          ],
-        );
-      }
-      return Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.attach_file_rounded,
-            size: 14,
-            color: AppTheme.textWhite.withValues(alpha: 0.6),
-          ),
-          const SizedBox(width: 4),
-          Text(
-            'مرفق',
-            style: AppTextStyles.bodySmall.copyWith(
-              color: AppTheme.textWhite.withValues(alpha: 0.7),
-              fontSize: 11,
-            ),
-          ),
-        ],
-      );
-    }
-
-    // تنظيف المحتوى من token attref
-    String content = (replyMessage.content ?? '').trim();
-    if (content.startsWith('::attref=')) {
-      final endIdx = content.indexOf('::', '::attref='.length);
-      if (endIdx > '::attref='.length) {
-        content = content.substring(endIdx + 2);
-      }
-    }
-
-    if (content.isEmpty) {
-      return Text(
-        '[محتوى غير نصي]',
-        style: AppTextStyles.bodySmall.copyWith(
-          color: AppTheme.textWhite.withValues(alpha: 0.7),
-          fontSize: 11,
-        ),
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
-      );
-    }
-
-    final looksLikeImageLink = _looksLikeImage(content);
-    if (looksLikeImageLink) {
-      return Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _buildMiniThumb(content),
-          const SizedBox(width: 6),
-          Text(
-            'صورة',
-            style: AppTextStyles.bodySmall.copyWith(
-              color: AppTheme.textWhite.withValues(alpha: 0.7),
-              fontSize: 11,
-            ),
-          ),
-        ],
-      );
-    }
-
-    return Text(
-      content,
-      style: AppTextStyles.bodySmall.copyWith(
-        color: AppTheme.textWhite.withValues(alpha: 0.7),
-        fontSize: 11,
-      ),
-      maxLines: 2,
-      overflow: TextOverflow.ellipsis,
-    );
-  }
-
-  bool _isImageLikeAttachment(Attachment a) {
-    return a.isImage ||
-        _looksLikeImage(a.fileUrl) ||
-        _looksLikeImage(a.url) ||
-        _looksLikeImage(a.fileName) ||
-        (a.thumbnailUrl != null && _looksLikeImage(a.thumbnailUrl!));
-  }
-
-  bool _isVideoLikeAttachment(Attachment a) {
-    return a.isVideo ||
-        _looksLikeVideo(a.fileUrl) ||
-        _looksLikeVideo(a.url) ||
-        _looksLikeVideo(a.fileName);
-  }
-
-  bool _looksLikeImage(String? s) {
-    if (s == null || s.isEmpty) return false;
-    final lower = s.toLowerCase();
-    return lower.endsWith('.jpg') ||
-        lower.endsWith('.jpeg') ||
-        lower.endsWith('.png') ||
-        lower.endsWith('.webp') ||
-        lower.endsWith('.gif') ||
-        lower.contains('/images/') ||
-        lower.contains('/image/') ||
-        lower.contains('mime=image');
-  }
-
-  bool _looksLikeVideo(String? s) {
-    if (s == null || s.isEmpty) return false;
-    final lower = s.toLowerCase();
-    return lower.endsWith('.mp4') ||
-        lower.endsWith('.mov') ||
-        lower.endsWith('.mkv') ||
-        lower.endsWith('.webm') ||
-        lower.endsWith('.avi');
-  }
-
-  Widget _buildMiniThumb(String url, {IconData? icon, String? overlayText}) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(6),
-      child: Stack(
-        children: [
-          SizedBox(
-            width: 36,
-            height: 36,
-            child: CachedImageWidget(
-              imageUrl: url,
-              fit: BoxFit.cover,
-              removeContainer: true,
-            ),
-          ),
-          if (icon != null)
-            Positioned.fill(
-              child: Container(
-                color: Colors.black.withValues(alpha: 0.25),
-                child: Icon(icon, size: 16, color: Colors.white),
-              ),
-            ),
-          if (overlayText != null)
-            Positioned.fill(
-              child: Container(
-                color: Colors.black.withValues(alpha: 0.35),
-                alignment: Alignment.center,
-                child: Text(
-                  overlayText,
-                  style: AppTextStyles.caption.copyWith(
-                    color: Colors.white,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMoreBadge(int remaining) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.35),
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(
-          color: AppTheme.primaryBlue.withValues(alpha: 0.15),
-          width: 0.5,
-        ),
-      ),
-      child: Text(
-        '+$remaining',
-        style: AppTextStyles.caption.copyWith(
-          color: Colors.white,
-          fontSize: 10,
-          fontWeight: FontWeight.w600,
         ),
       ),
     );
@@ -1428,7 +1417,6 @@ class _ChatPageState extends State<ChatPage>
     );
   }
 
-  // Helper methods
   void _sendMessage(String content) {
     if (content.trim().isEmpty) return;
 
@@ -1445,7 +1433,6 @@ class _ChatPageState extends State<ChatPage>
         _editingMessage = null;
       });
     } else {
-      // إذا كان هناك رد على مرفق محدد، قم بتشفير معرفه في المحتوى
       String messageContent = content;
       if (_replyToAttachment != null && _replyToMessageId != null) {
         messageContent = '::attref=${_replyToAttachment!.id}::$content';
@@ -1472,18 +1459,16 @@ class _ChatPageState extends State<ChatPage>
 
   void _pickAttachment() {
     HapticFeedback.lightImpact();
-    // Implement attachment picker
   }
 
   void _shareLocation() {
     HapticFeedback.lightImpact();
-    // Implement location sharing
   }
 
   void _setReplyTo(Message message) {
     setState(() {
       _replyToMessageId = message.id;
-      _replyToAttachment = null; // مسح أي مرفق محدد عند الرد العادي
+      _replyToAttachment = null;
     });
     _messageFocusNode.requestFocus();
   }
@@ -1593,7 +1578,6 @@ class _ChatPageState extends State<ChatPage>
   }
 }
 
-// Premium Delete Dialog
 class _PremiumDeleteDialog extends StatelessWidget {
   final VoidCallback onConfirm;
 
@@ -1728,7 +1712,6 @@ class _PremiumDeleteDialog extends StatelessWidget {
   }
 }
 
-// Chat Particle
 class _ChatParticle {
   double x = math.Random().nextDouble();
   double y = math.Random().nextDouble();
@@ -1750,7 +1733,6 @@ class _ChatParticle {
   }
 }
 
-// Painters
 class _PremiumBackgroundPainter extends CustomPainter {
   final double animation;
   final double glowIntensity;

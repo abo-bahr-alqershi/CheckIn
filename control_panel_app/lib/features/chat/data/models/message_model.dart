@@ -21,9 +21,36 @@ class MessageModel extends Message {
     super.isEdited,
     super.editedAt,
     super.deliveryReceipt,
+    super.isDeleted,
+    super.senderName,
   });
 
   factory MessageModel.fromJson(Map<String, dynamic> json) {
+    bool parseBool(dynamic value) {
+      if (value == null) return false;
+      if (value is bool) return value;
+      if (value is num) return value != 0;
+      if (value is String) {
+        final normalized = value.toLowerCase().trim();
+        return normalized == 'true' || normalized == '1' || normalized == 'yes';
+      }
+      return false;
+    }
+
+    String? extractSenderName(dynamic rawSender) {
+      if (rawSender == null) return null;
+      if (rawSender is String && rawSender.isNotEmpty) {
+        return rawSender;
+      }
+      if (rawSender is Map<String, dynamic>) {
+        return rawSender['full_name'] ??
+            rawSender['name'] ??
+            rawSender['display_name'] ??
+            rawSender['username'];
+      }
+      return rawSender.toString();
+    }
+
     return MessageModel(
       id: json['id'] ?? json['message_id'] ?? '',
       conversationId: json['conversationId'] ?? json['conversation_id'] ?? '',
@@ -52,6 +79,16 @@ class MessageModel extends Message {
               ? DeliveryReceiptModel.fromJson(
                   json['deliveryReceipt'] ?? json['delivery_receipt'])
               : null,
+      isDeleted: parseBool(
+        json['isDeleted'] ??
+            json['is_deleted'] ??
+            json['deleted'] ??
+            json['deleted_at'] != null,
+      ),
+      senderName: json['senderName'] ??
+          json['sender_name'] ??
+          extractSenderName(json['sender']) ??
+          extractSenderName(json['from']),
     );
   }
 
@@ -75,6 +112,9 @@ class MessageModel extends Message {
       if (editedAt != null) 'edited_at': editedAt!.toIso8601String(),
       if (deliveryReceipt != null)
         'delivery_receipt': (deliveryReceipt as DeliveryReceiptModel).toJson(),
+      'is_deleted': isDeleted,
+      if (senderName != null && senderName!.isNotEmpty)
+        'sender_name': senderName,
     };
   }
 
@@ -95,6 +135,8 @@ class MessageModel extends Message {
       isEdited: message.isEdited,
       editedAt: message.editedAt,
       deliveryReceipt: message.deliveryReceipt,
+      isDeleted: message.isDeleted,
+      senderName: message.senderName,
     );
   }
 }

@@ -17,6 +17,8 @@ class Message extends Equatable {
   final bool isEdited;
   final DateTime? editedAt;
   final DeliveryReceipt? deliveryReceipt;
+  final bool isDeleted;
+  final String? senderName;
 
   const Message({
     required this.id,
@@ -34,6 +36,8 @@ class Message extends Equatable {
     this.isEdited = false,
     this.editedAt,
     this.deliveryReceipt,
+    this.isDeleted = false,
+    this.senderName,
   });
 
   @override
@@ -53,6 +57,8 @@ class Message extends Equatable {
     isEdited,
     editedAt,
     deliveryReceipt,
+    isDeleted,
+    senderName,
   ];
 
   // Helper methods

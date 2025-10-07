@@ -58,11 +58,203 @@ class _MessageInputWidgetState extends State<MessageInputWidget>
   bool _showEmojiPicker = false;
   String _recordingPath = '';
 
-  // Smooth progress tracking (UI-only) — kept minimal and driven by true bytes progress
   Timer? _progressTimer;
   double _currentDisplayedProgress = 0.0;
   double _targetProgress = 0.0;
   String? _currentUploadId;
+
+  // Emoji categories - احترافي
+  final Map<String, List<String>> _emojiCategories = {
+    'وجوه': [
+      '😀',
+      '😃',
+      '😄',
+      '😁',
+      '😆',
+      '😅',
+      '🤣',
+      '😂',
+      '🙂',
+      '🙃',
+      '😉',
+      '😊',
+      '😇',
+      '🥰',
+      '😍',
+      '🤩',
+      '😘',
+      '😗',
+      '😚',
+      '😙',
+      '😋',
+      '😛',
+      '😜',
+      '🤪',
+      '😝',
+      '🤑',
+      '🤗',
+      '🤭',
+      '🤫',
+      '🤔',
+    ],
+    'إيماءات': [
+      '🤐',
+      '🤨',
+      '😐',
+      '😑',
+      '😶',
+      '😏',
+      '😒',
+      '🙄',
+      '😬',
+      '🤥',
+      '😌',
+      '😔',
+      '😪',
+      '🤤',
+      '😴',
+      '😷',
+      '🤒',
+      '🤕',
+      '🤢',
+      '🤮',
+    ],
+    'عواطف': [
+      '❤️',
+      '🧡',
+      '💛',
+      '💚',
+      '💙',
+      '💜',
+      '🖤',
+      '🤍',
+      '🤎',
+      '💔',
+      '❣️',
+      '💕',
+      '💞',
+      '💓',
+      '💗',
+      '💖',
+      '💘',
+      '💝',
+      '💟',
+      '☮️',
+    ],
+    'أيادي': [
+      '👍',
+      '👎',
+      '👌',
+      '✌️',
+      '🤞',
+      '🤟',
+      '🤘',
+      '🤙',
+      '👈',
+      '👉',
+      '👆',
+      '👇',
+      '☝️',
+      '✋',
+      '🤚',
+      '🖐',
+      '🖖',
+      '👋',
+      '🤝',
+      '🙏',
+    ],
+    'حيوانات': [
+      '🐶',
+      '🐱',
+      '🐭',
+      '🐹',
+      '🐰',
+      '🦊',
+      '🐻',
+      '🐼',
+      '🐨',
+      '🐯',
+      '🦁',
+      '🐮',
+      '🐷',
+      '🐸',
+      '🐵',
+      '🐔',
+      '🐧',
+      '🐦',
+      '🐤',
+      '🦆',
+    ],
+    'طعام': [
+      '🍕',
+      '🍔',
+      '🍟',
+      '🌭',
+      '🍿',
+      '🥓',
+      '🥚',
+      '🍳',
+      '🥞',
+      '🧇',
+      '🧈',
+      '🍞',
+      '🥐',
+      '🥖',
+      '🥨',
+      '🧀',
+      '🥗',
+      '🥙',
+      '🌮',
+      '🌯',
+    ],
+    'رياضة': [
+      '⚽',
+      '🏀',
+      '🏈',
+      '⚾',
+      '🥎',
+      '🎾',
+      '🏐',
+      '🏉',
+      '🥏',
+      '🎱',
+      '🏓',
+      '🏸',
+      '🏒',
+      '🏑',
+      '🥍',
+      '🏏',
+      '🥅',
+      '⛳',
+      '🏹',
+      '🎣',
+    ],
+    'رموز': [
+      '✨',
+      '⭐',
+      '🌟',
+      '💫',
+      '✅',
+      '❌',
+      '❗',
+      '❓',
+      '💯',
+      '🔥',
+      '💥',
+      '💢',
+      '💦',
+      '💨',
+      '🕐',
+      '⏰',
+      '⏱',
+      '⏲',
+      '🔔',
+      '📢',
+    ],
+  };
+
+  String _selectedCategory = 'وجوه';
+  final ScrollController _emojiScrollController = ScrollController();
 
   @override
   void initState() {
@@ -87,13 +279,22 @@ class _MessageInputWidgetState extends State<MessageInputWidget>
     ));
 
     widget.controller.addListener(_onTextChanged);
+
+    // إغلاق الإيموجي عند التركيز على حقل الإدخال
+    widget.focusNode.addListener(() {
+      if (widget.focusNode.hasFocus && _showEmojiPicker) {
+        setState(() {
+          _showEmojiPicker = false;
+        });
+      }
+    });
   }
 
   @override
   void dispose() {
     _progressTimer?.cancel();
     _animationController.dispose();
-    _audioRecorder.dispose();
+    _emojiScrollController.dispose();
     super.dispose();
   }
 
@@ -109,23 +310,17 @@ class _MessageInputWidgetState extends State<MessageInputWidget>
         return;
       }
 
-      // Smoothly interpolate towards target progress using easing towards target
       if (_currentDisplayedProgress < _targetProgress) {
-        // Move 10% of remaining gap per tick for responsive smoothing
         final gap = _targetProgress - _currentDisplayedProgress;
         _currentDisplayedProgress += gap * 0.1;
         if (_currentDisplayedProgress > _targetProgress) {
           _currentDisplayedProgress = _targetProgress;
         }
 
-        // Update UI with smooth progress
         final bloc = context.read<ChatBloc>();
-
-        // Extract base ID (everything before last underscore)
         final baseId =
             _currentUploadId!.substring(0, _currentUploadId!.lastIndexOf('_'));
 
-        // Update all current uploads for this conversation with same displayed progress
         final state = bloc.state;
         if (state is ChatLoaded) {
           final currentUploads = state.uploadingImages[widget.conversationId] ??
@@ -140,7 +335,6 @@ class _MessageInputWidgetState extends State<MessageInputWidget>
         }
       }
 
-      // Stop timer when complete
       if (_currentDisplayedProgress >= 1.0) {
         timer.cancel();
       }
@@ -199,7 +393,7 @@ class _MessageInputWidgetState extends State<MessageInputWidget>
             mainAxisSize: MainAxisSize.min,
             children: [
               if (_showAttachmentOptions) _buildMinimalAttachmentOptions(),
-              if (_showEmojiPicker) _buildEmojiPicker(),
+              if (_showEmojiPicker) _buildProfessionalEmojiPicker(),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
@@ -280,12 +474,158 @@ class _MessageInputWidgetState extends State<MessageInputWidget>
     );
   }
 
+  // Emoji Picker احترافي جداً
+  Widget _buildProfessionalEmojiPicker() {
+    return Container(
+      height: 280,
+      margin: const EdgeInsets.only(bottom: 6),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(colors: [
+          AppTheme.darkCard.withValues(alpha: 0.95),
+          AppTheme.darkCard.withValues(alpha: 0.9),
+        ]),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppTheme.darkBorder.withValues(alpha: 0.08),
+          width: 0.5,
+        ),
+      ),
+      child: Column(
+        children: [
+          // Categories tabs
+          Container(
+            height: 44,
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+            decoration: BoxDecoration(
+              border: Border(
+                bottom: BorderSide(
+                  color: AppTheme.darkBorder.withValues(alpha: 0.05),
+                  width: 0.5,
+                ),
+              ),
+            ),
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              children: _emojiCategories.keys.map((category) {
+                final isSelected = category == _selectedCategory;
+                return GestureDetector(
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    setState(() {
+                      _selectedCategory = category;
+                    });
+                  },
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    margin: const EdgeInsets.symmetric(horizontal: 3),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      gradient: isSelected
+                          ? LinearGradient(colors: [
+                              AppTheme.primaryBlue.withValues(alpha: 0.8),
+                              AppTheme.primaryPurple.withValues(alpha: 0.6),
+                            ])
+                          : null,
+                      color: !isSelected
+                          ? AppTheme.darkCard.withValues(alpha: 0.3)
+                          : null,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: isSelected
+                            ? Colors.white.withValues(alpha: 0.2)
+                            : AppTheme.darkBorder.withValues(alpha: 0.1),
+                        width: 0.5,
+                      ),
+                    ),
+                    child: Center(
+                      child: Text(
+                        category,
+                        style: AppTextStyles.caption.copyWith(
+                          color: isSelected
+                              ? Colors.white
+                              : AppTheme.textMuted.withValues(alpha: 0.6),
+                          fontSize: 11,
+                          fontWeight:
+                              isSelected ? FontWeight.w600 : FontWeight.w400,
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+          // Emojis grid
+          Expanded(
+            child: GridView.builder(
+              controller: _emojiScrollController,
+              padding: const EdgeInsets.all(8),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 8,
+                mainAxisSpacing: 4,
+                crossAxisSpacing: 4,
+              ),
+              itemCount: _emojiCategories[_selectedCategory]!.length,
+              itemBuilder: (context, index) {
+                final emoji = _emojiCategories[_selectedCategory]![index];
+                return GestureDetector(
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    _insertEmoji(emoji);
+                  },
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: AppTheme.darkCard.withValues(alpha: 0.3),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Center(
+                      child: Text(
+                        emoji,
+                        style: const TextStyle(fontSize: 24),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _insertEmoji(String emoji) {
+    final text = widget.controller.text;
+    final selection = widget.controller.selection;
+    final base = selection.baseOffset;
+    final extent = selection.extentOffset;
+
+    if (base >= 0 &&
+        extent >= 0 &&
+        base <= text.length &&
+        extent <= text.length) {
+      final start = text.substring(0, base);
+      final end = text.substring(extent);
+      widget.controller.text = '$start$emoji$end';
+      final newPos = base + emoji.length;
+      widget.controller.selection = TextSelection.collapsed(offset: newPos);
+    } else {
+      widget.controller.text = '$text$emoji';
+      widget.controller.selection =
+          TextSelection.collapsed(offset: widget.controller.text.length);
+    }
+  }
+
   Widget _buildMinimalAttachmentButton() {
     return GestureDetector(
       onTap: () {
         HapticFeedback.lightImpact();
         setState(() {
           _showAttachmentOptions = !_showAttachmentOptions;
+          if (_showAttachmentOptions) {
+            _showEmojiPicker = false;
+          }
         });
       },
       child: AnimatedContainer(
@@ -391,18 +731,25 @@ class _MessageInputWidgetState extends State<MessageInputWidget>
               HapticFeedback.lightImpact();
               setState(() {
                 _showEmojiPicker = !_showEmojiPicker;
+                if (_showEmojiPicker) {
+                  _showAttachmentOptions = false;
+                  // إلغاء التركيز على حقل الإدخال
+                  FocusScope.of(context).unfocus();
+                } else {
+                  // إعادة التركيز عند إغلاق الإيموجي
+                  widget.focusNode.requestFocus();
+                }
               });
-              if (_showEmojiPicker) {
-                FocusScope.of(context).unfocus();
-              } else {
-                widget.focusNode.requestFocus();
-              }
             },
             child: Container(
               padding: const EdgeInsets.all(6),
               child: Icon(
-                Icons.emoji_emotions_outlined,
-                color: AppTheme.textMuted.withValues(alpha: 0.35),
+                _showEmojiPicker
+                    ? Icons.keyboard
+                    : Icons.emoji_emotions_outlined,
+                color: _showEmojiPicker
+                    ? AppTheme.primaryBlue.withValues(alpha: 0.7)
+                    : AppTheme.textMuted.withValues(alpha: 0.35),
                 size: 16,
               ),
             ),
@@ -571,16 +918,13 @@ class _MessageInputWidgetState extends State<MessageInputWidget>
 
   Future<void> _pickImage(ImageSource source) async {
     if (source == ImageSource.gallery) {
-      // تحقق من صلاحية الصور قبل فتح نافذة الاختيار
       final state = await PhotoManager.requestPermissionExtend();
       if (state.isAuth || state == PermissionState.limited) {
         _showMultiImagePickerBottomSheet();
       } else {
-        // جرّب منتقي النظام كبديل فوري (Android 13+/iOS لا يحتاج إذن قراءة)
         final systemPicked = await _pickImagesWithSystemPicker();
         if (systemPicked) return;
 
-        // كخيار إضافي، افتح الإعدادات ثم أعد المحاولة تلقائياً عند العودة
         try {
           await PhotoManager.openSetting();
         } catch (_) {
@@ -592,7 +936,6 @@ class _MessageInputWidgetState extends State<MessageInputWidget>
         if (retry.isAuth || retry == PermissionState.limited) {
           _showMultiImagePickerBottomSheet();
         } else {
-          // محاولة أخيرة عبر منتقي النظام
           final picked = await _pickImagesWithSystemPicker();
           if (!picked && mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -608,7 +951,6 @@ class _MessageInputWidgetState extends State<MessageInputWidget>
         }
       }
     } else {
-      // التقاط صورة واحدة من الكاميرا
       final picker = ImagePicker();
       final image = await picker.pickImage(
         source: source,
@@ -624,6 +966,11 @@ class _MessageInputWidgetState extends State<MessageInputWidget>
   }
 
   void _showMultiImagePickerBottomSheet() {
+    setState(() {
+      _showAttachmentOptions = false;
+      _showEmojiPicker = false;
+    });
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -663,7 +1010,7 @@ class _MessageInputWidgetState extends State<MessageInputWidget>
             ImagePreviewScreen(
           images: images,
           onSend: (editedImages) {
-            Navigator.pop(context); // Close preview
+            Navigator.pop(context);
             _sendMultipleImages(editedImages);
           },
         ),
@@ -687,7 +1034,6 @@ class _MessageInputWidgetState extends State<MessageInputWidget>
   void _sendMultipleImages(List<File> images) {
     if (images.isEmpty) return;
 
-    // إنشاء رسالة مؤقتة مع الصور
     final tempMessageId = DateTime.now().millisecondsSinceEpoch.toString();
     final uploadInfos = <ImageUploadInfo>[];
     for (int i = 0; i < images.length; i++) {
@@ -698,13 +1044,11 @@ class _MessageInputWidgetState extends State<MessageInputWidget>
       ));
     }
 
-    // إعلام الـ Bloc ببدء عملية رفع الصور لإظهار فقاعة الرفع داخل الشات
     context.read<ChatBloc>().add(StartImageUploadsEvent(
           conversationId: widget.conversationId,
           uploads: uploadInfos,
         ));
 
-    // بدء رفع الصور بالتتابع مع تقدم حقيقي بالبايتات
     _uploadImagesWithProgress(images, tempMessageId, uploadInfos);
   }
 
@@ -714,37 +1058,31 @@ class _MessageInputWidgetState extends State<MessageInputWidget>
     List<ImageUploadInfo> uploadInfos,
   ) async {
     final bloc = context.read<ChatBloc>();
-    final filePaths = images.map((f) => f.path).toList();
-    final totalImages = filePaths.length;
-    // We will upload and send each image as a separate message to satisfy the requirement
 
     try {
       for (int i = 0; i < images.length; i++) {
-        // Start smooth progress animation for this image
         _startSmoothProgress(uploadInfos[i].id);
         final filePath = images[i].path;
         final uploadId = uploadInfos[i].id;
         await bloc
             .uploadAttachmentWithProgress(
+          conversationId: widget.conversationId,
+          filePath: filePath,
+          messageType: 'image',
+          replyToMessageId: widget.replyToMessageId,
+          replyToAttachmentId:
+              (images.length == 1) ? 'inline_${tempMessageId}_$i' : null,
+          onProgress: (sent, total) {
+            final t = total > 0 ? total : images[i].lengthSync();
+            final p = t > 0 ? sent / t : 0.0;
+            bloc.add(UpdateImageUploadProgressEvent(
               conversationId: widget.conversationId,
-              filePath: filePath,
-              messageType: 'image',
-              // pass reply context to ensure exact reply preview mapping
-              replyToMessageId: widget.replyToMessageId,
-              replyToAttachmentId: (images.length == 1)
-                  ? 'inline_${tempMessageId}_$i' // ephemeral id for single capture; not used if actual attachment id exists
-                  : null,
-              onProgress: (sent, total) {
-                final t = total > 0 ? total : images[i].lengthSync();
-                final p = t > 0 ? sent / t : 0.0;
-                bloc.add(UpdateImageUploadProgressEvent(
-                  conversationId: widget.conversationId,
-                  uploadId: uploadId,
-                  progress: p,
-                ));
-                _updateTargetProgress(p);
-              },
-            )
+              uploadId: uploadId,
+              progress: p,
+            ));
+            _updateTargetProgress(p);
+          },
+        )
             .then((_) async {
           bloc.add(UpdateImageUploadProgressEvent(
             conversationId: widget.conversationId,
@@ -757,9 +1095,9 @@ class _MessageInputWidgetState extends State<MessageInputWidget>
         });
       }
 
-      // Clear the uploading bubble once all are done
       if (mounted) {
-        bloc.add(FinishImageUploadsEvent(conversationId: widget.conversationId));
+        bloc.add(
+            FinishImageUploadsEvent(conversationId: widget.conversationId));
       }
     } catch (e) {
       for (int i = 0; i < images.length; i++) {
@@ -772,7 +1110,6 @@ class _MessageInputWidgetState extends State<MessageInputWidget>
         ));
       }
     } finally {
-      // Ensure smooth animator stopped
       _stopSmoothProgress();
     }
   }
@@ -803,66 +1140,6 @@ class _MessageInputWidgetState extends State<MessageInputWidget>
     setState(() {
       _showAttachmentOptions = false;
     });
-    // Implement file picker
-  }
-
-  Widget _buildEmojiPicker() {
-    // Lightweight custom emoji grid to avoid external deps; can be replaced with emoji_picker_flutter.
-    const emojis = [
-      '😀','😁','😂','🤣','😊','😍','😘','😜','😎','😢','😭','😡','👍','👎','🙏','👏','🔥','🎉','💯','❤️','💔','😮','🤔','🤗','😴','🤯','😇','😉','😅','😏'
-    ];
-    return Container(
-      height: 220,
-      margin: const EdgeInsets.only(bottom: 6),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(colors: [
-          AppTheme.darkCard.withValues(alpha: 0.8),
-          AppTheme.darkCard.withValues(alpha: 0.7),
-        ]),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: AppTheme.darkBorder.withValues(alpha: 0.08),
-          width: 0.5,
-        ),
-      ),
-      child: GridView.builder(
-        padding: const EdgeInsets.all(8),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 8,
-          mainAxisSpacing: 6,
-          crossAxisSpacing: 6,
-        ),
-        itemCount: emojis.length,
-        itemBuilder: (context, index) {
-          final emoji = emojis[index];
-          return GestureDetector(
-            onTap: () {
-              HapticFeedback.selectionClick();
-              final text = widget.controller.text;
-              final selection = widget.controller.selection;
-              final base = selection.baseOffset;
-              final extent = selection.extentOffset;
-              if (base >= 0 && extent >= 0 && base <= text.length && extent <= text.length) {
-                final start = text.substring(0, base);
-                final end = text.substring(extent);
-                widget.controller.text = '$start$emoji$end';
-                final newPos = base + emoji.length;
-                widget.controller.selection = TextSelection.collapsed(offset: newPos);
-              } else {
-                widget.controller.text = '$text$emoji';
-                widget.controller.selection = TextSelection.collapsed(offset: widget.controller.text.length);
-              }
-            },
-            child: Center(
-              child: Text(
-                emoji,
-                style: const TextStyle(fontSize: 22),
-              ),
-            ),
-          );
-        },
-      ),
-    );
   }
 }
 

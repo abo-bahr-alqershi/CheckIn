@@ -1,5 +1,3 @@
-// lib/features/chat/presentation/pages/conversations_page.dart
-
 import 'package:bookn_cp_app/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:bookn_cp_app/features/auth/presentation/bloc/auth_state.dart';
 import 'package:flutter/material.dart';
@@ -16,8 +14,6 @@ import '../widgets/conversation_item_widget.dart';
 import '../widgets/chat_fab.dart';
 import 'chat_page.dart';
 import 'new_conversation_page.dart';
-import '../../../auth/presentation/bloc/auth_bloc.dart';
-import '../../../auth/presentation/bloc/auth_state.dart';
 
 class ConversationsPage extends StatefulWidget {
   const ConversationsPage({super.key});
@@ -30,7 +26,6 @@ class _ConversationsPageState extends State<ConversationsPage>
     with TickerProviderStateMixin {
   final ScrollController _scrollController = ScrollController();
 
-  // Animation Controllers
   late AnimationController _fadeController;
   late AnimationController _slideController;
   late AnimationController _shimmerController;
@@ -48,7 +43,6 @@ class _ConversationsPageState extends State<ConversationsPage>
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
 
-  // Minimal background particles
   final List<_MinimalParticle> _particles = [];
 
   @override
@@ -173,13 +167,8 @@ class _ConversationsPageState extends State<ConversationsPage>
       backgroundColor: AppTheme.darkBackground,
       body: Stack(
         children: [
-          // Ultra minimal gradient background
           _buildUltraMinimalBackground(),
-
-          // Subtle floating particles
           _buildSubtleParticles(),
-
-          // Main content with glass overlay
           SafeArea(
             child: Column(
               children: [
@@ -252,7 +241,6 @@ class _ConversationsPageState extends State<ConversationsPage>
       height: _isSearching ? 110 : 60,
       child: Stack(
         children: [
-          // Glass background
           ClipRect(
             child: BackdropFilter(
               filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
@@ -276,8 +264,6 @@ class _ConversationsPageState extends State<ConversationsPage>
               ),
             ),
           ),
-
-          // Content
           Column(
             children: [
               _buildMinimalHeaderContent(),
@@ -300,7 +286,6 @@ class _ConversationsPageState extends State<ConversationsPage>
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
         children: [
-          // Minimal logo
           AnimatedBuilder(
             animation: _pulseAnimation,
             builder: (context, child) {
@@ -330,10 +315,7 @@ class _ConversationsPageState extends State<ConversationsPage>
               );
             },
           ),
-
           const SizedBox(width: 12),
-
-          // Minimal title
           Text(
             'المحادثات',
             style: AppTextStyles.heading3.copyWith(
@@ -343,10 +325,7 @@ class _ConversationsPageState extends State<ConversationsPage>
               letterSpacing: 0.5,
             ),
           ),
-
           const Spacer(),
-
-          // Minimal search toggle
           _buildMinimalIconButton(
             icon: _isSearching ? Icons.close : Icons.search,
             onTap: () {
@@ -365,10 +344,7 @@ class _ConversationsPageState extends State<ConversationsPage>
               });
             },
           ),
-
           const SizedBox(width: 8),
-
-          // Minimal menu
           _buildMinimalIconButton(
             icon: Icons.more_horiz,
             onTap: _showMinimalOptions,
@@ -461,7 +437,7 @@ class _ConversationsPageState extends State<ConversationsPage>
     return BlocBuilder<ChatBloc, ChatState>(
       builder: (context, state) {
         if (state is ChatLoading) {
-          return _buildUltraMinimalLoading();
+          return _buildUltraMinimalLoading(); // المهمة 6
         }
 
         if (state is ChatError) {
@@ -483,71 +459,168 @@ class _ConversationsPageState extends State<ConversationsPage>
     );
   }
 
+  // المهمة 6: Placeholders احترافية
   Widget _buildUltraMinimalLoading() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          // Ultra minimal loading animation
-          AnimatedBuilder(
+    return ListView.builder(
+      padding: const EdgeInsets.only(top: 4, bottom: 80),
+      itemCount: 10,
+      itemBuilder: (context, index) {
+        return TweenAnimationBuilder<double>(
+          key: ValueKey('loading_$index'),
+          tween: Tween(begin: 0.0, end: 1.0),
+          duration: Duration(milliseconds: 300 + (index * 50)),
+          curve: Curves.easeOutCubic,
+          builder: (context, value, child) {
+            return Opacity(
+              opacity: value,
+              child: Transform.translate(
+                offset: Offset(30 * (1 - value), 0),
+                child: Container(
+                  margin: const EdgeInsets.only(bottom: 1),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    border: Border(
+                      bottom: BorderSide(
+                        color: AppTheme.darkBorder.withValues(alpha: 0.03),
+                        width: 0.5,
+                      ),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      // Avatar placeholder
+                      Stack(
+                        children: [
+                          Container(
+                            width: 42,
+                            height: 42,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: AppTheme.darkCard.withValues(alpha: 0.3),
+                              border: Border.all(
+                                color:
+                                    AppTheme.darkBorder.withValues(alpha: 0.05),
+                                width: 0.5,
+                              ),
+                            ),
+                          ),
+                          // Shimmer effect
+                          Positioned.fill(
+                            child: AnimatedBuilder(
+                              animation: _shimmerAnimation,
+                              builder: (context, child) {
+                                return Container(
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    gradient: LinearGradient(
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                      colors: [
+                                        Colors.white.withValues(alpha: 0.0),
+                                        Colors.white.withValues(
+                                            alpha:
+                                                0.05 * _shimmerAnimation.value),
+                                        Colors.white.withValues(alpha: 0.0),
+                                      ],
+                                      stops: [
+                                        (_shimmerAnimation.value - 0.3)
+                                            .clamp(0.0, 1.0),
+                                        _shimmerAnimation.value.clamp(0.0, 1.0),
+                                        (_shimmerAnimation.value + 0.3)
+                                            .clamp(0.0, 1.0),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: _buildShimmerLine(
+                                    width: double.infinity,
+                                    height: 14,
+                                    maxWidth: 150 + (index % 3) * 30,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                _buildShimmerLine(width: 40, height: 10),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            _buildShimmerLine(
+                              width: double.infinity,
+                              height: 12,
+                              maxWidth: 200 + (index % 4) * 20,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildShimmerLine({
+    required double width,
+    required double height,
+    double? maxWidth,
+  }) {
+    return Stack(
+      children: [
+        Container(
+          width: maxWidth ?? width,
+          height: height,
+          decoration: BoxDecoration(
+            color: AppTheme.darkCard.withValues(alpha: 0.3),
+            borderRadius: BorderRadius.circular(4),
+          ),
+        ),
+        Positioned.fill(
+          child: AnimatedBuilder(
             animation: _shimmerAnimation,
             builder: (context, child) {
               return Container(
-                width: 40,
-                height: 40,
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                    color: AppTheme.primaryBlue.withValues(alpha: 0.1),
-                    width: 1,
+                  borderRadius: BorderRadius.circular(4),
+                  gradient: LinearGradient(
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                    colors: [
+                      Colors.white.withValues(alpha: 0.0),
+                      Colors.white
+                          .withValues(alpha: 0.05 * _shimmerAnimation.value),
+                      Colors.white.withValues(alpha: 0.0),
+                    ],
+                    stops: [
+                      (_shimmerAnimation.value - 0.3).clamp(0.0, 1.0),
+                      _shimmerAnimation.value.clamp(0.0, 1.0),
+                      (_shimmerAnimation.value + 0.3).clamp(0.0, 1.0),
+                    ],
                   ),
-                ),
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    // Rotating gradient border
-                    Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(10),
-                        gradient: SweepGradient(
-                          colors: [
-                            Colors.transparent,
-                            AppTheme.primaryBlue.withValues(alpha: 0.2),
-                            AppTheme.primaryPurple.withValues(alpha: 0.1),
-                            Colors.transparent,
-                          ],
-                          stops: const [0.0, 0.25, 0.5, 1.0],
-                          transform: GradientRotation(
-                              _shimmerAnimation.value * 2 * math.pi),
-                        ),
-                      ),
-                    ),
-
-                    // Icon
-                    Icon(
-                      Icons.forum_outlined,
-                      color: AppTheme.primaryBlue.withValues(alpha: 0.3),
-                      size: 18,
-                    ),
-                  ],
                 ),
               );
             },
           ),
-
-          const SizedBox(height: 12),
-
-          Text(
-            'جاري التحميل',
-            style: AppTextStyles.caption.copyWith(
-              color: AppTheme.textMuted.withValues(alpha: 0.5),
-              fontSize: 11,
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -742,7 +815,7 @@ class _ConversationsPageState extends State<ConversationsPage>
         ),
         padding: const EdgeInsets.only(
           top: 4,
-          bottom: 80, // Space for FAB
+          bottom: 80,
         ),
         itemCount: conversations.length + (state.isLoadingMore ? 1 : 0),
         itemBuilder: (context, index) {
@@ -752,7 +825,6 @@ class _ConversationsPageState extends State<ConversationsPage>
 
           final conversation = conversations[index];
           final typingUsers = state.typingUsers[conversation.id] ?? [];
-          // Try to resolve real current user id from AuthBloc if available
           String currentUserId = 'current_user';
           final authState = context.read<AuthBloc>().state;
           if (authState is AuthAuthenticated &&
@@ -883,12 +955,8 @@ class _ConversationsPageState extends State<ConversationsPage>
       backgroundColor: Colors.transparent,
       barrierColor: Colors.black26,
       builder: (context) => _UltraMinimalOptionsSheet(
-        onArchiveAll: () {
-          // Archive all conversations
-        },
-        onSettings: () {
-          // Open settings
-        },
+        onArchiveAll: () {},
+        onSettings: () {},
       ),
     );
   }
@@ -913,9 +981,7 @@ class _ConversationsPageState extends State<ConversationsPage>
         onDelete: () {
           _confirmDelete(conversation);
         },
-        onMute: () {
-          // Toggle mute
-        },
+        onMute: () {},
       ),
     );
   }
@@ -942,7 +1008,6 @@ class _ConversationsPageState extends State<ConversationsPage>
   }
 }
 
-// Ultra Minimal Options Sheet
 class _UltraMinimalOptionsSheet extends StatelessWidget {
   final VoidCallback onArchiveAll;
   final VoidCallback onSettings;
@@ -972,7 +1037,6 @@ class _UltraMinimalOptionsSheet extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Handle
                 Container(
                   width: 28,
                   height: 3,
@@ -982,7 +1046,6 @@ class _UltraMinimalOptionsSheet extends StatelessWidget {
                     borderRadius: BorderRadius.circular(1.5),
                   ),
                 ),
-
                 _buildMinimalOption(
                   icon: Icons.archive_outlined,
                   title: 'أرشفة الكل',
@@ -991,7 +1054,6 @@ class _UltraMinimalOptionsSheet extends StatelessWidget {
                     onArchiveAll();
                   },
                 ),
-
                 _buildMinimalOption(
                   icon: Icons.settings_outlined,
                   title: 'الإعدادات',
@@ -1000,7 +1062,6 @@ class _UltraMinimalOptionsSheet extends StatelessWidget {
                     onSettings();
                   },
                 ),
-
                 const SizedBox(height: 8),
               ],
             ),
@@ -1042,7 +1103,6 @@ class _UltraMinimalOptionsSheet extends StatelessWidget {
   }
 }
 
-// Ultra Minimal Conversation Options
 class _UltraMinimalConversationSheet extends StatelessWidget {
   final Conversation conversation;
   final VoidCallback onArchive;
@@ -1156,7 +1216,6 @@ class _UltraMinimalConversationSheet extends StatelessWidget {
   }
 }
 
-// Ultra Minimal Dialog
 class _UltraMinimalDialog extends StatelessWidget {
   final String title;
   final String message;
@@ -1302,7 +1361,6 @@ class _UltraMinimalDialog extends StatelessWidget {
   }
 }
 
-// Minimal Particle Model
 class _MinimalParticle {
   double x = math.Random().nextDouble();
   double y = math.Random().nextDouble();
@@ -1315,7 +1373,6 @@ class _MinimalParticle {
   ][math.Random().nextInt(2)];
 }
 
-// Painters
 class _UltraMinimalGradientPainter extends CustomPainter {
   final double animation;
   final double pulseAnimation;
@@ -1331,7 +1388,6 @@ class _UltraMinimalGradientPainter extends CustomPainter {
       ..style = PaintingStyle.fill
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 80);
 
-    // Ultra subtle gradient circles
     final positions = [
       Offset(size.width * 0.8, size.height * 0.2),
       Offset(size.width * 0.2, size.height * 0.7),

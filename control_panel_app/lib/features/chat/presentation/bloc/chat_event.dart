@@ -42,6 +42,21 @@ class LoadMessagesEvent extends ChatEvent {
       [conversationId, pageNumber, pageSize, beforeMessageId];
 }
 
+class LoadMoreMessagesEvent extends ChatEvent {
+  final String conversationId;
+  final String? targetMessageId;
+  final int pageSize;
+
+  const LoadMoreMessagesEvent({
+    required this.conversationId,
+    this.targetMessageId,
+    this.pageSize = 50,
+  });
+
+  @override
+  List<Object?> get props => [conversationId, targetMessageId, pageSize];
+}
+
 class SendMessageEvent extends ChatEvent {
   final String conversationId;
   final String messageType;

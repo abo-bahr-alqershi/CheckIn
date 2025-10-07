@@ -1,5 +1,3 @@
-// lib/features/chat/presentation/widgets/conversation_item_widget.dart
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -29,15 +27,12 @@ class ConversationItemWidget extends StatelessWidget {
         ? conversation.getOtherParticipant(currentUserId)
         : null;
 
-    // For direct chats, always show the other participant's name to avoid self-name regressions.
-    // For non-direct, fallback to conversation title.
-    final String displayName = (conversation.isDirectChat && otherParticipant != null)
-        ? otherParticipant.name
-        : (conversation.title ?? 'محادثة');
+    final String displayName =
+        (conversation.isDirectChat && otherParticipant != null)
+            ? otherParticipant.name
+            : (conversation.title ?? 'محادثة');
 
-    final displayImage = conversation.avatar ??
-        otherParticipant?.profileImage;
-
+    final displayImage = conversation.avatar ?? otherParticipant?.profileImage;
     final isTyping = typingUserIds.isNotEmpty;
 
     return Material(
@@ -47,10 +42,12 @@ class ConversationItemWidget extends StatelessWidget {
           HapticFeedback.selectionClick();
           onTap();
         },
-        onLongPress: onLongPress != null ? () {
-          HapticFeedback.lightImpact();
-          onLongPress!();
-        } : null,
+        onLongPress: onLongPress != null
+            ? () {
+                HapticFeedback.lightImpact();
+                onLongPress!();
+              }
+            : null,
         borderRadius: BorderRadius.circular(0),
         child: Container(
           padding: const EdgeInsets.symmetric(
@@ -58,11 +55,25 @@ class ConversationItemWidget extends StatelessWidget {
             vertical: 10,
           ),
           decoration: BoxDecoration(
+            gradient: conversation.hasUnreadMessages
+                ? LinearGradient(
+                    colors: [
+                      AppTheme.primaryBlue.withValues(alpha: 0.03),
+                      AppTheme.primaryPurple.withValues(alpha: 0.02),
+                    ],
+                  )
+                : null,
             border: Border(
               bottom: BorderSide(
                 color: AppTheme.darkBorder.withValues(alpha: 0.03),
                 width: 0.5,
               ),
+              left: conversation.hasUnreadMessages
+                  ? BorderSide(
+                      color: AppTheme.primaryBlue.withValues(alpha: 0.6),
+                      width: 3,
+                    )
+                  : BorderSide.none,
             ),
           ),
           child: Row(
@@ -83,7 +94,10 @@ class ConversationItemWidget extends StatelessWidget {
                                   ? FontWeight.w600
                                   : FontWeight.w500,
                               fontSize: 13,
-                              color: AppTheme.textWhite.withValues(alpha: conversation.hasUnreadMessages ? 0.95 : 0.8),
+                              color: AppTheme.textWhite.withValues(
+                                  alpha: conversation.hasUnreadMessages
+                                      ? 0.95
+                                      : 0.8),
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -119,7 +133,8 @@ class ConversationItemWidget extends StatelessWidget {
                       children: [
                         if (conversation.lastMessage != null &&
                             conversation.lastMessage!.senderId == currentUserId)
-                          _buildUltraMinimalStatus(conversation.lastMessage!.status),
+                          _buildUltraMinimalStatus(
+                              conversation.lastMessage!.status),
                         Expanded(
                           child: isTyping
                               ? _buildUltraMinimalTyping()
@@ -187,7 +202,8 @@ class ConversationItemWidget extends StatelessWidget {
                   ),
           ),
         ),
-        if (conversation.isDirectChat && conversation.getOtherParticipant(currentUserId)?.isOnline == true)
+        if (conversation.isDirectChat &&
+            conversation.getOtherParticipant(currentUserId)?.isOnline == true)
           Positioned(
             bottom: 1,
             right: 1,
@@ -247,6 +263,7 @@ class ConversationItemWidget extends StatelessWidget {
     );
   }
 
+  // FIX المشكلة 3: عرض صورة مصغرة بدلاً من رابط
   Widget _buildUltraMinimalLastMessage() {
     if (conversation.lastMessage == null) {
       return Text(
@@ -261,43 +278,147 @@ class ConversationItemWidget extends StatelessWidget {
       );
     }
 
+    final lastMessage = conversation.lastMessage!;
     String messageText = '';
     Widget? prefix;
+    Widget? thumbnail;
 
-    switch (conversation.lastMessage!.messageType) {
-      case 'text':
-        messageText = conversation.lastMessage!.content ?? '';
-        break;
-      case 'image':
-        prefix = Icon(Icons.image, size: 12, 
-            color: AppTheme.textMuted.withValues(alpha: 0.3));
-        messageText = 'صورة';
-        break;
-      case 'video':
-        prefix = Icon(Icons.videocam, size: 12,
-            color: AppTheme.textMuted.withValues(alpha: 0.3));
-        messageText = 'فيديو';
-        break;
-      case 'audio':
-        prefix = Icon(Icons.mic, size: 12,
-            color: AppTheme.textMuted.withValues(alpha: 0.3));
-        messageText = 'رسالة صوتية';
-        break;
-      case 'document':
-        prefix = Icon(Icons.attach_file, size: 12,
-            color: AppTheme.textMuted.withValues(alpha: 0.3));
-        messageText = 'مستند';
-        break;
-      case 'location':
-        prefix = Icon(Icons.location_on, size: 12,
-            color: AppTheme.textMuted.withValues(alpha: 0.3));
-        messageText = 'موقع';
-        break;
+    // FIX: معالجة رسائل الصور بشكل صحيح
+    final isImageMessage = lastMessage.messageType == 'image';
+    final hasImageAttachments = lastMessage.attachments.isNotEmpty &&
+        lastMessage.attachments.any((att) => att.isImage);
+
+    if (isImageMessage || hasImageAttachments) {
+      String? thumbnailUrl;
+
+      // أولاً: حاول الحصول على الصورة من attachments
+      if (hasImageAttachments) {
+        final firstImage = lastMessage.attachments.firstWhere(
+          (att) => att.isImage,
+          orElse: () => lastMessage.attachments.first,
+        );
+        thumbnailUrl =
+            firstImage.thumbnailUrl ?? firstImage.fileUrl ?? firstImage.url;
+      }
+
+      // ثانياً: إذا لم توجد attachments، تحقق من content (قد يحتوي على URL مباشر)
+      if (thumbnailUrl == null &&
+          lastMessage.content != null &&
+          lastMessage.content!.isNotEmpty) {
+        final content = lastMessage.content!;
+        // تحقق إذا كان المحتوى يبدو كـ URL صورة
+        if (content.startsWith('http') &&
+            (content.contains('.jpg') ||
+                content.contains('.jpeg') ||
+                content.contains('.png') ||
+                content.contains('.gif') ||
+                content.contains('.webp') ||
+                content.contains('image'))) {
+          thumbnailUrl = content;
+        }
+      }
+
+      // عرض الصورة المصغرة إذا وُجدت
+      if (thumbnailUrl != null && thumbnailUrl.isNotEmpty) {
+        thumbnail = Container(
+          width: 32,
+          height: 32,
+          margin: const EdgeInsets.only(right: 4),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(
+              color: conversation.hasUnreadMessages
+                  ? AppTheme.primaryBlue.withValues(alpha: 0.3)
+                  : AppTheme.darkBorder.withValues(alpha: 0.2),
+              width: 0.5,
+            ),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(5.5),
+            child: CachedImageWidget(
+              imageUrl: thumbnailUrl,
+              fit: BoxFit.cover,
+              removeContainer: true,
+            ),
+          ),
+        );
+      }
+
+      // النص المرافق
+      messageText = lastMessage.attachments.length > 1
+          ? '${lastMessage.attachments.length} صور'
+          : 'صورة';
+
+      prefix = Icon(
+        Icons.image,
+        size: 12,
+        color: AppTheme.textMuted.withValues(alpha: 0.3),
+      );
+    } else {
+      // معالجة الأنواع الأخرى
+      switch (lastMessage.messageType) {
+        case 'text':
+          messageText = lastMessage.content ?? '';
+          // التحقق من وجود رد
+          if (lastMessage.replyToMessageId != null) {
+            prefix = Container(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+              margin: const EdgeInsets.only(right: 4),
+              decoration: BoxDecoration(
+                color: AppTheme.primaryBlue.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.reply,
+                    size: 10,
+                    color: AppTheme.primaryBlue.withValues(alpha: 0.7),
+                  ),
+                  const SizedBox(width: 2),
+                  Text(
+                    'رد',
+                    style: AppTextStyles.caption.copyWith(
+                      fontSize: 9,
+                      color: AppTheme.primaryBlue.withValues(alpha: 0.7),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }
+          break;
+        case 'video':
+          prefix = Icon(Icons.videocam,
+              size: 12, color: AppTheme.textMuted.withValues(alpha: 0.3));
+          messageText = 'فيديو';
+          break;
+        case 'audio':
+          prefix = Icon(Icons.mic,
+              size: 12, color: AppTheme.textMuted.withValues(alpha: 0.3));
+          messageText = 'رسالة صوتية';
+          break;
+        case 'document':
+          prefix = Icon(Icons.attach_file,
+              size: 12, color: AppTheme.textMuted.withValues(alpha: 0.3));
+          messageText = 'مستند';
+          break;
+        case 'location':
+          prefix = Icon(Icons.location_on,
+              size: 12, color: AppTheme.textMuted.withValues(alpha: 0.3));
+          messageText = 'موقع';
+          break;
+        default:
+          messageText = lastMessage.content ?? '';
+      }
     }
 
     return Row(
       children: [
-        if (prefix != null) ...[
+        if (thumbnail != null) thumbnail,
+        if (prefix != null && thumbnail == null) ...[
           prefix,
           const SizedBox(width: 4),
         ],
@@ -309,6 +430,9 @@ class ConversationItemWidget extends StatelessWidget {
                   ? AppTheme.textWhite.withValues(alpha: 0.7)
                   : AppTheme.textMuted.withValues(alpha: 0.4),
               fontSize: 11,
+              fontWeight: conversation.hasUnreadMessages
+                  ? FontWeight.w500
+                  : FontWeight.w400,
             ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
@@ -345,7 +469,8 @@ class ConversationItemWidget extends StatelessWidget {
                     width: 2,
                     height: 2,
                     decoration: BoxDecoration(
-                      color: AppTheme.primaryBlue.withValues(alpha: value * 0.6),
+                      color:
+                          AppTheme.primaryBlue.withValues(alpha: value * 0.6),
                       shape: BoxShape.circle,
                     ),
                   );
@@ -373,6 +498,13 @@ class ConversationItemWidget extends StatelessWidget {
           ],
         ),
         borderRadius: BorderRadius.circular(8),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.primaryBlue.withValues(alpha: 0.3),
+            blurRadius: 4,
+            offset: const Offset(0, 1),
+          ),
+        ],
       ),
       constraints: const BoxConstraints(
         minWidth: 14,
@@ -408,7 +540,15 @@ class ConversationItemWidget extends StatelessWidget {
     } else if (messageDate == yesterday) {
       return 'أمس';
     } else if (now.difference(dateTime).inDays < 7) {
-      final days = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+      final days = [
+        'الأحد',
+        'الإثنين',
+        'الثلاثاء',
+        'الأربعاء',
+        'الخميس',
+        'الجمعة',
+        'السبت'
+      ];
       return days[dateTime.weekday % 7];
     } else {
       return '${dateTime.day}/${dateTime.month}';
