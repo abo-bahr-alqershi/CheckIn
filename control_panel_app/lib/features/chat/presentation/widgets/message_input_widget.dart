@@ -913,7 +913,15 @@ class _MessageInputWidgetState extends State<MessageInputWidget>
   }
 
   void _sendAudioMessage(String path) {
-    // Implement audio message sending
+    try {
+      final bloc = context.read<ChatBloc>();
+      // Upload audio then send message referencing attachment
+      bloc.add(UploadAttachmentEvent(
+        conversationId: widget.conversationId,
+        filePath: path,
+        messageType: 'audio',
+      ));
+    } catch (_) {}
   }
 
   Future<void> _pickImage(ImageSource source) async {
