@@ -13,6 +13,8 @@ import '../../../domain/usecases/services/get_booking_services_usecase.dart';
 import '../../../domain/repositories/bookings_repository.dart';
 import 'booking_details_event.dart';
 import 'booking_details_state.dart';
+import '../../../../../../core/utils/invoice_pdf.dart';
+import 'package:printing/printing.dart';
 
 class BookingDetailsBloc
     extends Bloc<BookingDetailsEvent, BookingDetailsState> {
@@ -479,8 +481,19 @@ class BookingDetailsBloc
         bookingDetails: currentState.bookingDetails,
         services: currentState.services,
       ));
-      // تنفيذ منطق الطباعة
-      await Future.delayed(const Duration(seconds: 2));
+      // توليد وطباعة/مشاركة ملف الفاتورة PDF مباشرة من التطبيق
+      try {
+        final details = currentState.bookingDetails ??
+            BookingDetails(
+              booking: currentState.booking,
+              payments: const [],
+              services: currentState.services,
+            );
+        final pdfBytes = await InvoicePdfGenerator.generate(details);
+        await Printing.layoutPdf(onLayout: (_) async => pdfBytes);
+      } catch (_) {
+        // تجاهل الخطأ وإرجاع الحالة السابقة
+      }
       emit(currentState);
     }
   }
