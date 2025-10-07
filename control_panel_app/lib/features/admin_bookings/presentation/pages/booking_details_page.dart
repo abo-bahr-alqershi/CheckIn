@@ -161,6 +161,10 @@ class _BookingDetailsPageState extends State<BookingDetailsPage>
           onPressed: () => context.push('/admin/bookings/${booking.id}/audit'),
         ),
         _buildActionButton(
+          icon: CupertinoIcons.doc_text,
+          onPressed: () => _printBooking(booking.id),
+        ),
+        _buildActionButton(
           icon: CupertinoIcons.printer,
           onPressed: () => _printBooking(booking.id),
         ),
@@ -757,10 +761,10 @@ class _BookingDetailsPageState extends State<BookingDetailsPage>
     required VoidCallback onPressed,
   }) {
     return Container(
-      height: 56,
+      height: 44,
       decoration: BoxDecoration(
         gradient: gradient,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
             color: gradient.colors.first.withOpacity(0.3),
@@ -773,16 +777,16 @@ class _BookingDetailsPageState extends State<BookingDetailsPage>
         color: Colors.transparent,
         child: InkWell(
           onTap: onPressed,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(12),
           child: Center(
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(icon, color: Colors.white, size: 20),
-                const SizedBox(width: 8),
+                Icon(icon, color: Colors.white, size: 18),
+                const SizedBox(width: 6),
                 Text(
                   label,
-                  style: AppTextStyles.buttonMedium.copyWith(
+                  style: AppTextStyles.buttonSmall.copyWith(
                     color: Colors.white,
                   ),
                 ),

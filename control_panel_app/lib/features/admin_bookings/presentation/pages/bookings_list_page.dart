@@ -108,16 +108,21 @@ class _BookingsListPageState extends State<BookingsListPage>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.darkBackground,
-      body: CustomScrollView(
-        controller: _scrollController,
-        physics: const BouncingScrollPhysics(
-          parent: AlwaysScrollableScrollPhysics(),
-        ),
-        slivers: [
-          _buildSliverAppBar(),
-          _buildStatsSection(),
-          _buildFilterSection(),
-          _buildBookingsList(),
+      body: Stack(
+        children: [
+          CustomScrollView(
+            controller: _scrollController,
+            physics: const BouncingScrollPhysics(
+              parent: AlwaysScrollableScrollPhysics(),
+            ),
+            slivers: [
+              _buildSliverAppBar(),
+              _buildStatsSection(),
+              _buildFilterSection(),
+              _buildBookingsList(),
+            ],
+          ),
+          _buildOperationOverlay(),
         ],
       ),
       floatingActionButton:
@@ -712,6 +717,30 @@ class _BookingsListPageState extends State<BookingsListPage>
         }
 
         return const SliverFillRemaining(child: SizedBox.shrink());
+      },
+    );
+  }
+
+  // 🎯 Overlay يظهر أثناء تنفيذ أي عملية (إلغاء/تأكيد/تحديث/تشيك إن/آوت)
+  Widget _buildOperationOverlay() {
+    return BlocBuilder<BookingsListBloc, BookingsListState>(
+      builder: (context, state) {
+        if (state is BookingOperationInProgress) {
+          return Positioned.fill(
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
+              child: Container(
+                color: AppTheme.darkBackground.withOpacity(0.4),
+                alignment: Alignment.center,
+                child: const LoadingWidget(
+                  type: LoadingType.futuristic,
+                  message: 'جاري تنفيذ العملية...'
+                ),
+              ),
+            ),
+          );
+        }
+        return const SizedBox.shrink();
       },
     );
   }

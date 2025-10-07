@@ -86,14 +86,14 @@ public class CancelBookingCommandHandler : IRequestHandler<CancelBookingCommand,
     {
         try
         {
-            _logger.LogInformation("بدء معالجة أمر إلغاء الحجز {BookingId} / Starting cancel booking processing for booking: {BookingId}", request.BookingId);
+            _logger.LogInformation("بدء معالجة أمر إلغاء الحجز - BookingId: {BookingId}", request.BookingId);
 
             // الخطوة 1: التحقق من صحة البيانات المدخلة
             // Step 1: Input data validation
             var inputValidationResult = await ValidateInputAsync(request, cancellationToken);
             if (!inputValidationResult.IsSuccess)
             {
-                _logger.LogWarning("فشل التحقق من صحة البيانات المدخلة: {Errors} / Input validation failed: {Errors}", string.Join(", ", inputValidationResult.Errors));
+                _logger.LogWarning("فشل التحقق من صحة البيانات المدخلة - Errors: {Errors}", string.Join(", ", inputValidationResult.Errors));
                 return ResultDto<bool>.Failed(inputValidationResult.Errors);
             }
 
@@ -111,7 +111,7 @@ public class CancelBookingCommandHandler : IRequestHandler<CancelBookingCommand,
             var authorizationResult = await ValidateAuthorizationAsync(booking, cancellationToken);
             if (!authorizationResult.IsSuccess)
             {
-                _logger.LogWarning("فشل التحقق من الصلاحيات للمستخدم: {UserId} / Authorization failed for user: {UserId}", _currentUserService.UserId);
+                _logger.LogWarning("فشل التحقق من الصلاحيات للمستخدم - UserId: {UserId}", _currentUserService.UserId);
                 return ResultDto<bool>.Failed(authorizationResult.Errors);
             }
 
@@ -120,7 +120,7 @@ public class CancelBookingCommandHandler : IRequestHandler<CancelBookingCommand,
             var businessRulesResult = await ValidateBusinessRulesAsync(booking, cancellationToken);
             if (!businessRulesResult.IsSuccess)
             {
-                _logger.LogWarning("فشل التحقق من قواعد الأعمال: {Errors} / Business rules validation failed: {Errors}", string.Join(", ", businessRulesResult.Errors));
+                _logger.LogWarning("فشل التحقق من قواعد الأعمال - Errors: {Errors}", string.Join(", ", businessRulesResult.Errors));
                 return ResultDto<bool>.Failed(businessRulesResult.Errors);
             }
 
@@ -129,7 +129,7 @@ public class CancelBookingCommandHandler : IRequestHandler<CancelBookingCommand,
             var stateValidationResult = await ValidateBookingStateAsync(booking, cancellationToken);
             if (!stateValidationResult.IsSuccess)
             {
-                _logger.LogWarning("فشل التحقق من حالة الحجز: {Errors} / Booking state validation failed: {Errors}", string.Join(", ", stateValidationResult.Errors));
+                _logger.LogWarning("فشل التحقق من حالة الحجز - Errors: {Errors}", string.Join(", ", stateValidationResult.Errors));
                 return ResultDto<bool>.Failed(stateValidationResult.Errors);
             }
 
@@ -138,7 +138,7 @@ public class CancelBookingCommandHandler : IRequestHandler<CancelBookingCommand,
             var cancellationPolicyResult = await ValidateCancellationPolicyAsync(booking, cancellationToken);
             if (!cancellationPolicyResult.IsSuccess)
             {
-                _logger.LogWarning("فشل التحقق من سياسة الإلغاء: {Errors} / Cancellation policy validation failed: {Errors}", string.Join(", ", cancellationPolicyResult.Errors));
+                _logger.LogWarning("فشل التحقق من سياسة الإلغاء - Errors: {Errors}", string.Join(", ", cancellationPolicyResult.Errors));
                 return ResultDto<bool>.Failed(cancellationPolicyResult.Errors);
             }
 
@@ -149,7 +149,7 @@ public class CancelBookingCommandHandler : IRequestHandler<CancelBookingCommand,
             var cancellationResult = await ProcessCancellationAsync(booking, cancellationToken);
             if (!cancellationResult.IsSuccess)
             {
-                _logger.LogError("فشل في معالجة إلغاء الحجز: {Errors} / Cancellation processing failed: {Errors}", string.Join(", ", cancellationResult.Errors));
+                _logger.LogError("فشل في معالجة إلغاء الحجز - Errors: {Errors}", string.Join(", ", cancellationResult.Errors));
                 return ResultDto<bool>.Failed(cancellationResult.Errors);
             }
 
@@ -182,12 +182,12 @@ public class CancelBookingCommandHandler : IRequestHandler<CancelBookingCommand,
                 _logger.LogWarning(ex, "تعذرت الفهرسة المباشرة للإتاحة بعد إلغاء الحجز {BookingId}", request.BookingId);
             }
 
-            _logger.LogInformation("تم إلغاء الحجز بنجاح: {BookingId} / Booking cancelled successfully: {BookingId}", booking.Id);
+            _logger.LogInformation("تم إلغاء الحجز بنجاح - BookingId: {BookingId}", booking.Id);
             return ResultDto<bool>.Succeeded(true, "تم إلغاء الحجز بنجاح / Booking cancelled successfully");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "خطأ في معالجة أمر إلغاء الحجز: {BookingId} / Error processing cancel booking command: {BookingId}", request.BookingId);
+            _logger.LogError(ex, "خطأ في معالجة أمر إلغاء الحجز - BookingId: {BookingId}", request.BookingId);
             return ResultDto<bool>.Failed("حدث خطأ أثناء إلغاء الحجز / An error occurred while cancelling booking");
         }
     }
@@ -360,7 +360,7 @@ public class CancelBookingCommandHandler : IRequestHandler<CancelBookingCommand,
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "خطأ في معالجة إلغاء الحجز {BookingId} / Error processing cancellation for booking {BookingId}", booking.Id);
+            _logger.LogError(ex, "خطأ في معالجة إلغاء الحجز - BookingId: {BookingId}", booking.Id);
             return ResultDto<bool>.Failed("حدث خطأ أثناء إلغاء الحجز / An error occurred while cancelling booking");
         }
     }
