@@ -57,9 +57,12 @@ namespace YemenBooking.Api.Controllers.Common
             if (!System.IO.File.Exists(filePath))
                 return NotFound();
 
-            var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read);
+            var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
             _logger.LogInformation("User {UserId} downloaded attachment {AttachmentId}", userId, attachmentId);
-            return File(fileStream, attachment.ContentType, attachment.FileName);
+
+            // Enable HTTP range processing to support streaming/seek for audio/video
+            // Keep filename to preserve existing behavior; clients may still stream with Content-Disposition
+            return File(fileStream, attachment.ContentType, attachment.FileName, enableRangeProcessing: true);
         }
     }
 } 

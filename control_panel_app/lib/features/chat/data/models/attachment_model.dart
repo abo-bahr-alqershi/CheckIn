@@ -19,11 +19,32 @@ class AttachmentModel extends Attachment {
   });
 
   factory AttachmentModel.fromJson(Map<String, dynamic> json) {
+    String resolveContentType() {
+      final ct = (json['mime_type'] ?? json['contentType'] ?? '').toString();
+      if (ct.isNotEmpty) return ct;
+      // Infer from file name or url when backend didn't provide it
+      final name = (json['file_name'] ?? json['fileName'] ?? '').toString();
+      final url = (json['file_url'] ?? json['url'] ?? '').toString();
+      String path = name.isNotEmpty ? name : url;
+      path = path.toLowerCase();
+      if (path.endsWith('.m4a') || path.endsWith('.aac')) return 'audio/mp4';
+      if (path.endsWith('.mp3')) return 'audio/mpeg';
+      if (path.endsWith('.wav')) return 'audio/wav';
+      if (path.endsWith('.ogg') || path.endsWith('.opus')) return 'audio/ogg';
+      if (path.endsWith('.mp4') || path.contains('video')) return 'video/mp4';
+      if (path.endsWith('.mov') || path.endsWith('.mkv') || path.endsWith('.webm')) return 'video/mp4';
+      if (path.endsWith('.jpg') || path.endsWith('.jpeg')) return 'image/jpeg';
+      if (path.endsWith('.png')) return 'image/png';
+      if (path.endsWith('.gif')) return 'image/gif';
+      if (path.endsWith('.webp')) return 'image/webp';
+      return 'application/octet-stream';
+    }
+
     return AttachmentModel(
       id: json['attachment_id'] ?? json['id'] ?? '',
       conversationId: json['conversationId'] ?? json['conversation_id'] ?? '',
       fileName: json['file_name'] ?? json['fileName'] ?? '',
-      contentType: json['mime_type'] ?? json['contentType'] ?? '',
+      contentType: resolveContentType(),
       fileSize: json['file_size'] ?? json['fileSize'] ?? 0,
       filePath: json['file_path'] ?? json['filePath'] ?? '',
       fileUrl: json['file_url'] ??

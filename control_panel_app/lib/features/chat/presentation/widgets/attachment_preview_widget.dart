@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:just_audio/just_audio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:bookn_cp_app/injection_container.dart';
@@ -18,6 +19,8 @@ class AttachmentPreviewWidget extends StatefulWidget {
   final bool isMe;
   final VoidCallback? onTap;
   final VoidCallback? onDownload;
+  // Optional override to force audio UI when server MIME is generic
+  final bool forceAudio;
 
   const AttachmentPreviewWidget({
     super.key,
@@ -25,6 +28,7 @@ class AttachmentPreviewWidget extends StatefulWidget {
     required this.isMe,
     this.onTap,
     this.onDownload,
+    this.forceAudio = false,
   });
 
   @override
@@ -39,6 +43,12 @@ class _AttachmentPreviewWidgetState extends State<AttachmentPreviewWidget>
   ImageStream? _imageStream;
   ImageStreamListener? _imageStreamListener;
   Size? _displaySize;
+
+  // Audio player for voice messages
+  AudioPlayer? _audioPlayer;
+  PlayerState? _playerState;
+  Duration _position = Duration.zero;
+  Duration _duration = Duration.zero;
 
   @override
   void initState() {
@@ -60,12 +70,15 @@ class _AttachmentPreviewWidgetState extends State<AttachmentPreviewWidget>
       _shimmerController.repeat();
     }
     _resolveImageDimensions();
+
+    // Lazy init audio only when needed
   }
 
   @override
   void dispose() {
     _removeImageStreamListener();
     _shimmerController.dispose();
+    _audioPlayer?.dispose();
     super.dispose();
   }
 
@@ -155,7 +168,7 @@ class _AttachmentPreviewWidgetState extends State<AttachmentPreviewWidget>
       return _buildImagePreview();
     } else if (widget.attachment.isVideo) {
       return _buildVideoPreview();
-    } else if (widget.attachment.isAudio) {
+    } else if (widget.forceAudio || widget.attachment.isAudio) {
       return _buildAudioPreview();
     } else {
       return _buildDocumentPreview();
@@ -318,6 +331,12 @@ class _AttachmentPreviewWidgetState extends State<AttachmentPreviewWidget>
   }
 
   Widget _buildAudioPreview() {
+    _ensureAudioInitialized();
+    final totalSeconds = widget.attachment.duration ?? _duration.inSeconds;
+    final pos = _position;
+    final dur = _duration.inMilliseconds > 0 ? _duration : Duration(seconds: totalSeconds);
+    final isPlaying = _playerState?.playing == true;
+
     return Container(
       margin: const EdgeInsets.all(6),
       child: ClipRRect(
@@ -350,9 +369,13 @@ class _AttachmentPreviewWidgetState extends State<AttachmentPreviewWidget>
               children: [
                 // Play button
                 GestureDetector(
-                  onTap: () {
+                  onTap: () async {
                     HapticFeedback.selectionClick();
-                    widget.onTap?.call();
+                    if (isPlaying) {
+                      await _audioPlayer?.pause();
+                    } else {
+                      await _audioPlayer?.play();
+                    }
                   },
                   child: Container(
                     width: 32, // Reduced from 40
@@ -379,7 +402,7 @@ class _AttachmentPreviewWidgetState extends State<AttachmentPreviewWidget>
                       ],
                     ),
                     child: Icon(
-                      Icons.play_arrow_rounded,
+                      isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
                       color: widget.isMe ? AppTheme.primaryBlue : Colors.white,
                       size: 18, // Reduced from 24
                     ),
@@ -394,14 +417,47 @@ class _AttachmentPreviewWidgetState extends State<AttachmentPreviewWidget>
                     children: [
                       _buildMinimalWaveform(),
                       const SizedBox(height: 4),
-                      Text(
-                        _formatDuration(widget.attachment.duration),
-                        style: AppTextStyles.caption.copyWith(
-                          color: widget.isMe
-                              ? Colors.white.withValues(alpha: 0.6)
-                              : AppTheme.textMuted.withValues(alpha: 0.7),
-                          fontSize: 10,
-                        ),
+                      Row(
+                        children: [
+                          Text(
+                            _formatDuration(pos.inSeconds),
+                            style: AppTextStyles.caption.copyWith(
+                              color: widget.isMe
+                                  ? Colors.white.withValues(alpha: 0.6)
+                                  : AppTheme.textMuted.withValues(alpha: 0.7),
+                              fontSize: 10,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Slider(
+                              value: dur.inMilliseconds == 0
+                                  ? 0
+                                  : (pos.inMilliseconds.clamp(0, dur.inMilliseconds) /
+                                      dur.inMilliseconds),
+                              onChanged: (v) async {
+                                if (dur.inMilliseconds > 0) {
+                                  final target = Duration(
+                                      milliseconds:
+                                          (v * dur.inMilliseconds).toInt());
+                                  await _audioPlayer?.seek(target);
+                                }
+                              },
+                              min: 0,
+                              max: 1,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            _formatDuration(dur.inSeconds),
+                            style: AppTextStyles.caption.copyWith(
+                              color: widget.isMe
+                                  ? Colors.white.withValues(alpha: 0.6)
+                                  : AppTheme.textMuted.withValues(alpha: 0.7),
+                              fontSize: 10,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -412,6 +468,42 @@ class _AttachmentPreviewWidgetState extends State<AttachmentPreviewWidget>
         ),
       ),
     );
+  }
+
+  void _ensureAudioInitialized() {
+    if (_audioPlayer != null) return;
+    _audioPlayer = AudioPlayer();
+
+    // Build authenticated URL
+    final resolvedUrl = ImageUtils.resolveUrl(widget.attachment.fileUrl);
+    final headers = _buildAuthHeaders() ?? {};
+
+    // Set audio source with headers
+    _audioPlayer!
+        .setAudioSource(AudioSource.uri(Uri.parse(resolvedUrl),
+            headers: headers.isEmpty ? null : headers))
+        .then((_) async {
+      try {
+        final d = await _audioPlayer!.durationStream.firstWhere(
+          (d) => d != null,
+          orElse: () => null,
+        );
+        if (d != null && mounted) setState(() => _duration = d);
+      } catch (_) {}
+    }).catchError((_) {});
+
+    _audioPlayer!.playerStateStream.listen((s) {
+      if (!mounted) return;
+      setState(() => _playerState = s);
+    });
+    _audioPlayer!.positionStream.listen((p) {
+      if (!mounted) return;
+      setState(() => _position = p);
+    });
+    _audioPlayer!.durationStream.listen((d) {
+      if (!mounted) return;
+      if (d != null) setState(() => _duration = d);
+    });
   }
 
   Widget _buildMinimalWaveform() {

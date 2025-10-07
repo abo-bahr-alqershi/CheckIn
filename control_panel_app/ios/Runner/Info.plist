@@ -59,6 +59,10 @@
     <key>NSPhotoLibraryAddUsageDescription</key>
     <string>نحتاج للإذن لحفظ الصور المُعدلة إلى مكتبة الصور</string>
 
+    <!-- Microphone permission for voice messages -->
+    <key>NSMicrophoneUsageDescription</key>
+    <string>نحتاج لاستخدام الميكروفون لتسجيل الرسائل الصوتية</string>
+
     <!-- ATS exceptions for development LAN HTTP streaming -->
     <key>NSAppTransportSecurity</key>
     <dict>

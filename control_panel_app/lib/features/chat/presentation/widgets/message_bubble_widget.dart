@@ -10,6 +10,7 @@ import '../../domain/entities/attachment.dart';
 import '../bloc/chat_bloc.dart';
 import 'message_status_indicator.dart';
 import 'reaction_picker_widget.dart';
+import 'attachment_preview_widget.dart';
 
 class MessageBubbleWidget extends StatefulWidget {
   final Message message;
@@ -507,19 +508,41 @@ class _MessageBubbleWidgetState extends State<MessageBubbleWidget>
     // تنظيف المحتوى من token
     final displayContent = _cleanContent(widget.message.content);
 
+    final nonImageAttachments = widget.message.attachments
+        .where((a) => !a.isImage)
+        .toList();
+
     if (displayContent.isEmpty && widget.message.attachments.isEmpty) {
       return const SizedBox.shrink();
     }
 
-    return Text(
-      displayContent,
-      style: AppTextStyles.bodyMedium.copyWith(
-        color: widget.isMe
-            ? AppTheme.textWhite.withValues(alpha: 0.95)
-            : AppTheme.textWhite.withValues(alpha: 0.9),
-        fontSize: 13,
-        height: 1.3,
-      ),
+    // Build rich content: text + non-image attachments (audio/video/docs)
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (displayContent.isNotEmpty)
+          Text(
+            displayContent,
+            style: AppTextStyles.bodyMedium.copyWith(
+              color: widget.isMe
+                  ? AppTheme.textWhite.withValues(alpha: 0.95)
+                  : AppTheme.textWhite.withValues(alpha: 0.9),
+              fontSize: 13,
+              height: 1.3,
+            ),
+          ),
+        if (displayContent.isNotEmpty && nonImageAttachments.isNotEmpty)
+          const SizedBox(height: 6),
+        ...nonImageAttachments.map((att) => Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: AttachmentPreviewWidget(
+                attachment: att,
+                isMe: widget.isMe,
+                onTap: () {},
+              ),
+            )),
+      ],
     );
   }
 
