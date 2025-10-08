@@ -393,13 +393,7 @@ class AppRouter {
           path: '/admin/bookings',
           builder: (context, state) {
             return BlocProvider<ab_list_bloc.BookingsListBloc>(
-              create: (_) => di.sl<ab_list_bloc.BookingsListBloc>()
-                ..add(ab_list_event.LoadBookingsEvent(
-                  startDate: DateTime.now().subtract(const Duration(days: 30)),
-                  endDate: DateTime.now(),
-                  pageNumber: 1,
-                  pageSize: 20,
-                )),
+              create: (_) => di.sl<ab_list_bloc.BookingsListBloc>(),
               child: const BookingsListPage(),
             );
           },
@@ -411,13 +405,7 @@ class AppRouter {
             final start = DateTime(now.year, now.month, now.day);
             final end = start.add(const Duration(days: 30));
             return BlocProvider<ab_list_bloc.BookingsListBloc>(
-              create: (_) => di.sl<ab_list_bloc.BookingsListBloc>()
-                ..add(ab_list_event.LoadBookingsEvent(
-                  startDate: start,
-                  endDate: end,
-                  pageNumber: 1,
-                  pageSize: 50,
-                )),
+              create: (_) => di.sl<ab_list_bloc.BookingsListBloc>(),
               child: BookingsListPage(
                 initialStartDate: start,
                 initialEndDate: end,
