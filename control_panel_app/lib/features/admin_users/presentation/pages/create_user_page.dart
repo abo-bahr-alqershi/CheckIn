@@ -1009,46 +1009,49 @@ class _CreateUserPageState extends State<CreateUserPage>
           // Next/Submit Button
           Expanded(
             flex: _currentStep == 0 ? 1 : 1,
-            child: GestureDetector(
-              onTap: _isSubmitting
-                  ? null
-                  : (_currentStep < 3 ? _nextStep : _submitForm),
-              child: Container(
-                height: 48,
-                decoration: BoxDecoration(
-                  gradient: AppTheme.primaryGradient,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppTheme.primaryBlue.withOpacity(0.3),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Center(
-                  child: _isSubmitting
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2,
-                          ),
-                        )
-                      : Text(
-                          _currentStep < 3
-                              ? 'التالي'
-                              : (widget.userId == null
-                                  ? 'إنشاء المستخدم'
-                                  : 'تحديث المستخدم'),
-                          style: AppTextStyles.buttonMedium.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
+            child: BlocBuilder<UsersListBloc, UsersListState>(
+              builder: (context, state) {
+                final bool isSubmitting = _isSubmitting || state is UsersListLoading;
+                return GestureDetector(
+                  onTap: isSubmitting ? null : (_currentStep < 3 ? _nextStep : _submitForm),
+                  child: Container(
+                    height: 48,
+                    decoration: BoxDecoration(
+                      gradient: AppTheme.primaryGradient,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppTheme.primaryBlue.withOpacity(0.3),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
                         ),
-                ),
-              ),
+                      ],
+                    ),
+                    child: Center(
+                      child: isSubmitting
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : Text(
+                              _currentStep < 3
+                                  ? 'التالي'
+                                  : (widget.userId == null
+                                      ? 'إنشاء المستخدم'
+                                      : 'تحديث المستخدم'),
+                              style: AppTextStyles.buttonMedium.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                    ),
+                  ),
+                );
+              },
             ),
           ),
         ],
