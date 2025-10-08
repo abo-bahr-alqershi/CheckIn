@@ -867,32 +867,13 @@ class _PropertiesListPageState extends State<PropertiesListPage>
   }
 
   Widget _buildLoadingState() {
-    return Container(
+    return const SizedBox(
       height: 400,
-      alignment: Alignment.center,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 60,
-            height: 60,
-            decoration: BoxDecoration(
-              gradient: AppTheme.primaryGradient,
-              shape: BoxShape.circle,
-            ),
-            child: const CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-              strokeWidth: 2,
-            ),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'جاري تحميل العقارات...',
-            style: AppTextStyles.bodyMedium.copyWith(
-              color: AppTheme.textMuted,
-            ),
-          ),
-        ],
+      child: Center(
+        child: LoadingWidget(
+          type: LoadingType.futuristic,
+          message: 'جاري تحميل العقارات...',
+        ),
       ),
     );
   }
