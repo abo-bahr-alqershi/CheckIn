@@ -496,6 +496,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage>
         booking: state.booking,
         bookingDetails: state.bookingDetails,
         payments: state.bookingDetails?.payments,
+        onShowInvoice: () => _printBooking(state.booking.id),
       ),
     );
   }
