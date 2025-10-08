@@ -70,8 +70,7 @@ namespace YemenBooking.Application.Handlers.Commands.Properties
                 ((!string.IsNullOrWhiteSpace(request.Name) && request.Name != property.Name) ||
                  (!string.IsNullOrWhiteSpace(request.Address) && request.Address != property.Address) ||
                  (request.StarRating.HasValue && request.StarRating.Value != property.StarRating) ||
-                 (!string.IsNullOrWhiteSpace(request.Currency) && !string.Equals(property.Currency, request.Currency, StringComparison.OrdinalIgnoreCase)) ||
-                 (request.BasePricePerNight.HasValue && request.BasePricePerNight.Value != property.BasePricePerNight));
+                 (!string.IsNullOrWhiteSpace(request.Currency) && !string.Equals(property.Currency, request.Currency, StringComparison.OrdinalIgnoreCase)));
             if (requiresReapproval)
                 property.IsApproved = false;
 
@@ -90,8 +89,7 @@ namespace YemenBooking.Application.Handlers.Commands.Properties
                 property.StarRating = request.StarRating.Value;
             if (!string.IsNullOrWhiteSpace(request.Currency))
                 property.Currency = request.Currency!.ToUpperInvariant();
-            if (request.BasePricePerNight.HasValue)
-                property.BasePricePerNight = request.BasePricePerNight.Value;
+            
             if (request.IsFeatured.HasValue)
                 property.IsFeatured = request.IsFeatured.Value;
             if (request.Latitude.HasValue && request.Latitude.Value >= -90 && request.Latitude.Value <= 90)

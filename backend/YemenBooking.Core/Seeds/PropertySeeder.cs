@@ -28,7 +28,7 @@ namespace YemenBooking.Core.Seeds
                 .RuleFor(p => p.ViewCount, f => f.Random.Number(0, 1000))
                 .RuleFor(p => p.BookingCount, f => f.Random.Number(0, 500))
                 // أسعار غير صفرية وعملة افتراضية
-                .RuleFor(p => p.BasePricePerNight, f => Math.Round((decimal)f.Random.Double(10, 200) * 1000m, 2))
+                
                 .RuleFor(p => p.Currency, f => "YER")
                 .Generate(20);
         }
