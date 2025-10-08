@@ -687,12 +687,16 @@ class _BookingsListPageState extends State<BookingsListPage>
     return BlocBuilder<BookingsListBloc, BookingsListState>(
       builder: (context, state) {
         if (state is BookingsListLoading) {
-          return const SliverFillRemaining(
-            child: LoadingWidget(
-              type: LoadingType.futuristic,
-              message: 'جاري تحميل الحجوزات...',
-            ),
-          );
+          // Keep layout stable to avoid flicker: show loader only when not previously loaded
+          final previous = context.read<BookingsListBloc>().state;
+          if (previous is! BookingsListLoaded) {
+            return const SliverFillRemaining(
+              child: LoadingWidget(
+                type: LoadingType.futuristic,
+                message: 'جاري تحميل الحجوزات...',
+              ),
+            );
+          }
         }
 
         if (state is BookingsListError) {

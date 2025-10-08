@@ -802,6 +802,7 @@ class _MyBookingsPageState extends State<MyBookingsPage>
       padding: const EdgeInsets.all(12),
       sliver: BlocBuilder<BookingBloc, BookingState>(
         builder: (context, state) {
+          // Only show full loader on first load; keep list during pagination to avoid flicker
           if (state is BookingLoading && state is! UserBookingsLoaded) {
             return SliverFillRemaining(
               child: Center(
@@ -828,7 +829,7 @@ class _MyBookingsPageState extends State<MyBookingsPage>
             return SliverList(
               delegate: SliverChildBuilderDelegate(
                 (context, index) {
-                  if (index == state.bookings.length) {
+                  if (index == state.bookings.length && state.isLoadingMore) {
                     return Padding(
                       padding: const EdgeInsets.all(16),
                       child: Center(
