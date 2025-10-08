@@ -143,18 +143,23 @@ class _UsersListPageState extends State<UsersListPage>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.darkBackground,
-      body: CustomScrollView(
-        controller: _scrollController,
-        physics: const BouncingScrollPhysics(
-          parent: AlwaysScrollableScrollPhysics(),
-        ),
-        slivers: [
+      body: RefreshIndicator(
+        onRefresh: () async {
+          context.read<UsersListBloc>().add(RefreshUsersEvent());
+        },
+        child: CustomScrollView(
+          controller: _scrollController,
+          physics: const BouncingScrollPhysics(
+            parent: AlwaysScrollableScrollPhysics(),
+          ),
+          slivers: [
           _buildSliverAppBar(),
           _buildStatsSliver(),
           _buildSearchSliver(),
           _buildFiltersSliver(),
           _buildContentSliver(),
-        ],
+          ],
+        ),
       ),
       floatingActionButton: _buildFabButton(),
     );

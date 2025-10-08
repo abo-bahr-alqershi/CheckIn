@@ -165,10 +165,20 @@ class _AdminServicesPageState extends State<AdminServicesPage>
             _buildFloatingParticles(),
 
             // Main Content with CustomScrollView for better scrolling
-            CustomScrollView(
-              controller: _scrollController,
-              physics: const BouncingScrollPhysics(),
-              slivers: [
+            RefreshIndicator(
+              onRefresh: () async {
+                if (_selectedPropertyId != null) {
+                  context.read<ServicesBloc>().add(LoadServicesEvent(propertyId: _selectedPropertyId));
+                } else {
+                  context.read<ServicesBloc>().add(const LoadServicesEvent(serviceType: 'all', pageNumber: 1, pageSize: 20));
+                }
+              },
+              child: CustomScrollView(
+                controller: _scrollController,
+                physics: const BouncingScrollPhysics(
+                  parent: AlwaysScrollableScrollPhysics(),
+                ),
+                slivers: [
                 // App Bar similar to bookings page
                 _buildSliverAppBar(),
 
@@ -193,7 +203,8 @@ class _AdminServicesPageState extends State<AdminServicesPage>
                 const SliverToBoxAdapter(
                   child: SizedBox(height: 100),
                 ),
-              ],
+                ],
+              ),
             ),
           ],
         ),

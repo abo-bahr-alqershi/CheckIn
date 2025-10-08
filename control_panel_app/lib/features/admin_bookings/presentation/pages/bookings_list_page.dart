@@ -118,17 +118,22 @@ class _BookingsListPageState extends State<BookingsListPage>
       backgroundColor: AppTheme.darkBackground,
       body: Stack(
         children: [
-          CustomScrollView(
-            controller: _scrollController,
-            physics: const BouncingScrollPhysics(
-              parent: AlwaysScrollableScrollPhysics(),
-            ),
-            slivers: [
+          RefreshIndicator(
+            onRefresh: () async {
+              context.read<BookingsListBloc>().add(const RefreshBookingsEvent());
+            },
+            child: CustomScrollView(
+              controller: _scrollController,
+              physics: const BouncingScrollPhysics(
+                parent: AlwaysScrollableScrollPhysics(),
+              ),
+              slivers: [
               _buildSliverAppBar(),
               _buildStatsSection(),
               _buildFilterSection(),
               _buildBookingsList(),
-            ],
+              ],
+            ),
           ),
           _buildOperationOverlay(),
         ],

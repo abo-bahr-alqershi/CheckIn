@@ -68,33 +68,38 @@ class _PaymentsListPageState extends State<PaymentsListPage>
             children: [
               _buildHeader(),
               Expanded(
-                child: BlocBuilder<PaymentsListBloc, PaymentsListState>(
-                  builder: (context, state) {
-                    if (state is PaymentsListLoading) {
-                      return const LoadingWidget(
-                        type: LoadingType.futuristic,
-                        message: 'جاري تحميل المدفوعات...',
-                      );
-                    }
-
-                    if (state is PaymentsListError) {
-                      return CustomErrorWidget(
-                        message: state.message,
-                        type: ErrorType.general,
-                        onRetry: () {
-                          context.read<PaymentsListBloc>().add(
-                                const RefreshPaymentsEvent(),
-                              );
-                        },
-                      );
-                    }
-
-                    if (state is PaymentsListLoaded) {
-                      return _buildLoadedContent(state);
-                    }
-
-                    return const SizedBox();
+                child: RefreshIndicator(
+                  onRefresh: () async {
+                    context.read<PaymentsListBloc>().add(const RefreshPaymentsEvent());
                   },
+                  child: BlocBuilder<PaymentsListBloc, PaymentsListState>(
+                    builder: (context, state) {
+                      if (state is PaymentsListLoading) {
+                        return const LoadingWidget(
+                          type: LoadingType.futuristic,
+                          message: 'جاري تحميل المدفوعات...',
+                        );
+                      }
+
+                      if (state is PaymentsListError) {
+                        return CustomErrorWidget(
+                          message: state.message,
+                          type: ErrorType.general,
+                          onRetry: () {
+                            context.read<PaymentsListBloc>().add(
+                                  const RefreshPaymentsEvent(),
+                                );
+                          },
+                        );
+                      }
+
+                      if (state is PaymentsListLoaded) {
+                        return _buildLoadedContent(state);
+                      }
+
+                      return const SizedBox();
+                    },
+                  ),
                 ),
               ),
             ],

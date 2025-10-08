@@ -189,17 +189,22 @@ class _UnitsListPageState extends State<UnitsListPage>
         body: Stack(
           children: [
             // المحتوى الأساسي
-            CustomScrollView(
-              controller: _scrollController,
-              physics: const BouncingScrollPhysics(
-                parent: AlwaysScrollableScrollPhysics(),
-              ),
-              slivers: [
+            RefreshIndicator(
+              onRefresh: () async {
+                context.read<UnitsListBloc>().add(RefreshUnitsEvent());
+              },
+              child: CustomScrollView(
+                controller: _scrollController,
+                physics: const BouncingScrollPhysics(
+                  parent: AlwaysScrollableScrollPhysics(),
+                ),
+                slivers: [
                 _buildSliverAppBar(),
                 _buildStatsSection(),
                 _buildFilterSection(),
                 _buildUnitsList(),
-              ],
+                ],
+              ),
             ),
 
             // LoadingWidget العائم - يظهر فوق كل شيء عند الفلترة
