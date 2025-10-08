@@ -45,7 +45,7 @@ namespace YemenBooking.Application.Mappings
                 .ForMember(dest => dest.PaymentDetails, opt => opt.MapFrom(src => src.Payments));
 
             // Map Payment -> BookingDetailsDto.PaymentDetailsDto
-            CreateMap<Payment, BookingDetailsDto.PaymentDetailsDto>()
+            CreateMap<Payment, YemenBooking.Application.DTOs.Bookings.PaymentDetailsDto>()
                 .ForMember(dest => dest.Amount, opt => opt.MapFrom(src => src.Amount.Amount))
                 .ForMember(dest => dest.PaymentMethod, opt => opt.MapFrom(src => src.Method.ToString()))
                 .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()))
