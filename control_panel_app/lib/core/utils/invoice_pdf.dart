@@ -271,7 +271,7 @@ class InvoicePdfGenerator {
                       _buildInfoRow(
                           'Property:', property?.name ?? 'YemenBooking'),
                       if (property?.address != null)
-                        _buildInfoRow('Address:', property!.address),
+                        _buildInfoRow('Address:', property?.address ?? '---'),
                       if (property?.phone != null)
                         _buildInfoRow('Contact:', property?.phone ?? '---'),
                       _buildInfoRow('Tax ID:', '300123456789012'),
