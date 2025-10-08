@@ -33,7 +33,8 @@ class PaginatedResult<T> extends Equatable {
   int get currentPage => _safePageNumber;
   int? get previousPageNumber => hasPreviousPage ? _safePageNumber - 1 : null;
   int? get nextPageNumber => hasNextPage ? _safePageNumber + 1 : null;
-  int get startIndex => (_safePageNumber - 1) * _safePageSize + (items.isEmpty ? 0 : 1);
+  int get startIndex =>
+      (_safePageNumber - 1) * _safePageSize + (items.isEmpty ? 0 : 1);
   int get endIndex => items.isEmpty ? 0 : startIndex + items.length - 1;
 
   factory PaginatedResult.empty({
@@ -69,7 +70,7 @@ class PaginatedResult<T> extends Equatable {
       };
     } else {
       // Some backends might return list directly
-      if (json is Map<String, dynamic> && json.isEmpty) {
+      if (json.isEmpty) {
         return PaginatedResult<T>.empty();
       }
       root = json;
@@ -87,7 +88,7 @@ class PaginatedResult<T> extends Equatable {
     }
     final parsedItems = rawItems
         .whereType<Map>()
-        .map((item) => fromJsonT(Map<String, dynamic>.from(item as Map)))
+        .map((item) => fromJsonT(Map<String, dynamic>.from(item)))
         .toList();
 
     int parseInt(dynamic v, int fallback) {
@@ -104,7 +105,8 @@ class PaginatedResult<T> extends Equatable {
     return PaginatedResult<T>(
       items: parsedItems,
       pageNumber: pn < 1 ? 1 : pn,
-      pageSize: ps <= 0 ? (parsedItems.isNotEmpty ? parsedItems.length : 10) : ps,
+      pageSize:
+          ps <= 0 ? (parsedItems.isNotEmpty ? parsedItems.length : 10) : ps,
       totalCount: tc < 0 ? 0 : tc,
       metadata: payload['metadata'],
     );

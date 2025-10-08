@@ -1,4 +1,5 @@
 import 'package:bookn_cp_app/features/admin_reviews/domain/repositories/reviews_repository.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../domain/entities/booking_details.dart';
 import '../../../domain/usecases/bookings/get_booking_by_id_usecase.dart';
@@ -491,8 +492,11 @@ class BookingDetailsBloc
             );
         final pdfBytes = await InvoicePdfGenerator.generate(details);
         await Printing.layoutPdf(onLayout: (_) async => pdfBytes);
-      } catch (_) {
-        // تجاهل الخطأ وإرجاع الحالة السابقة
+      } catch (error, stackTrace) {
+        debugPrint(
+          'Failed to generate or print invoice for booking ${currentState.booking.id}: $error',
+        );
+        addError(error, stackTrace);
       }
       emit(currentState);
     }

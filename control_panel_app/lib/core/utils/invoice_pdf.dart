@@ -16,6 +16,7 @@ class InvoicePdfGenerator {
     final guest = details.guestInfo;
 
     final currency = booking.totalPrice.currency;
+    final bookingReference = _formatBookingReference(booking.id);
 
     pw.Widget buildHeader() {
       return pw.Row(
@@ -31,21 +32,26 @@ class InvoicePdfGenerator {
                     fontWeight: pw.FontWeight.bold,
                   )),
               if (property?.address != null)
-                pw.Text(property!.address, style: const pw.TextStyle(fontSize: 10)),
+                pw.Text(property!.address,
+                    style: const pw.TextStyle(fontSize: 10)),
               if (property?.phone != null)
-                pw.Text('هاتف: ${property!.phone}', style: const pw.TextStyle(fontSize: 10)),
+                pw.Text('هاتف: ${property!.phone}',
+                    style: const pw.TextStyle(fontSize: 10)),
               if (property?.email != null)
-                pw.Text('بريد: ${property!.email}', style: const pw.TextStyle(fontSize: 10)),
+                pw.Text('بريد: ${property!.email}',
+                    style: const pw.TextStyle(fontSize: 10)),
             ],
           ),
           pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.end,
             children: [
               pw.Text('فاتورة / Invoice',
-                  style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
+                  style: pw.TextStyle(
+                      fontSize: 18, fontWeight: pw.FontWeight.bold)),
               pw.SizedBox(height: 4),
-              pw.Text('رقم الحجز: ${booking.id.substring(0, 8)}'),
-              pw.Text('التاريخ: ${DateFormat('yyyy-MM-dd').format(DateTime.now())}'),
+              pw.Text('رقم الحجز: $bookingReference'),
+              pw.Text(
+                  'التاريخ: ${DateFormat('yyyy-MM-dd').format(DateTime.now())}'),
             ],
           )
         ],
@@ -61,9 +67,10 @@ class InvoicePdfGenerator {
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
                 pw.Text('بيانات الضيف',
-                    style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold)),
+                    style: pw.TextStyle(
+                        fontSize: 12, fontWeight: pw.FontWeight.bold)),
                 pw.SizedBox(height: 6),
-                pw.Text('الاسم: ${guest?.name ?? booking.userName}') ,
+                pw.Text('الاسم: ${guest?.name ?? booking.userName}'),
                 if (guest?.phone != null) pw.Text('الهاتف: ${guest!.phone}'),
                 if (guest?.email != null) pw.Text('البريد: ${guest!.email}'),
               ],
@@ -75,7 +82,8 @@ class InvoicePdfGenerator {
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
                 pw.Text('بيانات الحجز',
-                    style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold)),
+                    style: pw.TextStyle(
+                        fontSize: 12, fontWeight: pw.FontWeight.bold)),
                 pw.SizedBox(height: 6),
                 pw.Text('الوحدة: ${booking.unitName}'),
                 pw.Text('الوصول: ${Formatters.formatDate(booking.checkIn)}'),
@@ -97,7 +105,8 @@ class InvoicePdfGenerator {
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
           pw.Text('الخدمات الإضافية',
-              style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold)),
+              style:
+                  pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold)),
           pw.SizedBox(height: 6),
           pw.Table(
             border: pw.TableBorder.all(color: PdfColors.grey300, width: 0.5),
@@ -109,7 +118,8 @@ class InvoicePdfGenerator {
             },
             children: [
               pw.TableRow(
-                decoration: const pw.BoxDecoration(color: PdfColor.fromInt(0xFFEFEFEF)),
+                decoration:
+                    const pw.BoxDecoration(color: PdfColor.fromInt(0xFFEFEFEF)),
                 children: [
                   _cell('الخدمة', bold: true),
                   _cell('الكمية', bold: true),
@@ -120,8 +130,10 @@ class InvoicePdfGenerator {
               ...services.map((s) => pw.TableRow(children: [
                     _cell(s.name),
                     _cell('${s.quantity}'),
-                    _cell('${s.price.currency} ${s.price.amount.toStringAsFixed(2)}'),
-                    _cell('${s.totalPrice.currency} ${s.totalPrice.amount.toStringAsFixed(2)}'),
+                    _cell(
+                        '${s.price.currency} ${s.price.amount.toStringAsFixed(2)}'),
+                    _cell(
+                        '${s.totalPrice.currency} ${s.totalPrice.amount.toStringAsFixed(2)}'),
                   ]))
             ],
           )
@@ -136,8 +148,16 @@ class InvoicePdfGenerator {
       pw.Widget row(String label, String value, {bool bold = false}) => pw.Row(
             mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
             children: [
-              pw.Text(label, style: pw.TextStyle(fontSize: 12, fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal)),
-              pw.Text(value, style: pw.TextStyle(fontSize: 12, fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal)),
+              pw.Text(label,
+                  style: pw.TextStyle(
+                      fontSize: 12,
+                      fontWeight:
+                          bold ? pw.FontWeight.bold : pw.FontWeight.normal)),
+              pw.Text(value,
+                  style: pw.TextStyle(
+                      fontSize: 12,
+                      fontWeight:
+                          bold ? pw.FontWeight.bold : pw.FontWeight.normal)),
             ],
           );
 
@@ -150,7 +170,8 @@ class InvoicePdfGenerator {
         child: pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
-            row('الإجمالي', '$currency ${total.amount.toStringAsFixed(2)}', bold: true),
+            row('الإجمالي', '$currency ${total.amount.toStringAsFixed(2)}',
+                bold: true),
             pw.SizedBox(height: 4),
             row('المدفوع', '$currency ${paid.amount.toStringAsFixed(2)}'),
             pw.SizedBox(height: 4),
@@ -165,7 +186,8 @@ class InvoicePdfGenerator {
     pw.Font arabicFont;
     pw.Font arabicBold;
     try {
-      final regularData = await rootBundle.load('assets/fonts/Amiri-Regular.ttf');
+      final regularData =
+          await rootBundle.load('assets/fonts/Amiri-Regular.ttf');
       final boldData = await rootBundle.load('assets/fonts/Amiri-Bold.ttf');
       arabicFont = pw.Font.ttf(regularData);
       arabicBold = pw.Font.ttf(boldData);
@@ -177,12 +199,13 @@ class InvoicePdfGenerator {
 
     doc.addPage(
       pw.MultiPage(
-        pageTheme: const pw.PageTheme(
-          margin: pw.EdgeInsets.all(24),
-        ),
-        theme: pw.ThemeData.withFont(
-          base: arabicFont,
-          bold: arabicBold,
+        pageTheme: pw.PageTheme(
+          margin: const pw.EdgeInsets.all(24),
+          theme: pw.ThemeData.withFont(
+            base: arabicFont,
+            bold: arabicBold,
+          ),
+          textDirection: pw.TextDirection.rtl,
         ),
         build: (context) => [
           buildHeader(),
@@ -200,7 +223,8 @@ class InvoicePdfGenerator {
             ],
           ),
           pw.SizedBox(height: 24),
-          pw.Text('شكرًا لاختياركم منصتنا لحجوزاتكم.', style: const pw.TextStyle(fontSize: 10)),
+          pw.Text('شكرًا لاختياركم منصتنا لحجوزاتكم.',
+              style: const pw.TextStyle(fontSize: 10)),
         ],
       ),
     );
@@ -213,9 +237,23 @@ class InvoicePdfGenerator {
       padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       child: pw.Text(
         text,
-        style: pw.TextStyle(fontSize: 10, fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal),
+        style: pw.TextStyle(
+            fontSize: 10,
+            fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal),
       ),
     );
   }
-}
 
+  static String _formatBookingReference(String bookingId) {
+    if (bookingId.isEmpty) {
+      return 'غير متوفر';
+    }
+
+    const maxLength = 8;
+    if (bookingId.length <= maxLength) {
+      return bookingId;
+    }
+
+    return bookingId.substring(0, maxLength);
+  }
+}
