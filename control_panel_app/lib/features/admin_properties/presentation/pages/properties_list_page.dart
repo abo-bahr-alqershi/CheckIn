@@ -204,10 +204,16 @@ class _PropertiesListPageState extends State<PropertiesListPage>
             _buildAnimatedBackground(),
 
             // Main Content with CustomScrollView for scrolling
-            CustomScrollView(
-              controller: _scrollController,
-              physics: const BouncingScrollPhysics(),
-              slivers: [
+            RefreshIndicator(
+              onRefresh: () async {
+                context.read<PropertiesBloc>().add(const LoadPropertiesEvent());
+              },
+              child: CustomScrollView(
+                controller: _scrollController,
+                physics: const BouncingScrollPhysics(
+                  parent: AlwaysScrollableScrollPhysics(),
+                ),
+                slivers: [
                 // App Bar similar to bookings page
                 _buildSliverAppBar(),
 
@@ -237,7 +243,8 @@ class _PropertiesListPageState extends State<PropertiesListPage>
                 const SliverToBoxAdapter(
                   child: SizedBox(height: 100),
                 ),
-              ],
+                ],
+              ),
             ),
 
             // Floating Action Button

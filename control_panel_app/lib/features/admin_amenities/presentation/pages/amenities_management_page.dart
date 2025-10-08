@@ -117,17 +117,22 @@ class _AmenitiesManagementPageState extends State<AmenitiesManagementPage>
       },
       child: Scaffold(
         backgroundColor: AppTheme.darkBackground,
-        body: CustomScrollView(
-          controller: _scrollController,
-          physics: const BouncingScrollPhysics(
-            parent: AlwaysScrollableScrollPhysics(),
-          ),
-          slivers: [
+        body: RefreshIndicator(
+          onRefresh: () async {
+            context.read<AmenitiesBloc>().add(const RefreshAmenitiesEvent());
+          },
+          child: CustomScrollView(
+            controller: _scrollController,
+            physics: const BouncingScrollPhysics(
+              parent: AlwaysScrollableScrollPhysics(),
+            ),
+            slivers: [
             _buildSliverAppBar(),
             _buildStatsSection(),
             _buildFilterSection(),
             _buildAmenitiesList(),
-          ],
+            ],
+          ),
         ),
         // floatingActionButton: _buildEnhancedFloatingActionButton(),
       ),
