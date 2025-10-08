@@ -957,14 +957,18 @@ class _PropertiesListPageState extends State<PropertiesListPage>
     );
   }
 
-  void _navigateToProperty(String propertyId) {
+  Future<void> _navigateToProperty(String propertyId) async {
     final pid = Uri.encodeComponent(propertyId);
-    context.push('/admin/properties/$pid');
+    await context.push('/admin/properties/$pid');
+    if (!mounted) return;
+    context.read<PropertiesBloc>().add(const LoadPropertiesEvent());
   }
 
-  void _navigateToEditProperty(String propertyId) {
+  Future<void> _navigateToEditProperty(String propertyId) async {
     final pid = Uri.encodeComponent(propertyId);
-    context.push('/admin/properties/$pid/edit');
+    await context.push('/admin/properties/$pid/edit');
+    if (!mounted) return;
+    context.read<PropertiesBloc>().add(const LoadPropertiesEvent());
   }
 
   void _openAssignAmenities({

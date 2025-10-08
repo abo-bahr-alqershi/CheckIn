@@ -803,14 +803,20 @@ class _AdminServicesPageState extends State<AdminServicesPage>
     }
   }
 
-  void _showServiceDetails(Service service) {
+  Future<void> _showServiceDetails(Service service) async {
     HapticFeedback.lightImpact();
     context.read<ServicesBloc>().add(LoadServiceDetailsEvent(service.id));
-    showDialog(
+    await showDialog(
       fullscreenDialog: true,
       context: context,
       builder: (context) => ServiceDetailsDialog(service: service),
     );
+    if (!mounted) return;
+    if (_selectedPropertyId != null) {
+      context.read<ServicesBloc>().add(LoadServicesEvent(propertyId: _selectedPropertyId));
+    } else {
+      context.read<ServicesBloc>().add(const LoadServicesEvent(serviceType: 'all', pageNumber: 1, pageSize: 20));
+    }
   }
 
   void _confirmDelete(Service service) {
