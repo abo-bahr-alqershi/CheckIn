@@ -14,12 +14,14 @@ class BookingPaymentSummary extends StatelessWidget {
   final Booking booking;
   final BookingDetails? bookingDetails;
   final List<Payment> payments;
+  final VoidCallback? onShowInvoice;
 
   const BookingPaymentSummary({
     super.key,
     required this.booking,
     this.bookingDetails,
     List<Payment>? payments,
+    this.onShowInvoice,
   }) : payments = payments ?? const [];
 
   @override
@@ -455,7 +457,7 @@ class BookingPaymentSummary extends StatelessWidget {
               child: Material(
                 color: Colors.transparent,
                 child: InkWell(
-                  onTap: () {},
+                  onTap: onShowInvoice,
                   borderRadius: BorderRadius.circular(12),
                   child: Center(
                     child: Row(
