@@ -494,7 +494,8 @@ class _BookingDetailsPageState extends State<BookingDetailsPage>
       margin: const EdgeInsets.all(16),
       child: BookingPaymentSummary(
         booking: state.booking,
-        payments: state.bookingDetails?.payments ?? [],
+        bookingDetails: state.bookingDetails,
+        payments: state.bookingDetails?.payments,
       ),
     );
   }

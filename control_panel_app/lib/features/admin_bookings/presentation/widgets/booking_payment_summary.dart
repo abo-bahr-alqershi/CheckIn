@@ -12,19 +12,25 @@ import '../../domain/entities/booking_details.dart';
 
 class BookingPaymentSummary extends StatelessWidget {
   final Booking booking;
+  final BookingDetails? bookingDetails;
   final List<Payment> payments;
 
   const BookingPaymentSummary({
     super.key,
     required this.booking,
-    required this.payments,
-  });
+    this.bookingDetails,
+    List<Payment>? payments,
+  }) : payments = payments ?? const [];
 
   @override
   Widget build(BuildContext context) {
-    final totalPaid = _calculateTotalPaid();
-    final remainingAmount = booking.totalPrice.amount - totalPaid;
-    final isFullyPaid = remainingAmount <= 0;
+    final effectivePayments = bookingDetails?.payments ?? payments;
+    final totalPriceMoney = bookingDetails?.booking.totalPrice ?? booking.totalPrice;
+    final totalPaidMoney =
+        bookingDetails?.totalPaid ?? _calculateTotalPaidMoney(effectivePayments, totalPriceMoney.currency);
+    final remainingMoney = bookingDetails?.remainingAmount ??
+        _createMoney(totalPriceMoney.amount - totalPaidMoney.amount, totalPriceMoney.currency);
+    final isFullyPaid = remainingMoney.amount <= 0;
 
     return Container(
       decoration: BoxDecoration(
@@ -62,8 +68,8 @@ class BookingPaymentSummary extends StatelessWidget {
             child: Column(
               children: [
                 _buildHeader(isFullyPaid),
-                _buildSummary(totalPaid, remainingAmount),
-                if (payments.isNotEmpty) _buildPaymentsList(),
+                _buildSummary(totalPriceMoney, totalPaidMoney, remainingMoney),
+                if (effectivePayments.isNotEmpty) _buildPaymentsList(effectivePayments),
                 _buildFooter(isFullyPaid),
               ],
             ),
@@ -148,22 +154,30 @@ class BookingPaymentSummary extends StatelessWidget {
     );
   }
 
-  Widget _buildSummary(double totalPaid, double remainingAmount) {
+  Widget _buildSummary(
+    Money totalPrice,
+    Money totalPaid,
+    Money remainingMoney,
+  ) {
+    final hasRemaining = remainingMoney.amount > 0;
+    final remainingDisplay = hasRemaining
+        ? _formatMoney(remainingMoney)
+        : _formatMoney(_createMoney(0, remainingMoney.currency));
+
     return Container(
       padding: const EdgeInsets.all(20),
       child: Column(
         children: [
           _buildSummaryRow(
             label: 'المبلغ الإجمالي',
-            value: booking.totalPrice.formattedAmount,
+            value: _formatMoney(totalPrice),
             icon: CupertinoIcons.tag_fill,
             color: AppTheme.textWhite,
           ),
           const SizedBox(height: 12),
           _buildSummaryRow(
             label: 'المبلغ المدفوع',
-            value: Formatters.formatCurrency(
-                totalPaid, booking.totalPrice.currency),
+            value: _formatMoney(totalPaid),
             icon: CupertinoIcons.checkmark_circle_fill,
             color: AppTheme.success,
           ),
@@ -172,7 +186,7 @@ class BookingPaymentSummary extends StatelessWidget {
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: remainingAmount > 0
+                colors: hasRemaining
                     ? [
                         AppTheme.warning.withOpacity(0.15),
                         AppTheme.warning.withOpacity(0.05),
@@ -184,7 +198,7 @@ class BookingPaymentSummary extends StatelessWidget {
               ),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: remainingAmount > 0
+                color: hasRemaining
                     ? AppTheme.warning.withOpacity(0.3)
                     : AppTheme.success.withOpacity(0.3),
               ),
@@ -192,11 +206,10 @@ class BookingPaymentSummary extends StatelessWidget {
             child: Row(
               children: [
                 Icon(
-                  remainingAmount > 0
+                  hasRemaining
                       ? CupertinoIcons.exclamationmark_triangle_fill
                       : CupertinoIcons.checkmark_seal_fill,
-                  color:
-                      remainingAmount > 0 ? AppTheme.warning : AppTheme.success,
+                  color: hasRemaining ? AppTheme.warning : AppTheme.success,
                   size: 24,
                 ),
                 const SizedBox(width: 12),
@@ -208,14 +221,9 @@ class BookingPaymentSummary extends StatelessWidget {
                 ),
                 const Spacer(),
                 Text(
-                  Formatters.formatCurrency(
-                    remainingAmount > 0 ? remainingAmount : 0,
-                    booking.totalPrice.currency,
-                  ),
+                  remainingDisplay,
                   style: AppTextStyles.heading2.copyWith(
-                    color: remainingAmount > 0
-                        ? AppTheme.warning
-                        : AppTheme.success,
+                    color: hasRemaining ? AppTheme.warning : AppTheme.success,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -259,7 +267,7 @@ class BookingPaymentSummary extends StatelessWidget {
     );
   }
 
-  Widget _buildPaymentsList() {
+  Widget _buildPaymentsList(List<Payment> payments) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Column(
@@ -474,10 +482,12 @@ class BookingPaymentSummary extends StatelessWidget {
     );
   }
 
-  double _calculateTotalPaid() {
-    return payments
+  Money _calculateTotalPaidMoney(List<Payment> payments, String currency) {
+    final paidAmount = payments
         .where((p) => p.status == PaymentStatus.successful)
         .fold(0.0, (sum, payment) => sum + payment.amount.amount);
+
+    return _createMoney(paidAmount, currency);
   }
 
   IconData _getPaymentMethodIcon(PaymentMethod method) {
@@ -491,5 +501,20 @@ class BookingPaymentSummary extends StatelessWidget {
       default:
         return CupertinoIcons.device_phone_portrait;
     }
+  }
+
+  Money _createMoney(double amount, String currency) {
+    return Money(
+      amount: amount,
+      currency: currency,
+      formattedAmount: Formatters.formatCurrency(amount, currency),
+    );
+  }
+
+  String _formatMoney(Money money) {
+    if (money.formattedAmount.trim().isNotEmpty) {
+      return money.formattedAmount;
+    }
+    return Formatters.formatCurrency(money.amount, money.currency);
   }
 }

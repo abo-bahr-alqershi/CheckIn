@@ -2,7 +2,7 @@ import 'package:bookn_cp_app/core/utils/invoice_pdf.dart';
 import 'package:bookn_cp_app/core/enums/booking_status.dart';
 import 'package:bookn_cp_app/features/admin_bookings/domain/entities/booking.dart';
 import 'package:bookn_cp_app/features/admin_bookings/domain/entities/booking_details.dart'
-  show BookingDetails, GuestInfo;
+    show BookingDetails, GuestInfo;
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

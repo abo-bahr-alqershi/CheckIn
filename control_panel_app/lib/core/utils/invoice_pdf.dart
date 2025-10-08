@@ -12,24 +12,40 @@ import '../utils/formatters.dart';
 class InvoicePdfGenerator {
   InvoicePdfGenerator._();
 
-  // تعريف الألوان الاحترافية
-  static const PdfColor primaryColor = PdfColor.fromInt(0xFF1E40AF);
-  static const PdfColor secondaryColor = PdfColor.fromInt(0xFF3B82F6);
-  static const PdfColor accentColor = PdfColor.fromInt(0xFFF59E0B);
-  static const PdfColor lightGray = PdfColor.fromInt(0xFFF3F4F6);
-  static const PdfColor mediumGray = PdfColor.fromInt(0xFF9CA3AF);
-  static const PdfColor darkGray = PdfColor.fromInt(0xFF374151);
-  static const PdfColor successColor = PdfColor.fromInt(0xFF10B981);
-  static const PdfColor warningColor = PdfColor.fromInt(0xFFF59E0B);
-  static const PdfColor dangerColor = PdfColor.fromInt(0xFFEF4444);
+  // 🎨 Brand Colors - متوافقة مع AppTheme
+  static const PdfColor primaryCyan = PdfColor.fromInt(0xFF00F2FE);
+  static const PdfColor primaryBlue = PdfColor.fromInt(0xFF4FACFE);
+  static const PdfColor primaryPurple = PdfColor.fromInt(0xFF667EEA);
+  static const PdfColor primaryViolet = PdfColor.fromInt(0xFF764BA2);
 
-  // ألوان مخصصة للنصوص الفاتحة
-  static final PdfColor whiteLight =
-      const PdfColor.fromInt(0xFFFFFFFF).shade(0.7);
-  static final PdfColor whiteMedium =
-      const PdfColor.fromInt(0xFFFFFFFF).shade(0.5);
-  static final PdfColor whiteDark =
-      const PdfColor.fromInt(0xFFFFFFFF).shade(0.3);
+  // 🌟 Neon & Glow Colors
+  static const PdfColor neonBlue = PdfColor.fromInt(0xFF00D4FF);
+  static const PdfColor neonPurple = PdfColor.fromInt(0xFF9D50FF);
+  static const PdfColor neonGreen = PdfColor.fromInt(0xFF00FF88);
+
+  // 🌙 Dark Theme Colors
+  static const PdfColor darkBackground = PdfColor.fromInt(0xFF0A0E27);
+  static const PdfColor darkBackground2 = PdfColor.fromInt(0xFF0F1629);
+  static const PdfColor darkSurface = PdfColor.fromInt(0xFF151930);
+  static const PdfColor darkCard = PdfColor.fromInt(0xFF1E2341);
+  static const PdfColor darkBorder = PdfColor.fromInt(0xFF2A3050);
+
+  // 📝 Text Colors
+  static const PdfColor textWhite = PdfColors.white;
+  static const PdfColor textLight = PdfColor.fromInt(0xFFB8C4E6);
+  static const PdfColor textMuted = PdfColor.fromInt(0xFF8B95B7);
+  static const PdfColor textDark = PdfColor.fromInt(0xFF1A1F36);
+
+  // ✨ Glass & Effects
+  static const PdfColor glassDark = PdfColor.fromInt(0x1A000000);
+  static const PdfColor glassLight = PdfColor.fromInt(0x0DFFFFFF);
+  static const PdfColor glassOverlay = PdfColor.fromInt(0x80151930);
+
+  // 🚦 Status Colors
+  static const PdfColor success = PdfColor.fromInt(0xFF00FF88);
+  static const PdfColor warning = PdfColor.fromInt(0xFFFFB800);
+  static const PdfColor error = PdfColor.fromInt(0xFFFF3366);
+  static const PdfColor info = PdfColor.fromInt(0xFF00D4FF);
 
   static Future<Uint8List> generate(BookingDetails details) async {
     final doc = pw.Document();
@@ -43,7 +59,7 @@ class InvoicePdfGenerator {
     final invoiceNumber = _generateInvoiceNumber(booking.id);
     final issueDate = DateTime.now();
 
-    // تحميل الخطوط
+    // Load fonts
     pw.Font arabicFont;
     pw.Font arabicBold;
     Uint8List? logoData;
@@ -59,7 +75,6 @@ class InvoicePdfGenerator {
       arabicBold = pw.Font.helveticaBold();
     }
 
-    // محاولة تحميل الشعار
     try {
       logoData = (await rootBundle.load('assets/images/logo.png'))
           .buffer
@@ -68,94 +83,137 @@ class InvoicePdfGenerator {
       logoData = null;
     }
 
-    // بناء الهيدر الاحترافي
+    // Professional Modern Header with Gradient
     pw.Widget buildProfessionalHeader() {
       return pw.Container(
-        decoration: pw.BoxDecoration(
-          gradient: const pw.LinearGradient(
-            colors: [primaryColor, secondaryColor],
-            begin: pw.Alignment.topLeft,
-            end: pw.Alignment.bottomRight,
-          ),
-          borderRadius: pw.BorderRadius.circular(8),
-        ),
-        padding: const pw.EdgeInsets.all(20),
-        child: pw.Row(
-          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-          crossAxisAlignment: pw.CrossAxisAlignment.start,
+        margin: const pw.EdgeInsets.only(bottom: 20),
+        child: pw.Column(
           children: [
-            pw.Expanded(
-              child: pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.start,
-                children: [
-                  if (logoData != null)
-                    pw.Image(
-                      pw.MemoryImage(logoData),
-                      height: 50,
-                      width: 150,
-                      fit: pw.BoxFit.contain,
-                    )
-                  else
-                    pw.Text(
-                      property?.name ?? 'YemenBooking',
-                      style: pw.TextStyle(
-                        fontSize: 24,
-                        fontWeight: pw.FontWeight.bold,
-                        color: PdfColors.white,
-                      ),
-                    ),
-                  pw.SizedBox(height: 8),
-                  if (property?.address != null)
-                    _buildInfoRow(
-                      const pw.IconData(0xe0c8),
-                      property.address, // تم إزالة ! لأن التحقق تم بالفعل
-                      color: PdfColors.white,
-                    ),
-                  if (property?.phone != null)
-                    _buildInfoRow(
-                      const pw.IconData(0xe0cd),
-                      property.phone, // تم إزالة ! لأن التحقق تم بالفعل
-                      color: PdfColors.white,
-                    ),
-                  if (property?.email != null)
-                    _buildInfoRow(
-                      const pw.IconData(0xe0be),
-                      property.email, // تم إزالة ! لأن التحقق تم بالفعل
-                      color: PdfColors.white,
-                    ),
-                ],
+            // Top gradient bar
+            pw.Container(
+              height: 4,
+              decoration: const pw.BoxDecoration(
+                gradient: pw.LinearGradient(
+                  colors: [
+                    primaryCyan,
+                    primaryBlue,
+                    primaryPurple,
+                    primaryViolet
+                  ],
+                  begin: pw.Alignment.centerLeft,
+                  end: pw.Alignment.centerRight,
+                ),
               ),
             ),
             pw.Container(
-              padding: const pw.EdgeInsets.all(12),
-              decoration: pw.BoxDecoration(
-                color: PdfColors.white.shade(0.95),
-                borderRadius: pw.BorderRadius.circular(6),
+              decoration: const pw.BoxDecoration(
+                color: darkBackground2,
+                border: pw.Border(
+                  bottom: pw.BorderSide(color: darkBorder, width: 1),
+                ),
               ),
-              child: pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.end,
+              padding: const pw.EdgeInsets.all(24),
+              child: pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
-                  pw.Text(
-                    'فاتورة ضريبية',
-                    style: pw.TextStyle(
-                      fontSize: 16,
-                      fontWeight: pw.FontWeight.bold,
-                      color: primaryColor,
-                    ),
+                  // Company Info
+                  pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      if (logoData != null)
+                        pw.Image(
+                          pw.MemoryImage(logoData),
+                          height: 40,
+                          width: 120,
+                          fit: pw.BoxFit.contain,
+                        )
+                      else
+                        pw.Container(
+                          padding: const pw.EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
+                          decoration: pw.BoxDecoration(
+                            gradient: const pw.LinearGradient(
+                              colors: [primaryBlue, primaryPurple],
+                              begin: pw.Alignment.topLeft,
+                              end: pw.Alignment.bottomRight,
+                            ),
+                            borderRadius: pw.BorderRadius.circular(8),
+                          ),
+                          child: pw.Text(
+                            property?.name ?? 'YemenBooking',
+                            style: pw.TextStyle(
+                              fontSize: 18,
+                              fontWeight: pw.FontWeight.bold,
+                              color: textWhite,
+                            ),
+                          ),
+                        ),
+                      pw.SizedBox(height: 12),
+                      if (property?.address != null)
+                        _buildCompanyInfoRow(
+                            'العنوان:', property?.address ?? '---'),
+                      if (property?.phone != null)
+                        _buildCompanyInfoRow(
+                            'الهاتف:', property?.phone ?? '---'),
+                      if (property?.email != null)
+                        _buildCompanyInfoRow(
+                            'البريد:', property?.email ?? '---'),
+                      pw.SizedBox(height: 8),
+                      pw.Text(
+                        'الرقم الضريبي: 300123456789012',
+                        style: const pw.TextStyle(
+                          fontSize: 9,
+                          color: textMuted,
+                        ),
+                      ),
+                    ],
                   ),
-                  pw.Text(
-                    'TAX INVOICE',
-                    style: const pw.TextStyle(
-                      fontSize: 12,
-                      color: mediumGray,
-                    ),
-                  ),
-                  pw.SizedBox(height: 8),
-                  _buildLabelValue('رقم الفاتورة:', invoiceNumber),
-                  _buildLabelValue('رقم الحجز:', bookingReference),
-                  _buildLabelValue(
-                    'التاريخ:',
-                    DateFormat('dd/MM/yyyy').format(issueDate),
+                  // Invoice Details
+                  pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.end,
+                    children: [
+                      pw.Container(
+                        padding: const pw.EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                        decoration: pw.BoxDecoration(
+                          color: darkCard,
+                          borderRadius: pw.BorderRadius.circular(8),
+                        ),
+                        child: pw.Column(
+                          crossAxisAlignment: pw.CrossAxisAlignment.end,
+                          children: [
+                            pw.Text(
+                              'فاتورة ضريبية',
+                              style: pw.TextStyle(
+                                fontSize: 14,
+                                fontWeight: pw.FontWeight.bold,
+                                color: neonBlue,
+                              ),
+                            ),
+                            pw.Text(
+                              'Tax Invoice',
+                              style: const pw.TextStyle(
+                                fontSize: 10,
+                                color: textLight,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      pw.SizedBox(height: 12),
+                      _buildInvoiceDetailRow('رقم الفاتورة', invoiceNumber,
+                          highlight: true),
+                      _buildInvoiceDetailRow('رقم المرجع', bookingReference),
+                      _buildInvoiceDetailRow('التاريخ',
+                          DateFormat('yyyy/MM/dd').format(issueDate)),
+                      _buildInvoiceDetailRow(
+                          'الوقت', DateFormat('HH:mm').format(issueDate)),
+                    ],
                   ),
                 ],
               ),
@@ -165,94 +223,183 @@ class InvoicePdfGenerator {
       );
     }
 
-    // بناء معلومات الضيف والحجز بتصميم محسّن
-    pw.Widget buildEnhancedGuestPropertyInfo() {
-      // حساب عدد الضيوف
+    // Guest & Booking Information with Modern Cards
+    pw.Widget buildModernInfoCards() {
       final guestCount = booking.guestsCount;
 
       return pw.Row(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
+          // Guest Card
           pw.Expanded(
             child: pw.Container(
               decoration: pw.BoxDecoration(
-                border: pw.Border.all(color: lightGray, width: 1),
-                borderRadius: pw.BorderRadius.circular(6),
+                gradient: pw.LinearGradient(
+                  colors: [
+                    darkCard,
+                    darkCard.shade(0.8),
+                  ],
+                  begin: pw.Alignment.topLeft,
+                  end: pw.Alignment.bottomRight,
+                ),
+                borderRadius: pw.BorderRadius.circular(12),
               ),
-              padding: const pw.EdgeInsets.all(12),
               child: pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
                   pw.Container(
                     padding: const pw.EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
+                      horizontal: 16,
+                      vertical: 10,
                     ),
                     decoration: pw.BoxDecoration(
-                      color: primaryColor,
-                      borderRadius: pw.BorderRadius.circular(4),
-                    ),
-                    child: pw.Text(
-                      'معلومات الضيف',
-                      style: pw.TextStyle(
-                        fontSize: 12,
-                        fontWeight: pw.FontWeight.bold,
-                        color: PdfColors.white,
+                      gradient: pw.LinearGradient(
+                        colors: [
+                          primaryBlue.shade(0.2),
+                          primaryPurple.shade(0.2)
+                        ],
+                        begin: pw.Alignment.centerLeft,
+                        end: pw.Alignment.centerRight,
+                      ),
+                      borderRadius: const pw.BorderRadius.only(
+                        topLeft: pw.Radius.circular(12),
+                        topRight: pw.Radius.circular(12),
                       ),
                     ),
+                    child: pw.Row(
+                      children: [
+                        pw.Container(
+                          padding: const pw.EdgeInsets.all(4),
+                          decoration: pw.BoxDecoration(
+                            color: textWhite.shade(0.1),
+                            shape: pw.BoxShape.circle,
+                          ),
+                          child: pw.Text(
+                            '1',
+                            style: pw.TextStyle(
+                              fontSize: 10,
+                              fontWeight: pw.FontWeight.bold,
+                              color: textWhite,
+                            ),
+                          ),
+                        ),
+                        pw.SizedBox(width: 8),
+                        pw.Text(
+                          'معلومات العميل',
+                          style: pw.TextStyle(
+                            fontSize: 12,
+                            fontWeight: pw.FontWeight.bold,
+                            color: textWhite,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  pw.SizedBox(height: 10),
-                  _buildDetailRow('الاسم', guestContact.name),
-                  if (guestContact.phone != null)
-                    _buildDetailRow('الهاتف', guestContact.phone!),
-                  if (guestContact.email != null)
-                    _buildDetailRow('البريد الإلكتروني', guestContact.email!),
-                  _buildDetailRow('الجنسية', guest?.nationality ?? 'غير محدد'),
+                  pw.Container(
+                    padding: const pw.EdgeInsets.all(16),
+                    child: pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        _buildInfoField('الاسم الكامل', guestContact.name),
+                        if (guestContact.phone != null)
+                          _buildInfoField('رقم الهاتف', guestContact.phone!),
+                        if (guestContact.email != null)
+                          _buildInfoField(
+                              'البريد الإلكتروني', guestContact.email!),
+                        _buildInfoField(
+                            'الجنسية', guest?.nationality ?? 'غير محدد'),
+                        _buildInfoField('نوع الهوية', 'جواز سفر'),
+                        _buildInfoField('رقم الهوية', '********'),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),
           ),
-          pw.SizedBox(width: 12),
+          pw.SizedBox(width: 16),
+          // Booking Card
           pw.Expanded(
             child: pw.Container(
               decoration: pw.BoxDecoration(
-                border: pw.Border.all(color: lightGray, width: 1),
-                borderRadius: pw.BorderRadius.circular(6),
+                gradient: pw.LinearGradient(
+                  colors: [
+                    darkCard,
+                    darkCard.shade(0.8),
+                  ],
+                  begin: pw.Alignment.topLeft,
+                  end: pw.Alignment.bottomRight,
+                ),
+                borderRadius: pw.BorderRadius.circular(12),
               ),
-              padding: const pw.EdgeInsets.all(12),
               child: pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
                   pw.Container(
                     padding: const pw.EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
+                      horizontal: 16,
+                      vertical: 10,
                     ),
                     decoration: pw.BoxDecoration(
-                      color: secondaryColor,
-                      borderRadius: pw.BorderRadius.circular(4),
-                    ),
-                    child: pw.Text(
-                      'تفاصيل الحجز',
-                      style: pw.TextStyle(
-                        fontSize: 12,
-                        fontWeight: pw.FontWeight.bold,
-                        color: PdfColors.white,
+                      gradient: pw.LinearGradient(
+                        colors: [
+                          primaryPurple.shade(0.2),
+                          primaryViolet.shade(0.2)
+                        ],
+                        begin: pw.Alignment.centerLeft,
+                        end: pw.Alignment.centerRight,
+                      ),
+                      borderRadius: const pw.BorderRadius.only(
+                        topLeft: pw.Radius.circular(12),
+                        topRight: pw.Radius.circular(12),
                       ),
                     ),
+                    child: pw.Row(
+                      children: [
+                        pw.Container(
+                          padding: const pw.EdgeInsets.all(4),
+                          decoration: pw.BoxDecoration(
+                            color: textWhite.shade(0.1),
+                            shape: pw.BoxShape.circle,
+                          ),
+                          child: pw.Text(
+                            '2',
+                            style: pw.TextStyle(
+                              fontSize: 10,
+                              fontWeight: pw.FontWeight.bold,
+                              color: textWhite,
+                            ),
+                          ),
+                        ),
+                        pw.SizedBox(width: 8),
+                        pw.Text(
+                          'تفاصيل الحجز',
+                          style: pw.TextStyle(
+                            fontSize: 12,
+                            fontWeight: pw.FontWeight.bold,
+                            color: textWhite,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  pw.SizedBox(height: 10),
-                  if (booking.unitName.isNotEmpty)
-                    _buildDetailRow('الوحدة', booking.unitName),
-                  _buildDetailRow(
-                      'تاريخ الوصول', Formatters.formatDate(booking.checkIn)),
-                  _buildDetailRow('تاريخ المغادرة',
-                      Formatters.formatDate(booking.checkOut)),
-                  _buildDetailRow('عدد الليالي', '${booking.nights} ليلة'),
-                  _buildDetailRow('عدد الضيوف', '$guestCount ضيف'),
-                  _buildDetailRow(
-                      'حالة الحجز', _getStatusText(booking.status.name),
-                      statusColor: _getStatusColor(booking.status.name)),
+                  pw.Container(
+                    padding: const pw.EdgeInsets.all(16),
+                    child: pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        _buildInfoField('الوحدة المحجوزة', booking.unitName),
+                        _buildInfoField('تاريخ الوصول',
+                            Formatters.formatDate(booking.checkIn)),
+                        _buildInfoField('تاريخ المغادرة',
+                            Formatters.formatDate(booking.checkOut)),
+                        _buildInfoField(
+                            'مدة الإقامة', '${booking.nights} ليلة'),
+                        _buildInfoField('عدد النزلاء', '$guestCount شخص'),
+                        _buildStatusField(booking.status.name),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -261,47 +408,76 @@ class InvoicePdfGenerator {
       );
     }
 
-    // بناء جدول الخدمات المحسّن
-    pw.Widget buildEnhancedServicesTable() {
+    // Professional Pricing Table
+    pw.Widget buildProfessionalPricingTable() {
       final services = details.services;
-
-      // حساب سعر الوحدة الأساسي
       final basePrice = booking.totalPrice.amount -
           services.fold(0.0, (sum, s) => sum + s.totalPrice.amount);
 
+      // VAT calculation
+      const vatRate = 0.15;
+      final subtotal = booking.totalPrice.amount / (1 + vatRate);
+      final vat = booking.totalPrice.amount - subtotal;
+
       return pw.Container(
         decoration: pw.BoxDecoration(
-          border: pw.Border.all(color: lightGray, width: 1),
-          borderRadius: pw.BorderRadius.circular(6),
+          color: darkCard,
+          borderRadius: pw.BorderRadius.circular(12),
         ),
         child: pw.Column(
-          crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
+            // Table Header
             pw.Container(
-              padding: const pw.EdgeInsets.all(10),
+              padding: const pw.EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 12,
+              ),
               decoration: const pw.BoxDecoration(
-                color: lightGray,
+                gradient: pw.LinearGradient(
+                  colors: [darkSurface, darkCard],
+                  begin: pw.Alignment.topCenter,
+                  end: pw.Alignment.bottomCenter,
+                ),
                 borderRadius: pw.BorderRadius.only(
-                  topLeft: pw.Radius.circular(6),
-                  topRight: pw.Radius.circular(6),
+                  topLeft: pw.Radius.circular(12),
+                  topRight: pw.Radius.circular(12),
+                ),
+                border: pw.Border(
+                  bottom: pw.BorderSide(color: darkBorder, width: 1),
                 ),
               ),
-              child: pw.Text(
-                'تفاصيل الأسعار',
-                style: pw.TextStyle(
-                  fontSize: 14,
-                  fontWeight: pw.FontWeight.bold,
-                  color: darkGray,
-                ),
+              child: pw.Row(
+                children: [
+                  pw.Container(
+                    padding: const pw.EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 4),
+                    decoration: pw.BoxDecoration(
+                      color: primaryBlue.shade(0.2),
+                      borderRadius: pw.BorderRadius.circular(4),
+                    ),
+                    child: pw.Text(
+                      '3',
+                      style: pw.TextStyle(
+                        fontSize: 10,
+                        fontWeight: pw.FontWeight.bold,
+                        color: neonBlue,
+                      ),
+                    ),
+                  ),
+                  pw.SizedBox(width: 8),
+                  pw.Text(
+                    'بيان الأسعار',
+                    style: pw.TextStyle(
+                      fontSize: 13,
+                      fontWeight: pw.FontWeight.bold,
+                      color: textWhite,
+                    ),
+                  ),
+                ],
               ),
             ),
+            // Table Content
             pw.Table(
-              border: const pw.TableBorder(
-                horizontalInside: pw.BorderSide(
-                  color: lightGray,
-                  width: 0.5,
-                ),
-              ),
               columnWidths: const {
                 0: pw.FlexColumnWidth(4),
                 1: pw.FlexColumnWidth(1.5),
@@ -309,351 +485,542 @@ class InvoicePdfGenerator {
                 3: pw.FlexColumnWidth(2),
               },
               children: [
-                // Header
+                // Header Row
                 pw.TableRow(
-                  decoration: const pw.BoxDecoration(color: lightGray),
+                  decoration: pw.BoxDecoration(
+                    color: darkSurface,
+                    border: pw.Border(
+                      bottom: pw.BorderSide(
+                          color: primaryBlue.shade(0.2), width: 1),
+                    ),
+                  ),
                   children: [
-                    _enhancedCell('البند',
-                        bold: true, align: pw.TextAlign.right),
-                    _enhancedCell('الكمية',
-                        bold: true, align: pw.TextAlign.center),
-                    _enhancedCell('السعر',
-                        bold: true, align: pw.TextAlign.center),
-                    _enhancedCell('المجموع',
-                        bold: true, align: pw.TextAlign.left),
+                    _buildTableHeader('الوصف'),
+                    _buildTableHeader('الكمية', align: pw.TextAlign.center),
+                    _buildTableHeader('السعر', align: pw.TextAlign.center),
+                    _buildTableHeader('الإجمالي', align: pw.TextAlign.left),
                   ],
                 ),
-                // سعر الوحدة الأساسي
+                // Base Price Row
                 pw.TableRow(
+                  decoration: pw.BoxDecoration(
+                    border: pw.Border(
+                      bottom: pw.BorderSide(
+                          color: darkBorder.shade(0.5), width: 0.5),
+                    ),
+                  ),
                   children: [
-                    _enhancedCell('إيجار الوحدة (${booking.nights} ليلة)'),
-                    _enhancedCell('1', align: pw.TextAlign.center),
-                    _enhancedCell(
-                      _formatMoney(basePrice, currency),
+                    _buildTableCell(
+                        'إيجار الوحدة السكنية\nالفترة: ${booking.nights} ليلة'),
+                    _buildTableCell('1', align: pw.TextAlign.center),
+                    _buildTableCell(
+                      _formatMoney(basePrice / booking.nights, currency),
                       align: pw.TextAlign.center,
                     ),
-                    _enhancedCell(
+                    _buildTableCell(
                       _formatMoney(basePrice, currency),
                       align: pw.TextAlign.left,
+                      bold: true,
                     ),
                   ],
                 ),
-                // الخدمات الإضافية
+                // Services
                 ...services.map((s) => pw.TableRow(
+                      decoration: pw.BoxDecoration(
+                        border: pw.Border(
+                          bottom: pw.BorderSide(
+                              color: darkBorder.shade(0.5), width: 0.5),
+                        ),
+                      ),
                       children: [
-                        _enhancedCell(s.name),
-                        _enhancedCell('${s.quantity}',
+                        _buildTableCell(s.name),
+                        _buildTableCell('${s.quantity}',
                             align: pw.TextAlign.center),
-                        _enhancedCell(
+                        _buildTableCell(
                           _formatMoney(s.price.amount, s.price.currency),
                           align: pw.TextAlign.center,
                         ),
-                        _enhancedCell(
+                        _buildTableCell(
                           _formatMoney(
                               s.totalPrice.amount, s.totalPrice.currency),
                           align: pw.TextAlign.left,
+                          bold: true,
                         ),
                       ],
                     )),
               ],
             ),
+            // Totals Section
+            pw.Container(
+              padding: const pw.EdgeInsets.all(16),
+              decoration: const pw.BoxDecoration(
+                color: darkSurface,
+                borderRadius: pw.BorderRadius.only(
+                  bottomLeft: pw.Radius.circular(12),
+                  bottomRight: pw.Radius.circular(12),
+                ),
+              ),
+              child: pw.Column(
+                children: [
+                  _buildTotalRow('المجموع الفرعي', subtotal, currency),
+                  _buildTotalRow('ضريبة القيمة المضافة (15%)', vat, currency,
+                      isVat: true),
+                  pw.Container(
+                    margin: const pw.EdgeInsets.symmetric(vertical: 8),
+                    height: 1,
+                    decoration: pw.BoxDecoration(
+                      gradient: pw.LinearGradient(
+                        colors: [
+                          primaryBlue.shade(0.2),
+                          primaryPurple.shade(0.2)
+                        ],
+                      ),
+                    ),
+                  ),
+                  _buildTotalRow(
+                    'المجموع الكلي',
+                    booking.totalPrice.amount,
+                    currency,
+                    isTotal: true,
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
       );
     }
 
-    // بناء ملخص المبالغ المحسّن
-    pw.Widget buildEnhancedTotals() {
-      final total = booking.totalPrice;
+    // Payment Summary Card
+    pw.Widget buildPaymentSummary() {
       final paid = details.totalPaid;
       final remaining = details.remainingAmount;
-
-      // حساب الضريبة (مثال: 15%)
-      const taxRate = 0.15;
-      final subtotal = total.amount / (1 + taxRate);
-      final tax = total.amount - subtotal;
-
-      return pw.Container(
-        decoration: pw.BoxDecoration(
-          gradient: const pw.LinearGradient(
-            colors: [lightGray, PdfColors.white],
-            begin: pw.Alignment.topCenter,
-            end: pw.Alignment.bottomCenter,
-          ),
-          border: pw.Border.all(color: primaryColor, width: 1),
-          borderRadius: pw.BorderRadius.circular(6),
-        ),
-        padding: const pw.EdgeInsets.all(12),
-        child: pw.Column(
-          children: [
-            _buildTotalRow('المجموع الفرعي', subtotal, currency),
-            _buildTotalRow('ضريبة القيمة المضافة (15%)', tax, currency),
-            pw.Divider(color: mediumGray, thickness: 1),
-            _buildTotalRow(
-              'المجموع الكلي',
-              total.amount,
-              currency,
-              bold: true,
-              color: primaryColor,
-            ),
-            pw.SizedBox(height: 8),
-            _buildTotalRow(
-              'المبلغ المدفوع',
-              paid.amount,
-              currency,
-              color: successColor,
-            ),
-            _buildTotalRow(
-              'المبلغ المتبقي',
-              remaining.amount,
-              currency,
-              color: remaining.amount > 0 ? dangerColor : successColor,
-              bold: remaining.amount > 0,
-            ),
-          ],
-        ),
-      );
-    }
-
-    // بناء معلومات الدفع
-    pw.Widget buildPaymentInfo() {
       final payments = details.payments;
-      if (payments.isEmpty) return pw.Container();
 
       return pw.Container(
         decoration: pw.BoxDecoration(
-          border: pw.Border.all(color: lightGray, width: 1),
-          borderRadius: pw.BorderRadius.circular(6),
+          gradient: pw.LinearGradient(
+            colors: [
+              primaryBlue.shade(0.1),
+              primaryPurple.shade(0.1),
+            ],
+            begin: pw.Alignment.topLeft,
+            end: pw.Alignment.bottomRight,
+          ),
+          borderRadius: pw.BorderRadius.circular(12),
         ),
-        padding: const pw.EdgeInsets.all(12),
+        padding: const pw.EdgeInsets.all(20),
         child: pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
             pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
               children: [
-                pw.Container(
-                  padding: const pw.EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: pw.BoxDecoration(
-                    color: successColor,
-                    borderRadius: pw.BorderRadius.circular(4),
-                  ),
-                  child: pw.Text(
-                    'سجل المدفوعات',
-                    style: pw.TextStyle(
-                      fontSize: 12,
-                      fontWeight: pw.FontWeight.bold,
-                      color: PdfColors.white,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            pw.SizedBox(height: 10),
-            ...payments.map((payment) => pw.Container(
-                  margin: const pw.EdgeInsets.only(bottom: 6),
-                  padding: const pw.EdgeInsets.all(8),
-                  decoration: pw.BoxDecoration(
-                    color: lightGray,
-                    borderRadius: pw.BorderRadius.circular(4),
-                  ),
-                  child: pw.Row(
-                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                    children: [
-                      pw.Text(
-                        DateFormat('dd/MM/yyyy').format(payment.paymentDate),
-                        style: const pw.TextStyle(fontSize: 10),
+                pw.Row(
+                  children: [
+                    pw.Container(
+                      padding: const pw.EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      decoration: pw.BoxDecoration(
+                        color: success.shade(0.2),
+                        borderRadius: pw.BorderRadius.circular(4),
                       ),
-                      pw.Text(
-                        payment.status
-                            .name, // استخدام status بدلاً من paymentMethod
-                        style: const pw.TextStyle(
-                          fontSize: 10,
-                          color: darkGray,
-                        ),
-                      ),
-                      pw.Text(
-                        _formatMoney(
-                            payment.amount.amount, payment.amount.currency),
+                      child: pw.Text(
+                        '4',
                         style: pw.TextStyle(
                           fontSize: 10,
                           fontWeight: pw.FontWeight.bold,
-                          color: successColor,
+                          color: success,
                         ),
                       ),
-                    ],
-                  ),
-                )),
+                    ),
+                    pw.SizedBox(width: 8),
+                    pw.Text(
+                      'ملخص المدفوعات',
+                      style: pw.TextStyle(
+                        fontSize: 13,
+                        fontWeight: pw.FontWeight.bold,
+                        color: textWhite,
+                      ),
+                    ),
+                  ],
+                ),
+                _buildPaymentStatus(remaining.amount),
+              ],
+            ),
+            pw.SizedBox(height: 16),
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceAround,
+              children: [
+                _buildPaymentCard(
+                  'المبلغ الإجمالي',
+                  _formatMoney(booking.totalPrice.amount, currency),
+                  primaryBlue,
+                ),
+                _buildPaymentCard(
+                  'المدفوع',
+                  _formatMoney(paid.amount, currency),
+                  success,
+                ),
+                _buildPaymentCard(
+                  'المتبقي',
+                  _formatMoney(remaining.amount, currency),
+                  remaining.amount > 0 ? warning : success,
+                ),
+              ],
+            ),
+            if (payments.isNotEmpty) ...[
+              pw.SizedBox(height: 16),
+              pw.Text(
+                'سجل المدفوعات:',
+                style: pw.TextStyle(
+                  fontSize: 11,
+                  fontWeight: pw.FontWeight.bold,
+                  color: textLight,
+                ),
+              ),
+              pw.SizedBox(height: 8),
+              ...payments.map((payment) => pw.Container(
+                    margin: const pw.EdgeInsets.only(bottom: 4),
+                    padding: const pw.EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 6),
+                    decoration: pw.BoxDecoration(
+                      color: darkCard.shade(0.5),
+                      borderRadius: pw.BorderRadius.circular(6),
+                    ),
+                    child: pw.Row(
+                      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                      children: [
+                        pw.Text(
+                          DateFormat('yyyy/MM/dd HH:mm')
+                              .format(payment.paymentDate),
+                          style:
+                              const pw.TextStyle(fontSize: 9, color: textMuted),
+                        ),
+                        pw.Text(
+                          _formatMoney(
+                              payment.amount.amount, payment.amount.currency),
+                          style: pw.TextStyle(
+                            fontSize: 9,
+                            fontWeight: pw.FontWeight.bold,
+                            color: success,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )),
+            ],
           ],
         ),
       );
     }
 
-    // بناء الفوتر
-    pw.Widget buildFooter() {
-      return pw.Container(
-        margin: const pw.EdgeInsets.only(top: 20),
-        padding: const pw.EdgeInsets.all(16),
-        decoration: pw.BoxDecoration(
-          color: darkGray,
-          borderRadius: pw.BorderRadius.circular(6),
-        ),
-        child: pw.Column(
-          children: [
-            pw.Row(
-              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-              children: [
-                pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.start,
-                  children: [
-                    pw.Text(
+    // Terms and QR Code Section
+    pw.Widget buildTermsAndQR() {
+      final qrData =
+          'REF:$bookingReference|AMT:${booking.totalPrice.amount}|DATE:${DateFormat('yyyyMMdd').format(issueDate)}|TAX:300123456789012';
+
+      return pw.Row(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Expanded(
+            flex: 3,
+            child: pw.Container(
+              padding: const pw.EdgeInsets.all(16),
+              decoration: pw.BoxDecoration(
+                color: darkCard,
+                borderRadius: pw.BorderRadius.circular(12),
+              ),
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Container(
+                    padding: const pw.EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 4),
+                    decoration: pw.BoxDecoration(
+                      gradient: pw.LinearGradient(
+                        colors: [
+                          primaryViolet.shade(0.2),
+                          primaryPurple.shade(0.2)
+                        ],
+                      ),
+                      borderRadius: pw.BorderRadius.circular(4),
+                    ),
+                    child: pw.Text(
                       'الشروط والأحكام',
                       style: pw.TextStyle(
                         fontSize: 12,
                         fontWeight: pw.FontWeight.bold,
-                        color: PdfColors.white,
+                        color: textWhite,
                       ),
                     ),
-                    pw.SizedBox(height: 4),
-                    pw.Text(
-                      '• يجب دفع المبلغ المتبقي عند الوصول',
-                      style: pw.TextStyle(fontSize: 9, color: whiteLight),
-                    ),
-                    pw.Text(
-                      '• تطبق سياسة الإلغاء حسب الشروط المتفق عليها',
-                      style: pw.TextStyle(fontSize: 9, color: whiteLight),
-                    ),
-                    pw.Text(
-                      '• يجب إبراز وثيقة الهوية عند تسجيل الدخول',
-                      style: pw.TextStyle(fontSize: 9, color: whiteLight),
-                    ),
-                  ],
+                  ),
+                  pw.SizedBox(height: 12),
+                  _buildTermItem(
+                      'يجب سداد المبلغ المتبقي عند الوصول إلى مكان الإقامة'),
+                  _buildTermItem(
+                      'يخضع الإلغاء للشروط والأحكام المتفق عليها مسبقاً'),
+                  _buildTermItem(
+                      'يجب إبراز وثيقة إثبات الهوية عند تسجيل الدخول'),
+                  _buildTermItem(
+                      'أوقات تسجيل الدخول: 14:00 - تسجيل الخروج: 12:00'),
+                  _buildTermItem(
+                      'يحق للمنشأة إلغاء الحجز في حالة عدم الوصول خلال 24 ساعة'),
+                  _buildTermItem('الأسعار شاملة ضريبة القيمة المضافة 15%'),
+                ],
+              ),
+            ),
+          ),
+          pw.SizedBox(width: 16),
+          pw.Container(
+            padding: const pw.EdgeInsets.all(16),
+            decoration: pw.BoxDecoration(
+              gradient: const pw.LinearGradient(
+                colors: [darkCard, darkSurface],
+                begin: pw.Alignment.topCenter,
+                end: pw.Alignment.bottomCenter,
+              ),
+              borderRadius: pw.BorderRadius.circular(12),
+            ),
+            child: pw.Column(
+              children: [
+                pw.Text(
+                  'رمز التحقق السريع',
+                  style: pw.TextStyle(
+                    fontSize: 11,
+                    fontWeight: pw.FontWeight.bold,
+                    color: textWhite,
+                  ),
                 ),
-                pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.end,
-                  children: [
-                    pw.Text(
-                      'تواصل معنا',
-                      style: pw.TextStyle(
-                        fontSize: 12,
-                        fontWeight: pw.FontWeight.bold,
-                        color: PdfColors.white,
-                      ),
-                    ),
-                    pw.SizedBox(height: 4),
-                    // إزالة website لأنه غير موجود في PropertyDetails
-                    pw.Text(
-                      'www.yemenbooking.com',
-                      style: pw.TextStyle(fontSize: 9, color: whiteLight),
-                    ),
-                    pw.Text(
-                      'support@yemenbooking.com',
-                      style: pw.TextStyle(fontSize: 9, color: whiteLight),
-                    ),
-                    pw.Text(
-                      '+967 777 123 456',
-                      style: pw.TextStyle(fontSize: 9, color: whiteLight),
-                    ),
-                  ],
+                pw.SizedBox(height: 12),
+                pw.Container(
+                  padding: const pw.EdgeInsets.all(8),
+                  decoration: pw.BoxDecoration(
+                    color: PdfColors.white,
+                    borderRadius: pw.BorderRadius.circular(8),
+                  ),
+                  child: pw.BarcodeWidget(
+                    barcode: pw.Barcode.qrCode(),
+                    data: qrData,
+                    width: 100,
+                    height: 100,
+                  ),
+                ),
+                pw.SizedBox(height: 8),
+                pw.Text(
+                  'Scan for Verification',
+                  style: const pw.TextStyle(
+                    fontSize: 8,
+                    color: textMuted,
+                  ),
                 ),
               ],
             ),
-            pw.SizedBox(height: 12),
-            pw.Divider(color: whiteDark),
-            pw.SizedBox(height: 8),
-            pw.Text(
-              'شكراً لاختياركم خدماتنا - نتطلع لاستضافتكم',
-              style: pw.TextStyle(
-                fontSize: 11,
-                fontWeight: pw.FontWeight.bold,
-                color: accentColor,
-              ),
-            ),
-            pw.SizedBox(height: 4),
-            pw.Text(
-              '© ${DateTime.now().year} YemenBooking. جميع الحقوق محفوظة',
-              style: pw.TextStyle(fontSize: 8, color: whiteMedium),
-            ),
-          ],
-        ),
+          ),
+        ],
       );
     }
 
-    // إضافة QR Code (اختياري)
-    pw.Widget buildQRCode() {
-      final qrData =
-          'BOOKING:$bookingReference|AMOUNT:${booking.totalPrice.amount}|DATE:${DateFormat('yyyy-MM-dd').format(issueDate)}';
-
+    // Professional Footer
+    pw.Widget buildProfessionalFooter() {
       return pw.Container(
-        padding: const pw.EdgeInsets.all(8),
-        decoration: pw.BoxDecoration(
-          border: pw.Border.all(color: lightGray),
-          borderRadius: pw.BorderRadius.circular(4),
-        ),
+        margin: const pw.EdgeInsets.only(top: 20),
         child: pw.Column(
           children: [
-            pw.BarcodeWidget(
-              barcode: pw.Barcode.qrCode(),
-              data: qrData,
-              width: 80,
-              height: 80,
+            // Gradient separator
+            pw.Container(
+              height: 2,
+              decoration: const pw.BoxDecoration(
+                gradient: pw.LinearGradient(
+                  colors: [
+                    primaryCyan,
+                    primaryBlue,
+                    primaryPurple,
+                    primaryViolet
+                  ],
+                  begin: pw.Alignment.centerLeft,
+                  end: pw.Alignment.centerRight,
+                ),
+              ),
             ),
-            pw.SizedBox(height: 4),
-            pw.Text(
-              'امسح للتحقق',
-              style: const pw.TextStyle(fontSize: 8),
+            pw.Container(
+              padding: const pw.EdgeInsets.all(20),
+              decoration: const pw.BoxDecoration(
+                gradient: pw.LinearGradient(
+                  colors: [darkBackground2, darkBackground],
+                  begin: pw.Alignment.topCenter,
+                  end: pw.Alignment.bottomCenter,
+                ),
+              ),
+              child: pw.Column(
+                children: [
+                  pw.Row(
+                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      // Contact Info
+                      pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        children: [
+                          pw.Text(
+                            'معلومات التواصل',
+                            style: pw.TextStyle(
+                              fontSize: 11,
+                              fontWeight: pw.FontWeight.bold,
+                              color: neonBlue,
+                            ),
+                          ),
+                          pw.SizedBox(height: 8),
+                          _buildContactInfo('الموقع:', 'www.yemenbooking.com'),
+                          _buildContactInfo(
+                              'البريد:', 'support@yemenbooking.com'),
+                          _buildContactInfo('الجوال:', '+967 777 123 456'),
+                          _buildContactInfo('الهاتف:', '+967 1 234 567'),
+                        ],
+                      ),
+                      // Social Media
+                      pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.center,
+                        children: [
+                          pw.Text(
+                            'تابعنا على',
+                            style: pw.TextStyle(
+                              fontSize: 11,
+                              fontWeight: pw.FontWeight.bold,
+                              color: neonPurple,
+                            ),
+                          ),
+                          pw.SizedBox(height: 8),
+                          pw.Text(
+                            '@YemenBooking',
+                            style: const pw.TextStyle(
+                              fontSize: 9,
+                              color: textLight,
+                            ),
+                          ),
+                        ],
+                      ),
+                      // Company Stamp Area
+                      pw.Container(
+                        width: 120,
+                        height: 60,
+                        decoration: pw.BoxDecoration(
+                          borderRadius: pw.BorderRadius.circular(8),
+                          border: const pw.Border(
+                            top: pw.BorderSide(color: darkBorder, width: 1),
+                            bottom: pw.BorderSide(color: darkBorder, width: 1),
+                            left: pw.BorderSide(color: darkBorder, width: 1),
+                            right: pw.BorderSide(color: darkBorder, width: 1),
+                          ),
+                        ),
+                        child: pw.Center(
+                          child: pw.Text(
+                            'ختم المنشأة',
+                            style: const pw.TextStyle(
+                              fontSize: 10,
+                              color: textMuted,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  pw.SizedBox(height: 16),
+                  // Thank you message
+                  pw.Container(
+                    padding: const pw.EdgeInsets.all(12),
+                    decoration: pw.BoxDecoration(
+                      gradient: pw.LinearGradient(
+                        colors: [
+                          primaryBlue.shade(0.1),
+                          primaryPurple.shade(0.1),
+                        ],
+                        begin: pw.Alignment.centerLeft,
+                        end: pw.Alignment.centerRight,
+                      ),
+                      borderRadius: pw.BorderRadius.circular(8),
+                    ),
+                    child: pw.Center(
+                      child: pw.Text(
+                        'نشكركم على ثقتكم بنا ونتطلع لخدمتكم بأفضل معايير الضيافة',
+                        style: pw.TextStyle(
+                          fontSize: 12,
+                          fontWeight: pw.FontWeight.bold,
+                          color: textWhite,
+                        ),
+                      ),
+                    ),
+                  ),
+                  pw.SizedBox(height: 12),
+                  // Copyright
+                  pw.Row(
+                    mainAxisAlignment: pw.MainAxisAlignment.center,
+                    children: [
+                      pw.Text(
+                        '© ${DateTime.now().year} YemenBooking Platform - All Rights Reserved',
+                        style: const pw.TextStyle(
+                          fontSize: 8,
+                          color: textMuted,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ],
         ),
       );
     }
 
-    // بناء الصفحة
+    // Build PDF Document
     doc.addPage(
       pw.MultiPage(
         pageTheme: pw.PageTheme(
-          margin: const pw.EdgeInsets.all(20),
+          margin: const pw.EdgeInsets.all(24),
           theme: pw.ThemeData.withFont(
             base: arabicFont,
             bold: arabicBold,
           ),
           textDirection: pw.TextDirection.rtl,
+          pageFormat: PdfPageFormat.a4,
         ),
-        header: (context) => buildProfessionalHeader(),
         footer: (context) => pw.Container(
-          alignment: pw.Alignment.center,
-          child: pw.Text(
-            'صفحة ${context.pageNumber} من ${context.pagesCount}',
-            style: const pw.TextStyle(fontSize: 10, color: mediumGray),
+          padding: const pw.EdgeInsets.only(top: 10),
+          decoration: const pw.BoxDecoration(
+            border: pw.Border(
+              top: pw.BorderSide(color: darkBorder, width: 0.5),
+            ),
           ),
-        ),
-        build: (context) => [
-          pw.SizedBox(height: 16),
-          buildEnhancedGuestPropertyInfo(),
-          pw.SizedBox(height: 16),
-          pw.Row(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
+          child: pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
             children: [
-              pw.Expanded(flex: 3, child: buildEnhancedServicesTable()),
-              pw.SizedBox(width: 12),
-              pw.Expanded(
-                flex: 2,
-                child: pw.Column(
-                  children: [
-                    buildEnhancedTotals(),
-                    pw.SizedBox(height: 12),
-                    buildQRCode(),
-                  ],
-                ),
+              pw.Text(
+                'صفحة ${context.pageNumber} من ${context.pagesCount}',
+                style: const pw.TextStyle(fontSize: 9, color: textMuted),
+              ),
+              pw.Text(
+                'الفاتورة الإلكترونية معتمدة من هيئة الزكاة والضريبة',
+                style: const pw.TextStyle(fontSize: 9, color: textMuted),
+              ),
+              pw.Text(
+                DateFormat('yyyy/MM/dd HH:mm').format(DateTime.now()),
+                style: const pw.TextStyle(fontSize: 9, color: textMuted),
               ),
             ],
           ),
-          pw.SizedBox(height: 16),
-          buildPaymentInfo(),
-          pw.SizedBox(height: 16),
-          buildFooter(),
+        ),
+        build: (context) => [
+          buildProfessionalHeader(),
+          pw.SizedBox(height: 20),
+          buildModernInfoCards(),
+          pw.SizedBox(height: 20),
+          buildProfessionalPricingTable(),
+          pw.SizedBox(height: 20),
+          buildPaymentSummary(),
+          pw.SizedBox(height: 20),
+          buildTermsAndQR(),
+          buildProfessionalFooter(),
         ],
       ),
     );
@@ -662,51 +1029,33 @@ class InvoicePdfGenerator {
   }
 
   // Helper Methods
-  static pw.Widget _buildInfoRow(pw.IconData icon, String text,
-      {PdfColor color = darkGray}) {
+  static pw.Widget _buildCompanyInfoRow(String label, String text) {
     return pw.Container(
-      margin: const pw.EdgeInsets.only(top: 4),
+      margin: const pw.EdgeInsets.only(bottom: 4),
       child: pw.Row(
-        children: [
-          pw.Icon(icon, size: 12, color: color),
-          pw.SizedBox(width: 6),
-          pw.Text(
-            text,
-            style: pw.TextStyle(fontSize: 10, color: color),
-          ),
-        ],
-      ),
-    );
-  }
-
-  static pw.Widget _buildLabelValue(String label, String value) {
-    return pw.Container(
-      margin: const pw.EdgeInsets.only(top: 2),
-      child: pw.Row(
-        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
         children: [
           pw.Text(
             label,
-            style: const pw.TextStyle(fontSize: 10, color: mediumGray),
-          ),
-          pw.SizedBox(width: 8),
-          pw.Text(
-            value,
             style: pw.TextStyle(
-              fontSize: 10,
+              fontSize: 9,
               fontWeight: pw.FontWeight.bold,
-              color: darkGray,
+              color: textLight,
             ),
+          ),
+          pw.SizedBox(width: 6),
+          pw.Text(
+            text,
+            style: const pw.TextStyle(fontSize: 10, color: textLight),
           ),
         ],
       ),
     );
   }
 
-  static pw.Widget _buildDetailRow(String label, String value,
-      {PdfColor? statusColor}) {
+  static pw.Widget _buildInvoiceDetailRow(String label, String value,
+      {bool highlight = false}) {
     return pw.Container(
-      margin: const pw.EdgeInsets.only(bottom: 6),
+      margin: const pw.EdgeInsets.only(bottom: 4),
       child: pw.Row(
         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
         children: [
@@ -714,17 +1063,23 @@ class InvoicePdfGenerator {
             label,
             style: const pw.TextStyle(
               fontSize: 10,
-              color: mediumGray,
+              color: textMuted,
             ),
           ),
+          pw.SizedBox(width: 12),
           pw.Container(
-            padding: statusColor != null
-                ? const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 2)
+            padding: highlight
+                ? const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 2)
                 : pw.EdgeInsets.zero,
-            decoration: statusColor != null
+            decoration: highlight
                 ? pw.BoxDecoration(
-                    color: statusColor.shade(0.1),
-                    borderRadius: pw.BorderRadius.circular(3),
+                    gradient: pw.LinearGradient(
+                      colors: [
+                        primaryBlue.shade(0.2),
+                        primaryPurple.shade(0.2)
+                      ],
+                    ),
+                    borderRadius: pw.BorderRadius.circular(4),
                   )
                 : null,
             child: pw.Text(
@@ -732,7 +1087,7 @@ class InvoicePdfGenerator {
               style: pw.TextStyle(
                 fontSize: 10,
                 fontWeight: pw.FontWeight.bold,
-                color: statusColor ?? darkGray,
+                color: highlight ? neonBlue : textWhite,
               ),
             ),
           ),
@@ -741,19 +1096,99 @@ class InvoicePdfGenerator {
     );
   }
 
-  static pw.Widget _enhancedCell(
+  static pw.Widget _buildInfoField(String label, String value) {
+    return pw.Container(
+      margin: const pw.EdgeInsets.only(bottom: 8),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Text(
+            label,
+            style: const pw.TextStyle(
+              fontSize: 9,
+              color: textMuted,
+            ),
+          ),
+          pw.SizedBox(height: 2),
+          pw.Text(
+            value,
+            style: pw.TextStyle(
+              fontSize: 11,
+              fontWeight: pw.FontWeight.bold,
+              color: textWhite,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static pw.Widget _buildStatusField(String status) {
+    final color = _getStatusColor(status);
+    final text = _getStatusText(status);
+
+    return pw.Container(
+      margin: const pw.EdgeInsets.only(top: 4),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Text(
+            'حالة الحجز',
+            style: const pw.TextStyle(
+              fontSize: 9,
+              color: textMuted,
+            ),
+          ),
+          pw.SizedBox(height: 2),
+          pw.Container(
+            padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: pw.BoxDecoration(
+              color: color.shade(0.2),
+              borderRadius: pw.BorderRadius.circular(6),
+            ),
+            child: pw.Text(
+              text,
+              style: pw.TextStyle(
+                fontSize: 10,
+                fontWeight: pw.FontWeight.bold,
+                color: color,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static pw.Widget _buildTableHeader(String text,
+      {pw.TextAlign align = pw.TextAlign.right}) {
+    return pw.Container(
+      padding: const pw.EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      child: pw.Text(
+        text,
+        style: pw.TextStyle(
+          fontSize: 11,
+          fontWeight: pw.FontWeight.bold,
+          color: textLight,
+        ),
+        textAlign: align,
+      ),
+    );
+  }
+
+  static pw.Widget _buildTableCell(
     String text, {
-    bool bold = false,
     pw.TextAlign align = pw.TextAlign.right,
+    bool bold = false,
   }) {
     return pw.Container(
-      padding: const pw.EdgeInsets.all(8),
+      padding: const pw.EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       child: pw.Text(
         text,
         style: pw.TextStyle(
           fontSize: 10,
           fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal,
-          color: bold ? darkGray : mediumGray,
+          color: bold ? textWhite : textLight,
         ),
         textAlign: align,
       ),
@@ -764,29 +1199,159 @@ class InvoicePdfGenerator {
     String label,
     double amount,
     String currency, {
-    bool bold = false,
-    PdfColor? color,
+    bool isVat = false,
+    bool isTotal = false,
   }) {
     return pw.Container(
-      margin: const pw.EdgeInsets.symmetric(vertical: 2),
+      margin: const pw.EdgeInsets.symmetric(vertical: 3),
       child: pw.Row(
         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
         children: [
           pw.Text(
             label,
             style: pw.TextStyle(
-              fontSize: bold ? 12 : 11,
-              fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal,
-              color: color ?? darkGray,
+              fontSize: isTotal ? 13 : 11,
+              fontWeight: isTotal ? pw.FontWeight.bold : pw.FontWeight.normal,
+              color: isTotal ? neonBlue : (isVat ? warning : textLight),
             ),
           ),
           pw.Text(
             _formatMoney(amount, currency),
             style: pw.TextStyle(
-              fontSize: bold ? 12 : 11,
-              fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal,
-              color: color ?? darkGray,
+              fontSize: isTotal ? 13 : 11,
+              fontWeight: isTotal ? pw.FontWeight.bold : pw.FontWeight.normal,
+              color: isTotal ? neonBlue : (isVat ? warning : textWhite),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static pw.Widget _buildPaymentCard(
+    String label,
+    String amount,
+    PdfColor color,
+  ) {
+    return pw.Container(
+      padding: const pw.EdgeInsets.all(12),
+      decoration: pw.BoxDecoration(
+        color: color.shade(0.1),
+        borderRadius: pw.BorderRadius.circular(8),
+      ),
+      child: pw.Column(
+        children: [
+          pw.Container(
+            width: 24,
+            height: 24,
+            decoration: pw.BoxDecoration(
+              color: color.shade(0.2),
+              shape: pw.BoxShape.circle,
+            ),
+            child: pw.Center(
+              child: pw.Text(
+                label.substring(0, 1),
+                style: pw.TextStyle(
+                  fontSize: 12,
+                  fontWeight: pw.FontWeight.bold,
+                  color: color,
+                ),
+              ),
+            ),
+          ),
+          pw.SizedBox(height: 4),
+          pw.Text(
+            label,
+            style: const pw.TextStyle(
+              fontSize: 9,
+              color: textMuted,
+            ),
+          ),
+          pw.SizedBox(height: 2),
+          pw.Text(
+            amount,
+            style: pw.TextStyle(
+              fontSize: 12,
+              fontWeight: pw.FontWeight.bold,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static pw.Widget _buildPaymentStatus(double remaining) {
+    final isPaid = remaining <= 0;
+    return pw.Container(
+      padding: const pw.EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      decoration: pw.BoxDecoration(
+        gradient: pw.LinearGradient(
+          colors: isPaid
+              ? [success.shade(0.2), success.shade(0.3)]
+              : [warning.shade(0.2), warning.shade(0.3)],
+        ),
+        borderRadius: pw.BorderRadius.circular(12),
+      ),
+      child: pw.Text(
+        isPaid ? 'مدفوع بالكامل' : 'دفعة جزئية',
+        style: pw.TextStyle(
+          fontSize: 10,
+          fontWeight: pw.FontWeight.bold,
+          color: isPaid ? success : warning,
+        ),
+      ),
+    );
+  }
+
+  static pw.Widget _buildTermItem(String text) {
+    return pw.Container(
+      margin: const pw.EdgeInsets.only(bottom: 6),
+      child: pw.Row(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Container(
+            width: 4,
+            height: 4,
+            margin: const pw.EdgeInsets.only(top: 4),
+            decoration: const pw.BoxDecoration(
+              color: primaryBlue,
+              shape: pw.BoxShape.circle,
+            ),
+          ),
+          pw.SizedBox(width: 8),
+          pw.Expanded(
+            child: pw.Text(
+              text,
+              style: const pw.TextStyle(
+                fontSize: 9,
+                color: textLight,
+                height: 1.3,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static pw.Widget _buildContactInfo(String label, String text) {
+    return pw.Container(
+      margin: const pw.EdgeInsets.only(bottom: 4),
+      child: pw.Row(
+        children: [
+          pw.Text(
+            label,
+            style: pw.TextStyle(
+              fontSize: 9,
+              fontWeight: pw.FontWeight.bold,
+              color: textLight,
+            ),
+          ),
+          pw.SizedBox(width: 6),
+          pw.Text(
+            text,
+            style: const pw.TextStyle(fontSize: 9, color: textLight),
           ),
         ],
       ),
@@ -816,30 +1381,29 @@ class InvoicePdfGenerator {
   static PdfColor _getStatusColor(String status) {
     switch (status.toLowerCase()) {
       case 'confirmed':
-        return successColor;
+        return success;
       case 'pending':
-        return warningColor;
+        return warning;
       case 'cancelled':
-        return dangerColor;
+        return error;
       case 'completed':
-        return primaryColor;
+        return info;
       default:
-        return mediumGray;
+        return textMuted;
     }
   }
 
   static String _generateInvoiceNumber(String bookingId) {
     final year = DateTime.now().year;
     final month = DateTime.now().month.toString().padLeft(2, '0');
-    final hash = bookingId.hashCode.abs() % 10000;
-    return 'INV-$year$month-${hash.toString().padLeft(4, '0')}';
+    final day = DateTime.now().day.toString().padLeft(2, '0');
+    final hash = bookingId.hashCode.abs() % 100000;
+    return '$year$month$day${hash.toString().padLeft(5, '0')}';
   }
 
   static String _formatBookingReference(String bookingId) {
-    if (bookingId.isEmpty) {
-      return 'غير متوفر';
-    }
-    const maxLength = 8;
+    if (bookingId.isEmpty) return 'N/A';
+    const maxLength = 10;
     if (bookingId.length <= maxLength) {
       return bookingId.toUpperCase();
     }
