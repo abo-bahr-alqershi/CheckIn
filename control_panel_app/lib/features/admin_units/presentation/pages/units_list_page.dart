@@ -268,7 +268,7 @@ class _UnitsListPageState extends State<UnitsListPage>
         _buildActionButton(
           icon: CupertinoIcons.add,
           onPressed: () async {
-            final res = await context.push('/admin/units/create');
+            await context.push('/admin/units/create');
             if (!mounted) return;
             context.read<UnitsListBloc>().add(RefreshUnitsEvent());
           },

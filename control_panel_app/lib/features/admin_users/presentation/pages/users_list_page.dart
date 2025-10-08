@@ -321,7 +321,11 @@ class _UsersListPageState extends State<UsersListPage>
 
   Widget _buildFabButton() {
     return FloatingActionButton(
-      onPressed: () => context.push('/admin/users/create'),
+      onPressed: () async {
+        await context.push('/admin/users/create');
+        if (!mounted) return;
+        context.read<UsersListBloc>().add(RefreshUsersEvent());
+      },
       backgroundColor: AppTheme.primaryBlue,
       child: const Icon(
         Icons.person_add_rounded,
@@ -543,7 +547,11 @@ class _UsersListPageState extends State<UsersListPage>
                       _buildPrimaryActionButton(
                         icon: Icons.person_add_rounded,
                         label: 'إضافة مستخدم',
-                        onTap: () => context.push('/admin/users/create'),
+                        onTap: () async {
+                          await context.push('/admin/users/create');
+                          if (!mounted) return;
+                          context.read<UsersListBloc>().add(RefreshUsersEvent());
+                        },
                       ),
                       const SizedBox(width: 8),
                       _buildActionButton(
@@ -1100,8 +1108,10 @@ class _UsersListPageState extends State<UsersListPage>
     context.push('/admin/users/$userId');
   }
 
-  void _navigateToEditUser(String userId) {
-    context.push('/admin/users/$userId/edit');
+  Future<void> _navigateToEditUser(String userId) async {
+    await context.push('/admin/users/$userId/edit');
+    if (!mounted) return;
+    context.read<UsersListBloc>().add(RefreshUsersEvent());
   }
 
   void _showDeleteConfirmation(String userId) {
