@@ -70,6 +70,7 @@ class PropertiesBloc extends Bloc<PropertiesEvent, PropertiesState> {
         totalPages: paginatedResult.totalPages,
         hasNextPage: paginatedResult.hasNextPage,
         hasPreviousPage: paginatedResult.hasPreviousPage,
+        activeFilters: null,
       )),
     );
   }
@@ -238,6 +239,7 @@ class PropertiesBloc extends Bloc<PropertiesEvent, PropertiesState> {
         totalPages: paginatedResult.totalPages,
         hasNextPage: paginatedResult.hasNextPage,
         hasPreviousPage: paginatedResult.hasPreviousPage,
+        stats: (paginatedResult.metadata is Map<String, dynamic>) ? (paginatedResult.metadata as Map<String, dynamic>) : null,
         activeFilters: {
           if (event.propertyTypeId != null)
             'propertyTypeId': event.propertyTypeId!,
@@ -281,6 +283,8 @@ class PropertiesBloc extends Bloc<PropertiesEvent, PropertiesState> {
         hasNextPage: paginatedResult.hasNextPage,
         hasPreviousPage: paginatedResult.hasPreviousPage,
         searchTerm: event.searchTerm,
+        stats: (paginatedResult.metadata is Map<String, dynamic>) ? (paginatedResult.metadata as Map<String, dynamic>) : null,
+        activeFilters: null,
       )),
     );
   }

@@ -105,7 +105,21 @@ namespace YemenBooking.Application.Handlers.Queries.Bookings
             var dtos = bookings.Select(b => _mapper.Map<BookingDto>(b)).ToList();
 
             _logger.LogInformation("تم جلب {Count} حجز من إجمالي {TotalCount} ضمن النطاق الزمني", dtos.Count, totalCount);
-            return new PaginatedResult<BookingDto>(dtos, pageNumber, pageSize, totalCount);
+            var result = new PaginatedResult<BookingDto>(dtos, pageNumber, pageSize, totalCount);
+            if (pageNumber == 1)
+            {
+                var successful = await query.CountAsync(b => b.Status == BookingStatus.Confirmed, cancellationToken);
+                var pending = await query.CountAsync(b => b.Status == BookingStatus.Pending, cancellationToken);
+                var cancelled = await query.CountAsync(b => b.Status == BookingStatus.Cancelled, cancellationToken);
+                result.Metadata = new
+                {
+                    totalBookings = totalCount,
+                    successfulBookings = successful,
+                    pendingBookings = pending,
+                    cancelledBookings = cancelled
+                };
+            }
+            return result;
         }
     }
 } 

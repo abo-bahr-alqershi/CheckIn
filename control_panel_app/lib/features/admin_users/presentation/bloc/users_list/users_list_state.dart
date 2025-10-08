@@ -16,12 +16,14 @@ class UsersListLoaded extends UsersListState {
   final bool hasMore;
   final int totalCount;
   final bool isLoadingMore;
+  final Map<String, dynamic>? stats;
 
   const UsersListLoaded({
     required this.users,
     required this.hasMore,
     required this.totalCount,
     this.isLoadingMore = false,
+    this.stats,
   });
 
   UsersListLoaded copyWith({
@@ -29,17 +31,19 @@ class UsersListLoaded extends UsersListState {
     bool? hasMore,
     int? totalCount,
     bool? isLoadingMore,
+    Map<String, dynamic>? stats,
   }) {
     return UsersListLoaded(
       users: users ?? this.users,
       hasMore: hasMore ?? this.hasMore,
       totalCount: totalCount ?? this.totalCount,
       isLoadingMore: isLoadingMore ?? this.isLoadingMore,
+      stats: stats ?? this.stats,
     );
   }
 
   @override
-  List<Object> get props => [users, hasMore, totalCount, isLoadingMore];
+  List<Object?> get props => [users, hasMore, totalCount, isLoadingMore, stats];
 }
 
 class UsersListError extends UsersListState {

@@ -37,5 +37,11 @@ namespace YemenBooking.Application.DTOs
         /// Total pages
         /// </summary>
         public int TotalPages { get; set; }
+
+        /// <summary>
+        /// بيانات إضافية (ميتا) مثل الإحصائيات المصاحبة للنتيجة
+        /// Optional metadata (e.g., aggregated stats)
+        /// </summary>
+        public object? Metadata { get; set; }
     }
 } 

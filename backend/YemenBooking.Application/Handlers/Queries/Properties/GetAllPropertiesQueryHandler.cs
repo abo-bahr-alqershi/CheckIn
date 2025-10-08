@@ -64,6 +64,20 @@ namespace YemenBooking.Application.Handlers.Queries.Properties
                 // 6. تنفيذ الاستعلام مع الصفحات
                 var result = await ExecutePaginatedQueryAsync(query, request.PageNumber, request.PageSize, cancellationToken);
 
+                // Attach stats metadata on first page
+                if (request.PageNumber == 1)
+                {
+                    var total = result.TotalCount;
+                    var activeCount = await query.CountAsync(p => p.IsApproved, cancellationToken);
+                    var pendingCount = await query.CountAsync(p => !p.IsApproved, cancellationToken);
+                    result.Metadata = new
+                    {
+                        totalProperties = total,
+                        activeProperties = activeCount,
+                        pendingProperties = pendingCount
+                    };
+                }
+
                 _logger.LogInformation("تم الحصول على {Count} كيان من إجمالي {Total} كيان", result.Items.Count(), result.TotalCount);
                 return result;
             }

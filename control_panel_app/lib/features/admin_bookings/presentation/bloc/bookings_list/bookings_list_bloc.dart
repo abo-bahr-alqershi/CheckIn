@@ -119,6 +119,9 @@ class BookingsListBloc extends Bloc<BookingsListEvent, BookingsListState> {
             unitId: event.unitId,
             bookingSource: event.bookingSource,
           ),
+          stats: (bookings.metadata is Map<String, dynamic>)
+              ? (bookings.metadata as Map<String, dynamic>)
+              : null,
         ));
       },
     );

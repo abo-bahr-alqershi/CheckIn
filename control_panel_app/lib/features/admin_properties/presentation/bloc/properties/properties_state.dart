@@ -22,6 +22,7 @@ class PropertiesLoaded extends PropertiesState {
   final bool hasPreviousPage;
   final String? searchTerm;
   final Map<String, dynamic>? activeFilters;
+  final Map<String, dynamic>? stats;
   
   const PropertiesLoaded({
     required this.properties,
@@ -32,12 +33,13 @@ class PropertiesLoaded extends PropertiesState {
     required this.hasPreviousPage,
     this.searchTerm,
     this.activeFilters,
+    this.stats,
   });
   
   @override
   List<Object?> get props => [
     properties, totalCount, currentPage, totalPages,
-    hasNextPage, hasPreviousPage, searchTerm, activeFilters,
+    hasNextPage, hasPreviousPage, searchTerm, activeFilters, stats,
   ];
 }
 
