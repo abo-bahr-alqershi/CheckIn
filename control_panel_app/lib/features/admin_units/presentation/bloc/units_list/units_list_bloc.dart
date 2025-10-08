@@ -1,6 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
 import '../../../domain/entities/unit.dart';
+import '../../../../../core/models/paginated_result.dart';
 import '../../../domain/usecases/get_units_usecase.dart';
 import '../../../domain/usecases/delete_unit_usecase.dart';
 
@@ -36,12 +37,15 @@ class UnitsListBloc extends Bloc<UnitsListEvent, UnitsListState> {
     );
 
     result.fold(
-      (failure) => emit(UnitsListError(message: failure.message)),
-      (units) => emit(UnitsListLoaded(
-        units: units,
-        totalCount: units.length,
-        currentPage: event.pageNumber ?? 1,
-        pageSize: event.pageSize ?? 20,
+      (page) => emit(UnitsListLoaded(
+        units: page.items,
+        totalCount: page.totalCount,
+        currentPage: page.pageNumber,
+        pageSize: page.pageSize,
+        hasMore: page.hasNextPage,
+        stats: (page.metadata is Map<String, dynamic>)
+            ? (page.metadata as Map<String, dynamic>)
+            : null,
       )),
     );
   }
@@ -64,12 +68,16 @@ class UnitsListBloc extends Bloc<UnitsListEvent, UnitsListState> {
 
       result.fold(
         (failure) => emit(UnitsListError(message: failure.message)),
-        (units) => emit(UnitsListLoaded(
-          units: units,
-          totalCount: units.length,
-          currentPage: 1,
-          pageSize: currentState.pageSize,
+      (page) => emit(UnitsListLoaded(
+          units: page.items,
+          totalCount: page.totalCount,
+          currentPage: page.pageNumber,
+          pageSize: page.pageSize,
           searchQuery: event.query,
+          hasMore: page.hasNextPage,
+          stats: (page.metadata is Map<String, dynamic>)
+              ? (page.metadata as Map<String, dynamic>)
+              : null,
         )),
       );
     }
@@ -107,12 +115,16 @@ class UnitsListBloc extends Bloc<UnitsListEvent, UnitsListState> {
 
       result.fold(
         (failure) => emit(UnitsListError(message: failure.message)),
-        (units) => emit(UnitsListLoaded(
-          units: units,
-          totalCount: units.length,
-          currentPage: 1,
-          pageSize: currentState.pageSize,
+      (page) => emit(UnitsListLoaded(
+          units: page.items,
+          totalCount: page.totalCount,
+          currentPage: page.pageNumber,
+          pageSize: page.pageSize,
           filters: event.filters,
+          hasMore: page.hasNextPage,
+          stats: (page.metadata is Map<String, dynamic>)
+              ? (page.metadata as Map<String, dynamic>)
+              : null,
         )),
       );
     }

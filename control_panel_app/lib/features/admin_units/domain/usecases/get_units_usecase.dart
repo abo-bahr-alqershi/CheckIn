@@ -1,17 +1,18 @@
 import 'package:dartz/dartz.dart' hide Unit;
 import 'package:equatable/equatable.dart';
 import '../../../../../core/error/failures.dart';
+import '../../../../../core/models/paginated_result.dart';
 import '../../../../../core/usecases/usecase.dart';
 import '../entities/unit.dart';
 import '../repositories/units_repository.dart';
 
-class GetUnitsUseCase implements UseCase<List<Unit>, GetUnitsParams> {
+class GetUnitsUseCase implements UseCase<PaginatedResult<Unit>, GetUnitsParams> {
   final UnitsRepository repository;
 
   GetUnitsUseCase(this.repository);
 
   @override
-  Future<Either<Failure, List<Unit>>> call(GetUnitsParams params) async {
+  Future<Either<Failure, PaginatedResult<Unit>>> call(GetUnitsParams params) async {
     return await repository.getUnits(
       pageNumber: params.pageNumber,
       pageSize: params.pageSize,

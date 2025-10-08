@@ -729,7 +729,6 @@ class _UnitsListPageState extends State<UnitsListPage>
       child: BlocBuilder<UnitsListBloc, UnitsListState>(
         builder: (context, state) {
           if (state is! UnitsListLoaded) return const SizedBox.shrink();
-
           return AnimationLimiter(
             child: Container(
               height: 120,
@@ -743,9 +742,16 @@ class _UnitsListPageState extends State<UnitsListPage>
   }
 
   Widget _buildStatsCards(UnitsListLoaded state) {
-    final totalUnits = state.units.length;
-    final availableUnits = state.units.where((u) => u.isAvailable).length;
-    final occupiedUnits = totalUnits - availableUnits;
+    // Prefer backend-provided stats when available
+    final totalUnits = state.stats != null && state.stats!['totalUnits'] != null
+        ? int.tryParse('${state.stats!['totalUnits']}') ?? state.totalCount
+        : state.totalCount;
+    final availableUnits = state.stats != null && state.stats!['availableUnits'] != null
+        ? int.tryParse('${state.stats!['availableUnits']}') ?? 0
+        : state.units.where((u) => u.isAvailable).length;
+    final occupiedUnits = state.stats != null && state.stats!['occupiedUnits'] != null
+        ? int.tryParse('${state.stats!['occupiedUnits']}') ?? (totalUnits - availableUnits)
+        : (totalUnits - availableUnits);
     final occupancyRate = totalUnits > 0
         ? ((occupiedUnits / totalUnits) * 100).toStringAsFixed(0)
         : '0';

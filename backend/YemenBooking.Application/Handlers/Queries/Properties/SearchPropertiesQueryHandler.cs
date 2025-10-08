@@ -191,13 +191,28 @@ namespace YemenBooking.Application.Handlers.Queries.Properties
             }).ToList();
 
             _logger.LogInformation("تم جلب {Count} كيان من إجمالي {TotalCount} بعد البحث المتقدم", dtos.Count, totalCount);
-            return new PaginatedResult<PropertyDto>
+            var page = new PaginatedResult<PropertyDto>
             {
                 Items = dtos,
                 PageNumber = request.PageNumber,
                 PageSize = request.PageSize,
                 TotalCount = totalCount
             };
+
+            // Attach stats metadata on first page to power dashboard/home widgets
+            if (request.PageNumber == 1)
+            {
+                var activeCount = propertiesList.Count(p => p.IsApproved);
+                var pendingCount = propertiesList.Count(p => !p.IsApproved);
+                page.Metadata = new
+                {
+                    totalProperties = totalCount,
+                    activeProperties = activeCount,
+                    pendingProperties = pendingCount
+                };
+            }
+
+            return page;
         }
         #endregion
     }

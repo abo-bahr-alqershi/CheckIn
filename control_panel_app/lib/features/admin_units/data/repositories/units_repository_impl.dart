@@ -4,6 +4,7 @@ import '../../../../../core/error/exceptions.dart';
 import '../../../../../core/error/failures.dart';
 import '../../../../../core/network/network_info.dart';
 import '../../domain/entities/unit.dart';
+import '../../../../../core/models/paginated_result.dart';
 import '../../domain/entities/unit_type.dart';
 import '../../domain/repositories/units_repository.dart';
 import '../datasources/units_local_datasource.dart';
@@ -21,7 +22,7 @@ class UnitsRepositoryImpl implements UnitsRepository {
   });
 
   @override
-  Future<Either<Failure, List<Unit>>> getUnits({
+  Future<Either<Failure, PaginatedResult<Unit>>> getUnits({
     int? pageNumber,
     int? pageSize,
     String? propertyId,
@@ -63,8 +64,14 @@ class UnitsRepositoryImpl implements UnitsRepository {
           longitude: longitude,
           radiusKm: radiusKm,
         );
-        await localDataSource.cacheUnits(remoteUnits);
-        return Right(remoteUnits);
+        await localDataSource.cacheUnits(remoteUnits.items.map((e) => e as UnitModel).toList());
+        return Right(PaginatedResult<Unit>(
+          items: remoteUnits.items,
+          pageNumber: remoteUnits.pageNumber,
+          pageSize: remoteUnits.pageSize,
+          totalCount: remoteUnits.totalCount,
+          metadata: remoteUnits.metadata,
+        ));
       } on ServerException catch (e) {
         return Left(ServerFailure(e.message));
       } on DioException catch (e) {
@@ -75,7 +82,12 @@ class UnitsRepositoryImpl implements UnitsRepository {
     } else {
       try {
         final localUnits = await localDataSource.getCachedUnits();
-        return Right(localUnits);
+        return Right(PaginatedResult<Unit>(
+          items: localUnits,
+          pageNumber: 1,
+          pageSize: localUnits.length,
+          totalCount: localUnits.length,
+        ));
       } on CacheException {
         return const Left(CacheFailure('لا توجد بيانات محفوظة'));
       }
