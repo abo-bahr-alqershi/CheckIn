@@ -29,8 +29,27 @@ namespace YemenBooking.Application.Mappings
 
             // Booking details including payments and services
             CreateMap<Booking, BookingDetailsDto>()
-                .ForMember(dest => dest.PaymentDetails, opt => opt.MapFrom(src => src.Payments))
-                .ForMember(dest => dest.ContactInfo, opt => opt.MapFrom(src => new ContactInfoDto { PhoneNumber = src.User.Phone ?? "", Email = src.User.Email ?? "" }));
+                // Map contact info
+                .ForMember(dest => dest.ContactInfo, opt => opt.MapFrom(src => new ContactInfoDto { PhoneNumber = src.User.Phone ?? string.Empty, Email = src.User.Email ?? string.Empty }))
+                // Map totals and currency from Money value object
+                .ForMember(dest => dest.TotalAmount, opt => opt.MapFrom(src => src.TotalPrice.Amount))
+                .ForMember(dest => dest.Currency, opt => opt.MapFrom(src => src.TotalPrice.Currency))
+                // Map convenience date fields
+                .ForMember(dest => dest.BookingDate, opt => opt.MapFrom(src => src.BookedAt))
+                .ForMember(dest => dest.CheckInDate, opt => opt.MapFrom(src => src.CheckIn))
+                .ForMember(dest => dest.CheckOutDate, opt => opt.MapFrom(src => src.CheckOut))
+                // Map related names for display
+                .ForMember(dest => dest.UserName, opt => opt.MapFrom(src => src.User.Name))
+                .ForMember(dest => dest.UnitName, opt => opt.MapFrom(src => src.Unit.Name))
+                // Map payment details list from payments
+                .ForMember(dest => dest.PaymentDetails, opt => opt.MapFrom(src => src.Payments));
+
+            // Map Payment -> BookingDetailsDto.PaymentDetailsDto
+            CreateMap<Payment, BookingDetailsDto.PaymentDetailsDto>()
+                .ForMember(dest => dest.Amount, opt => opt.MapFrom(src => src.Amount.Amount))
+                .ForMember(dest => dest.PaymentMethod, opt => opt.MapFrom(src => src.Method.ToString()))
+                .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()))
+                .ForMember(dest => dest.PaymentDate, opt => opt.MapFrom(src => src.PaymentDate));
 
             // Notification mapping
             CreateMap<Notification, NotificationDto>()
