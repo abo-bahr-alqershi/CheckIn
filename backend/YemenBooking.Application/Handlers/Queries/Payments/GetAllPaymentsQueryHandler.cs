@@ -89,7 +89,25 @@ namespace YemenBooking.Application.Handlers.Queries.Payments
                 .Select(p => _mapper.Map<PaymentDto>(p))
                 .ToListAsync(cancellationToken);
 
-            return new PaginatedResult<PaymentDto>(items, pageNumber, pageSize, totalCount);
+            var result = new PaginatedResult<PaymentDto>(items, pageNumber, pageSize, totalCount);
+            if (pageNumber == 1)
+            {
+                var successful = await queryable.CountAsync(p => p.Status == PaymentStatus.Successful, cancellationToken);
+                var pending = await queryable.CountAsync(p => p.Status == PaymentStatus.Pending, cancellationToken);
+                var failed = await queryable.CountAsync(p => p.Status == PaymentStatus.Failed, cancellationToken);
+                var refunded = await queryable.CountAsync(p => p.Status == PaymentStatus.Refunded || p.Status == PaymentStatus.PartiallyRefunded, cancellationToken);
+                var totalAmount = await queryable.SumAsync(p => p.Amount.Amount, cancellationToken);
+                result.Metadata = new
+                {
+                    totalPayments = totalCount,
+                    totalAmount,
+                    successfulPayments = successful,
+                    pendingPayments = pending,
+                    failedPayments = failed,
+                    refundedPayments = refunded
+                };
+            }
+            return result;
         }
     }
 } 

@@ -259,13 +259,27 @@ namespace YemenBooking.Application.Handlers.Queries.Units
                 PageSize = request.PageSize
             }, cancellationToken);
 
-            return new PaginatedResult<UnitDto>
+            var page = new PaginatedResult<UnitDto>
             {
                 Items = dtos,
                 PageNumber = request.PageNumber,
                 PageSize = request.PageSize,
                 TotalCount = totalCount
             };
+
+            if (request.PageNumber == 1)
+            {
+                var availableUnits = unitsList.Count(u => u.IsAvailable);
+                var occupiedUnits = unitsList.Count - availableUnits;
+                page.Metadata = new
+                {
+                    totalUnits = unitsList.Count,
+                    availableUnits,
+                    occupiedUnits
+                };
+            }
+
+            return page;
         }
     }
 }

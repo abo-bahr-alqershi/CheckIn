@@ -656,10 +656,21 @@ class _PropertiesListPageState extends State<PropertiesListPage>
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: BlocBuilder<PropertiesBloc, PropertiesState>(
         builder: (context, state) {
-          final totalProperties =
-              state is PropertiesLoaded ? state.totalCount : 0;
-          const pendingCount = 0; // TODO: Get from state
-          const activeCount = 0; // TODO: Get from state
+          final totalProperties = state is PropertiesLoaded
+              ? (state.stats != null && state.stats!['totalProperties'] != null
+                  ? int.tryParse('${state.stats!['totalProperties']}') ?? state.totalCount
+                  : state.totalCount)
+              : 0;
+          final activeCount = state is PropertiesLoaded
+              ? (state.stats != null && state.stats!['activeProperties'] != null
+                  ? int.tryParse('${state.stats!['activeProperties']}') ?? 0
+                  : 0)
+              : 0;
+          final pendingCount = state is PropertiesLoaded
+              ? (state.stats != null && state.stats!['pendingProperties'] != null
+                  ? int.tryParse('${state.stats!['pendingProperties']}') ?? 0
+                  : 0)
+              : 0;
 
           return SingleChildScrollView(
             scrollDirection: Axis.horizontal,

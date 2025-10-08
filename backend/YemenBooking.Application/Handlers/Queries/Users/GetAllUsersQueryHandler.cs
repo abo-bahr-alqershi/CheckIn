@@ -114,7 +114,21 @@ namespace YemenBooking.Application.Handlers.Queries.Users
             var dtos = users.Select(u => (object)_mapper.Map<UserDto>(u)).ToList();
 
             _logger.LogInformation("تم جلب {Count} مستخدم من إجمالي {TotalCount}", dtos.Count, totalCount);
-            return new PaginatedResult<object>(dtos, pageNumber, pageSize, totalCount);
+            var result = new PaginatedResult<object>(dtos, pageNumber, pageSize, totalCount);
+            if (pageNumber == 1)
+            {
+                var activeUsers = await query.CountAsync(u => u.IsActive, cancellationToken);
+                var inactiveUsers = totalCount - activeUsers;
+                var newUsersLast7Days = await query.CountAsync(u => u.CreatedAt >= DateTime.UtcNow.AddDays(-7), cancellationToken);
+                result.Metadata = new
+                {
+                    totalUsers = totalCount,
+                    activeUsers,
+                    inactiveUsers,
+                    newUsersLast7Days
+                };
+            }
+            return result;
         }
     }
 } 

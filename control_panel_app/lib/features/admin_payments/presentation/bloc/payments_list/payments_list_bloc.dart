@@ -105,6 +105,9 @@ class PaymentsListBloc extends Bloc<PaymentsListEvent, PaymentsListState> {
           startDate: event.startDate,
           endDate: event.endDate,
         ),
+        stats: (payments.metadata is Map<String, dynamic>)
+            ? (payments.metadata as Map<String, dynamic>)
+            : null,
       )),
     );
   }

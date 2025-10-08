@@ -55,13 +55,23 @@ namespace YemenBooking.Application.Handlers.Queries.Services
                 .Take(request.PageSize)
                 .ToList();
 
-            return new PaginatedResult<ServiceDto>
+            var page = new PaginatedResult<ServiceDto>
             {
                 Items = items,
                 PageNumber = request.PageNumber,
                 PageSize = request.PageSize,
                 TotalCount = totalCount
             };
+            if (request.PageNumber == 1)
+            {
+                var paidServices = services.Count(s => s.Price.Amount > 0);
+                page.Metadata = new
+                {
+                    totalServices = services.Count,
+                    paidServices
+                };
+            }
+            return page;
         }
     }
 } 

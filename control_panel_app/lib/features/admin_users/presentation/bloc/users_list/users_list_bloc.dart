@@ -81,6 +81,9 @@ class UsersListBloc extends Bloc<UsersListEvent, UsersListState> {
           users: _allUsers,
           hasMore: _hasMoreData,
           totalCount: paginatedResult.totalCount,
+          stats: (paginatedResult.metadata is Map<String, dynamic>)
+              ? (paginatedResult.metadata as Map<String, dynamic>)
+              : null,
           isLoadingMore: false,
         ));
       },
