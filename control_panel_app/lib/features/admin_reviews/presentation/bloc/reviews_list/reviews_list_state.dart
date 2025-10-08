@@ -19,6 +19,7 @@ class ReviewsListLoaded extends ReviewsListState {
   final int pendingCount;
   final double averageRating;
   final Set<String> approvingReviewIds;
+  final Map<String, dynamic>? stats;
   
   const ReviewsListLoaded({
     required this.reviews,
@@ -26,6 +27,7 @@ class ReviewsListLoaded extends ReviewsListState {
     required this.pendingCount,
     required this.averageRating,
     this.approvingReviewIds = const <String>{},
+    this.stats,
   });
   
   ReviewsListLoaded copyWith({
@@ -34,6 +36,7 @@ class ReviewsListLoaded extends ReviewsListState {
     int? pendingCount,
     double? averageRating,
     Set<String>? approvingReviewIds,
+    Map<String, dynamic>? stats,
   }) {
     return ReviewsListLoaded(
       reviews: reviews ?? this.reviews,
@@ -41,11 +44,12 @@ class ReviewsListLoaded extends ReviewsListState {
       pendingCount: pendingCount ?? this.pendingCount,
       averageRating: averageRating ?? this.averageRating,
       approvingReviewIds: approvingReviewIds ?? this.approvingReviewIds,
+      stats: stats ?? this.stats,
     );
   }
   
   @override
-  List<Object> get props => [reviews, filteredReviews, pendingCount, averageRating, approvingReviewIds];
+  List<Object> get props => [reviews, filteredReviews, pendingCount, averageRating, approvingReviewIds, stats ?? const {}];
 }
 
 class ReviewsListError extends ReviewsListState {
