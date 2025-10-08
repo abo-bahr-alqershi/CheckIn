@@ -39,8 +39,11 @@ class InvoicePdfGenerator {
 
     final currency = booking.totalPrice.currency;
     final bookingReference = _formatBookingReference(booking.id);
-    final invoiceNumber = _generateInvoiceNumber(booking.id);
-    final issueDate = DateTime.now();
+    final invoiceNumber = _generateInvoiceNumber(
+      bookingId: booking.id,
+      bookedAt: booking.bookedAt,
+    );
+    final issueDate = booking.bookedAt;
 
     // Load fonts
     pw.Font arabicFont;
@@ -479,14 +482,11 @@ class InvoicePdfGenerator {
 
     // Pricing Breakdown
     pw.Widget buildPricingBreakdown() {
-      final services = details.services;
-      final basePrice = booking.totalPrice.amount -
-          services.fold(0.0, (sum, s) => sum + s.totalPrice.amount);
-
-      // VAT calculation
-      const vatRate = 0.15;
-      final subtotal = booking.totalPrice.amount / (1 + vatRate);
-      final vat = booking.totalPrice.amount - subtotal;
+    final services = details.services;
+    final servicesTotal =
+      services.fold(0.0, (sum, s) => sum + s.totalPrice.amount);
+    final basePrice = booking.totalPrice.amount - servicesTotal;
+    final subtotal = basePrice + servicesTotal;
 
       return pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.end,
@@ -524,25 +524,18 @@ class InvoicePdfGenerator {
                       arabicFont,
                       arabicBold,
                     )),
-                // Divider
-                pw.Container(
-                  margin: const pw.EdgeInsets.symmetric(horizontal: 12),
-                  height: 1,
-                  color: lightGray,
-                ),
-                // Subtotal
+                if (services.isNotEmpty)
+                  pw.Container(
+                    margin: const pw.EdgeInsets.symmetric(horizontal: 12),
+                    height: 1,
+                    color: lightGray,
+                  ),
                 _buildPriceRowArabic(
-                  'المجموع الفرعي',
+                  'إجمالي الرسوم',
                   _formatMoneyArabic(subtotal, currency),
                   arabicFont,
                   arabicBold,
-                ),
-                // VAT
-                _buildPriceRowArabic(
-                  'ضريبة القيمة المضافة (15%)',
-                  _formatMoneyArabic(vat, currency),
-                  arabicFont,
-                  arabicBold,
+                  isHeader: services.isNotEmpty,
                 ),
                 // Total
                 pw.Container(
@@ -1149,22 +1142,36 @@ class InvoicePdfGenerator {
     }
   }
 
-  static String _generateInvoiceNumber(String bookingId) {
-    final year = DateTime.now().year;
-    final month = DateTime.now().month.toString().padLeft(2, '0');
-    final day = DateTime.now().day.toString().padLeft(2, '0');
-    final hash = bookingId.hashCode.abs() % 100000;
-    return 'INV$year$month$day${hash.toString().padLeft(5, '0')}';
+  static String _generateInvoiceNumber({
+    required String bookingId,
+    required DateTime bookedAt,
+  }) {
+    final sanitizedId = bookingId.replaceAll(RegExp(r'[^A-Za-z0-9]'), '').toUpperCase();
+    final idSegment = sanitizedId.isEmpty
+        ? '000000'
+        : sanitizedId.length >= 6
+            ? sanitizedId.substring(0, 6)
+            : sanitizedId.padRight(6, '0');
+
+    final year = bookedAt.year.toString();
+    final month = bookedAt.month.toString().padLeft(2, '0');
+    final day = bookedAt.day.toString().padLeft(2, '0');
+
+    return 'INV$year$month$day-$idSegment';
   }
 
   static String _formatBookingReference(String bookingId) {
     if (bookingId.isEmpty) return 'N/A';
-    // Format like Booking.com: XXX-XXX-XXXX
-    final hash = bookingId.hashCode.abs().toString();
-    if (hash.length >= 10) {
-      return '${hash.substring(0, 3)}-${hash.substring(3, 6)}-${hash.substring(6, 10)}';
-    }
-    return hash.padRight(10, '0');
+
+    final cleaned =
+        bookingId.replaceAll(RegExp(r'[^A-Za-z0-9]'), '').toUpperCase();
+    if (cleaned.isEmpty) return 'N/A';
+
+    final padded = cleaned.length >= 9
+        ? cleaned.substring(0, 9)
+        : cleaned.padRight(9, '0');
+
+    return '${padded.substring(0, 3)}-${padded.substring(3, 6)}-${padded.substring(6, 9)}';
   }
 
   @visibleForTesting
