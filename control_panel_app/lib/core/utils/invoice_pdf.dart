@@ -2,6 +2,7 @@ import 'dart:typed_data';
 import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
+import 'package:flutter/services.dart' show rootBundle;
 import '../../features/admin_bookings/domain/entities/booking_details.dart';
 import '../utils/formatters.dart';
 
@@ -159,8 +160,20 @@ class InvoicePdfGenerator {
       );
     }
 
-    final arabicFont = await pw.Font.ttf(await PdfGoogleFonts.amiriRegular());
-    final arabicBold = await pw.Font.ttf(await PdfGoogleFonts.amiriBold());
+    // Load bundled fonts to avoid network calls (offline-safe)
+    // Fallback gracefully to Helvetica if assets missing
+    pw.Font arabicFont;
+    pw.Font arabicBold;
+    try {
+      final regularData = await rootBundle.load('assets/fonts/Amiri-Regular.ttf');
+      final boldData = await rootBundle.load('assets/fonts/Amiri-Bold.ttf');
+      arabicFont = pw.Font.ttf(regularData);
+      arabicBold = pw.Font.ttf(boldData);
+    } catch (_) {
+      // Fallback fonts
+      arabicFont = pw.Font.helvetica();
+      arabicBold = pw.Font.helveticaBold();
+    }
 
     doc.addPage(
       pw.MultiPage(

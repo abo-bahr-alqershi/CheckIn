@@ -127,6 +127,8 @@ flutter:
     - assets/images/
     - assets/images/payment/
     - assets/icons/
+    - assets/fonts/Amiri-Regular.ttf
+    - assets/fonts/Amiri-Bold.ttf
 
   # أضف الصور الافتراضية في مجلد assets/images/:
   # - default_property.jpg

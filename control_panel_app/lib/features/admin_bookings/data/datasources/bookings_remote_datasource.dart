@@ -394,12 +394,19 @@ class BookingsRemoteDataSourceImpl implements BookingsRemoteDataSource {
       if (result.success && result.data != null) {
         return BookingModel.fromJson(result.data!);
       } else {
-        throw ServerException(result.message ?? 'Failed to get booking');
+        final String serverMessage = _joinMessageAndErrors(
+          result.message,
+          response.data,
+        );
+        throw ServerException(serverMessage);
       }
     } on DioException catch (e) {
-      throw ServerException(
-        e.response?.data['message'] ?? 'Network error occurred',
+      final data = e.response?.data;
+      final message = _joinMessageAndErrors(
+        data is Map<String, dynamic> ? data['message'] : null,
+        data,
       );
+      throw ServerException(message);
     }
   }
 
@@ -417,14 +424,38 @@ class BookingsRemoteDataSourceImpl implements BookingsRemoteDataSource {
       if (result.success && result.data != null) {
         return BookingDetailsModel.fromJson(result.data!);
       } else {
-        throw ServerException(
-            result.message ?? 'Failed to get booking details');
+        final String serverMessage = _joinMessageAndErrors(
+          result.message,
+          response.data,
+        );
+        throw ServerException(serverMessage);
       }
     } on DioException catch (e) {
-      throw ServerException(
-        e.response?.data['message'] ?? 'Network error occurred',
+      final data = e.response?.data;
+      final message = _joinMessageAndErrors(
+        data is Map<String, dynamic> ? data['message'] : null,
+        data,
       );
+      throw ServerException(message);
     }
+  }
+
+  String _joinMessageAndErrors(String? message, dynamic responseData) {
+    try {
+      if (responseData is Map<String, dynamic>) {
+        final errs = responseData['errors'];
+        if (errs is List) {
+          final combined = errs.map((e) => e.toString()).where((e) => e.isNotEmpty).join(' / ');
+          if (combined.isNotEmpty) {
+            if (message != null && message.isNotEmpty && message != 'حدثت أخطاء متعددة') {
+              return '$message\n$combined';
+            }
+            return combined;
+          }
+        }
+      }
+    } catch (_) {}
+    return message ?? 'Network error occurred';
   }
 
   @override
