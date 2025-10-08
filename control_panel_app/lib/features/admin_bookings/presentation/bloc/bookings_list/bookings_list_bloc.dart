@@ -58,7 +58,11 @@ class BookingsListBloc extends Bloc<BookingsListEvent, BookingsListState> {
     LoadBookingsEvent event,
     Emitter<BookingsListState> emit,
   ) async {
-    emit(BookingsListLoading());
+    // لا تعرض حالة التحميل إذا كان لدينا بيانات حالية لتجنب الوميض
+    final hasExistingData = state is BookingsListLoaded;
+    if (!hasExistingData) {
+      emit(BookingsListLoading());
+    }
 
     // حفظ قيم الفلاتر
     _currentStartDate = event.startDate;
@@ -84,19 +88,39 @@ class BookingsListBloc extends Bloc<BookingsListEvent, BookingsListState> {
     );
 
     result.fold(
-      (failure) => emit(BookingsListError(message: failure.message)),
-      (bookings) => emit(BookingsListLoaded(
-        bookings: bookings,
-        selectedBookings: const [],
-        filters: BookingFilters(
-          startDate: event.startDate,
-          endDate: event.endDate,
-          userId: event.userId,
-          guestNameOrEmail: event.guestNameOrEmail,
-          unitId: event.unitId,
-          bookingSource: event.bookingSource,
-        ),
-      )),
+      (failure) {
+        if (hasExistingData) {
+          // في حال الفشل ومع وجود بيانات حالية، أبقِ البيانات واظهر فشل العملية
+          final current = state as BookingsListLoaded;
+          emit(BookingOperationFailure(
+            bookings: current.bookings,
+            selectedBookings: current.selectedBookings,
+            message: failure.message,
+          ));
+        } else {
+          emit(BookingsListError(message: failure.message));
+        }
+      },
+      (bookings) {
+        // دمج الاختيار الحالي إن وجد
+        final selected = state is BookingsListLoaded
+            ? (state as BookingsListLoaded).selectedBookings
+            : const <Booking>[];
+        emit(BookingsListLoaded(
+          bookings: bookings,
+          selectedBookings: selected
+              .where((b) => bookings.items.any((nb) => nb.id == b.id))
+              .toList(),
+          filters: BookingFilters(
+            startDate: event.startDate,
+            endDate: event.endDate,
+            userId: event.userId,
+            guestNameOrEmail: event.guestNameOrEmail,
+            unitId: event.unitId,
+            bookingSource: event.bookingSource,
+          ),
+        ));
+      },
     );
   }
 
@@ -364,6 +388,14 @@ class BookingsListBloc extends Bloc<BookingsListEvent, BookingsListState> {
     ChangePageEvent event,
     Emitter<BookingsListState> emit,
   ) async {
+    // إذا كنا بالفعل في الصفحة المطلوبة، تجاهل لتجنب إعادة التحميل غير الضرورية
+    if (state is BookingsListLoaded) {
+      final current = state as BookingsListLoaded;
+      if (current.bookings.pageNumber == event.pageNumber) {
+        return;
+      }
+    }
+
     add(LoadBookingsEvent(
       startDate: _currentStartDate ??
           DateTime.now().subtract(const Duration(days: 30)),
@@ -381,6 +413,10 @@ class BookingsListBloc extends Bloc<BookingsListEvent, BookingsListState> {
     ChangePageSizeEvent event,
     Emitter<BookingsListState> emit,
   ) async {
+    if (event.pageSize == _currentPageSize) {
+      return;
+    }
+
     add(LoadBookingsEvent(
       startDate: _currentStartDate ??
           DateTime.now().subtract(const Duration(days: 30)),

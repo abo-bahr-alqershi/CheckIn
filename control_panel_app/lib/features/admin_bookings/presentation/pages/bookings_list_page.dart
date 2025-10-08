@@ -68,14 +68,22 @@ class _BookingsListPageState extends State<BookingsListPage>
     final end =
         widget.initialEndDate ?? DateTime.now().add(const Duration(days: 1));
 
-    context.read<BookingsListBloc>().add(
-          LoadBookingsEvent(
-            startDate: start,
-            endDate: end,
-            pageNumber: 1,
-            pageSize: 50,
-          ),
-        );
+    // منع إرسال حدث مكرر إذا كانت نفس النطاقات مُحمَّلة بالفعل
+    final bloc = context.read<BookingsListBloc>();
+    final state = bloc.state;
+    if (state is BookingsListLoaded) {
+      final f = state.filters;
+      if (f?.startDate == start && f?.endDate == end) {
+        return; // لا تعيد التحميل بنفس النطاق
+      }
+    }
+
+    bloc.add(LoadBookingsEvent(
+      startDate: start,
+      endDate: end,
+      pageNumber: 1,
+      pageSize: 50,
+    ));
   }
 
   void _setupScrollListener() {
@@ -687,16 +695,13 @@ class _BookingsListPageState extends State<BookingsListPage>
     return BlocBuilder<BookingsListBloc, BookingsListState>(
       builder: (context, state) {
         if (state is BookingsListLoading) {
-          // Keep layout stable to avoid flicker: show loader only when not previously loaded
-          final previous = context.read<BookingsListBloc>().state;
-          if (previous is! BookingsListLoaded) {
-            return const SliverFillRemaining(
-              child: LoadingWidget(
-                type: LoadingType.futuristic,
-                message: 'جاري تحميل الحجوزات...',
-              ),
-            );
-          }
+          // لا نظهر رسالة فارغة أثناء التحميل الأولي فقط، لتجنب الوميض
+          return const SliverFillRemaining(
+            child: LoadingWidget(
+              type: LoadingType.futuristic,
+              message: 'جاري تحميل الحجوزات...',
+            ),
+          );
         }
 
         if (state is BookingsListError) {
