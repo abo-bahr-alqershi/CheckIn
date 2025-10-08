@@ -39,12 +39,7 @@ public class Property : BaseEntity<Guid>
     [Display(Name = "وصف قصير للكيان")]
     public string? ShortDescription { get; set; }
     
-    /// <summary>
-    /// السعر الأساسي لليلة الواحدة
-    /// Base price per night
-    /// </summary>
-    [Display(Name = "السعر الأساسي لليلة الواحدة")]
-    public decimal BasePricePerNight { get; set; }
+    
     
     /// <summary>
     /// عنوان الكيان

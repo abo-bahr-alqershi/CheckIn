@@ -11,7 +11,6 @@ class Property extends Equatable {
   final String typeId;
   final String name;
   final String? shortDescription;
-  final double basePricePerNight;
   final String address;
   final String city;
   final double? latitude;
@@ -39,7 +38,6 @@ class Property extends Equatable {
     required this.typeId,
     required this.name,
     this.shortDescription,
-    this.basePricePerNight = 0.0,
     required this.address,
     required this.city,
     this.latitude,
@@ -69,8 +67,7 @@ class Property extends Equatable {
   
   @override
   List<Object?> get props => [
-    id, ownerId, typeId, name, shortDescription, basePricePerNight,
-    address, city, latitude, longitude, starRating, description,
+    id, ownerId, typeId, name, shortDescription, address, city, latitude, longitude, starRating, description,
     isApproved, createdAt, viewCount, bookingCount, averageRating,
     currency, isFeatured, ownerName, typeName, distanceKm, 
     images, amenities, policies, stats,

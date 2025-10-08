@@ -56,7 +56,6 @@ class CreatePropertyEvent extends PropertiesEvent {
   final List<String>? amenityIds;
   final String? tempKey;
   final String shortDescription;
-  final double basePricePerNight;
   final String currency;
   final bool isFeatured;
   
@@ -74,7 +73,6 @@ class CreatePropertyEvent extends PropertiesEvent {
     this.amenityIds, 
     this.tempKey,
     required this.shortDescription, 
-    required this.basePricePerNight, 
     required this.currency, 
     required this.isFeatured,
   });
@@ -83,7 +81,7 @@ class CreatePropertyEvent extends PropertiesEvent {
   List<Object?> get props => [
     name, address, propertyTypeId, ownerId, description,
     latitude, longitude, city, starRating, images, amenityIds, tempKey,
-    shortDescription, basePricePerNight, currency, isFeatured,
+    shortDescription, currency, isFeatured,
   ];
 }
 
@@ -98,7 +96,6 @@ class UpdatePropertyEvent extends PropertiesEvent {
   final int? starRating;
   final List<String>? images;
   final String? shortDescription;
-  final double? basePricePerNight;
   final String? currency;
   final bool? isFeatured;
   
@@ -113,7 +110,6 @@ class UpdatePropertyEvent extends PropertiesEvent {
     this.starRating,
     this.images,
     this.shortDescription,
-    this.basePricePerNight,
     this.currency,
     this.isFeatured,
   });
@@ -122,7 +118,7 @@ class UpdatePropertyEvent extends PropertiesEvent {
   List<Object?> get props => [
     propertyId, name, address, description,
     latitude, longitude, city, starRating, images,
-    shortDescription, basePricePerNight, currency, isFeatured,
+    shortDescription, currency, isFeatured,
   ];
 }
 

@@ -105,7 +105,6 @@ namespace YemenBooking.Application.Handlers.Commands.Properties
                 Description = request.Description,
                 City = request.City.Trim(),
                 Currency = string.IsNullOrWhiteSpace(request.Currency) ? "YER" : request.Currency!.ToUpperInvariant(),
-                BasePricePerNight = request.BasePricePerNight ?? 0m,
                 Latitude = (decimal)request.Latitude,
                 Longitude = (decimal)request.Longitude,
                 StarRating = request.StarRating,

@@ -85,7 +85,6 @@ public class CreatePropertyCommand : IRequest<ResultDto<Guid>>
     /// السعر الأساسي لليلة
     /// Base price per night
     /// </summary>
-    public decimal? BasePricePerNight { get; set; }
 
     /// <summary>
     /// رمز العملة (YER, USD, ...)

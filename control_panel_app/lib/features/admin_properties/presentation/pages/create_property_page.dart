@@ -268,7 +268,6 @@ class _CreatePropertyViewState extends State<_CreatePropertyView>
   String _currency = 'YER';
   String? _selectedCity;
   final _shortDescriptionController = TextEditingController();
-  final _basePriceController = TextEditingController();
   
   // Track if widget is mounted
   bool _isDisposed = false;
@@ -334,7 +333,6 @@ class _CreatePropertyViewState extends State<_CreatePropertyView>
     _latitudeController.dispose();
     _longitudeController.dispose();
     _shortDescriptionController.dispose();
-    _basePriceController.dispose();
     super.dispose();
   }
   
@@ -652,21 +650,6 @@ class _CreatePropertyViewState extends State<_CreatePropertyView>
           const SizedBox(height: 20),
           Row(
             children: [
-              Expanded(
-                child: _buildInputField(
-                  controller: _basePriceController,
-                  label: 'السعر الأساسي',
-                  hint: '0.0',
-                  icon: Icons.attach_money_rounded,
-                  keyboardType: TextInputType.number,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) return 'أدخل السعر';
-                    if (double.tryParse(value) == null) return 'رقم غير صالح';
-                    return null;
-                  },
-                ),
-              ),
-              const SizedBox(width: 16),
               Expanded(
                 child: _CurrencyDropdown(
                   value: _currency,
@@ -1649,7 +1632,6 @@ void _submitForm() {
         shortDescription: (_shortDescriptionController.text.isNotEmpty
                 ? _shortDescriptionController.text
                 : _descriptionController.text).trim(),
-        basePricePerNight: double.tryParse(_basePriceController.text) ?? 0.0,
         currency: _currency,
         isFeatured: false,
       ),

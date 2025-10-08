@@ -73,7 +73,6 @@ public class UpdatePropertyCommand : IRequest<ResultDto<bool>>
     /// السعر الأساسي لليلة
     /// Base price per night
     /// </summary>
-    public decimal? BasePricePerNight { get; set; }
 
     /// <summary>
     /// رمز العملة

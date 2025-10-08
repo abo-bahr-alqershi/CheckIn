@@ -89,7 +89,7 @@ class _EditPropertyPageContentState extends State<_EditPropertyPageContent>
   final _latitudeController = TextEditingController();
   final _longitudeController = TextEditingController();
   final _shortDescriptionController = TextEditingController();
-  final _basePriceController = TextEditingController();
+  
 
   // State
   String? _selectedPropertyTypeId;
@@ -190,7 +190,7 @@ class _EditPropertyPageContentState extends State<_EditPropertyPageContent>
         _descriptionController.text = property.description;
         _latitudeController.text = property.latitude?.toString() ?? '';
         _longitudeController.text = property.longitude?.toString() ?? '';
-        _basePriceController.text = property.basePricePerNight.toString();
+        
         _selectedPropertyTypeId = property.typeId;
         _starRating = property.starRating;
         _isFeatured = property.isFeatured;
@@ -215,7 +215,7 @@ class _EditPropertyPageContentState extends State<_EditPropertyPageContent>
     _latitudeController.dispose();
     _longitudeController.dispose();
     _shortDescriptionController.dispose();
-    _basePriceController.dispose();
+    
     super.dispose();
   }
 
@@ -512,24 +512,6 @@ class _EditPropertyPageContentState extends State<_EditPropertyPageContent>
           Row(
             children: [
               Expanded(
-                child: _buildInputField(
-                  controller: _basePriceController,
-                  label: 'السعر الأساسي',
-                  icon: Icons.attach_money_rounded,
-                  keyboardType: TextInputType.number,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'يرجى إدخال السعر';
-                    }
-                    if (double.tryParse(value) == null) {
-                      return 'يرجى إدخال رقم صحيح';
-                    }
-                    return null;
-                  },
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
                   child: _CurrencyDropdown(
                       value: _currency,
                       onChanged: (v) => setState(() => _currency = v))),
@@ -736,7 +718,6 @@ class _EditPropertyPageContentState extends State<_EditPropertyPageContent>
               {'label': 'الاسم', 'value': _nameController.text},
               {'label': 'النوع', 'value': _currentProperty?.typeName ?? ''},
               {'label': 'التقييم', 'value': '$_starRating نجوم'},
-              {'label': 'السعر', 'value': _basePriceController.text},
               {'label': 'العملة', 'value': _currency},
               {'label': 'مميز', 'value': _isFeatured ? 'نعم' : 'لا'},
             ],
@@ -1488,7 +1469,6 @@ class _EditPropertyPageContentState extends State<_EditPropertyPageContent>
               shortDescription: _shortDescriptionController.text.isNotEmpty
                   ? _shortDescriptionController.text
                   : null,
-              basePricePerNight: double.tryParse(_basePriceController.text),
               currency: _currency,
               isFeatured: _isFeatured,
             ),
@@ -1501,9 +1481,7 @@ class _EditPropertyPageContentState extends State<_EditPropertyPageContent>
       case 0:
         return _nameController.text.isNotEmpty &&
             _selectedPropertyTypeId != null &&
-            _descriptionController.text.isNotEmpty &&
-            _basePriceController.text.isNotEmpty &&
-            double.tryParse(_basePriceController.text) != null;
+            _descriptionController.text.isNotEmpty;
       case 1:
         final lat = double.tryParse(_latitudeController.text);
         final lng = double.tryParse(_longitudeController.text);
