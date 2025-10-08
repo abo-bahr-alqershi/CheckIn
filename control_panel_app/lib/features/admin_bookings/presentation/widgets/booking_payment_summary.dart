@@ -25,11 +25,13 @@ class BookingPaymentSummary extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final effectivePayments = bookingDetails?.payments ?? payments;
-    final totalPriceMoney = bookingDetails?.booking.totalPrice ?? booking.totalPrice;
-    final totalPaidMoney =
-        bookingDetails?.totalPaid ?? _calculateTotalPaidMoney(effectivePayments, totalPriceMoney.currency);
+    final totalPriceMoney =
+        bookingDetails?.booking.totalPrice ?? booking.totalPrice;
+    final totalPaidMoney = bookingDetails?.totalPaid ??
+        _calculateTotalPaidMoney(effectivePayments, totalPriceMoney.currency);
     final remainingMoney = bookingDetails?.remainingAmount ??
-        _createMoney(totalPriceMoney.amount - totalPaidMoney.amount, totalPriceMoney.currency);
+        _createMoney(totalPriceMoney.amount - totalPaidMoney.amount,
+            totalPriceMoney.currency);
     final isFullyPaid = remainingMoney.amount <= 0;
 
     return Container(
@@ -69,7 +71,8 @@ class BookingPaymentSummary extends StatelessWidget {
               children: [
                 _buildHeader(isFullyPaid),
                 _buildSummary(totalPriceMoney, totalPaidMoney, remainingMoney),
-                if (effectivePayments.isNotEmpty) _buildPaymentsList(effectivePayments),
+                if (effectivePayments.isNotEmpty)
+                  _buildPaymentsList(effectivePayments),
                 _buildFooter(isFullyPaid),
               ],
             ),

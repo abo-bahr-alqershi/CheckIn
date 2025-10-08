@@ -10,7 +10,8 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('BookingPaymentSummary', () {
-    testWidgets('renders totals using booking details money values', (tester) async {
+    testWidgets('renders totals using booking details money values',
+        (tester) async {
       const totalPrice = Money(
         amount: 300,
         currency: 'USD',
