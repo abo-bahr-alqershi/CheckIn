@@ -167,8 +167,8 @@ class InvoicePdfGenerator {
 
     // بناء معلومات الضيف والحجز بتصميم محسّن
     pw.Widget buildEnhancedGuestPropertyInfo() {
-      // حساب عدد الضيوف - استخدام قيمة افتراضية إذا لم تكن موجودة
-      final guestCount = booking.adults + booking.children;
+      // حساب عدد الضيوف
+      final guestCount = booking.guestsCount;
 
       return pw.Row(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -242,7 +242,8 @@ class InvoicePdfGenerator {
                     ),
                   ),
                   pw.SizedBox(height: 10),
-                  _buildDetailRow('الوحدة', booking.unitName),
+                  if (booking.unitName.isNotEmpty)
+                    _buildDetailRow('الوحدة', booking.unitName),
                   _buildDetailRow(
                       'تاريخ الوصول', Formatters.formatDate(booking.checkIn)),
                   _buildDetailRow('تاريخ المغادرة',

@@ -82,8 +82,14 @@ namespace YemenBooking.Application.Handlers.Queries.Bookings
                     return ResultDto<BookingDetailsDto>.Failure("ليس لديك صلاحية لعرض هذا الحجز");
                 }
 
-                // التحويل إلى DTO
+                // التحويل إلى DTO مع حقول المبالغ والعملة
                 var detailsDto = _mapper.Map<BookingDetailsDto>(booking);
+                // Ensure totals/currency are populated even if mapper config changes
+                detailsDto.TotalAmount = booking.TotalPrice.Amount;
+                detailsDto.Currency = booking.TotalPrice.Currency;
+                detailsDto.BookingDate = booking.BookedAt;
+                detailsDto.CheckInDate = booking.CheckIn;
+                detailsDto.CheckOutDate = booking.CheckOut;
 
                 // enrich with unit and property information for admin details page
                 var unit = await _unitRepository.GetByIdAsync(booking.UnitId, cancellationToken);
