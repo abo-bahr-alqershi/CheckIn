@@ -4,6 +4,8 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
+
+import 'arabic_text_utils.dart';
 import '../../features/admin_bookings/domain/entities/booking.dart';
 import '../../features/admin_bookings/domain/entities/booking_details.dart';
 import '../utils/formatters.dart';
@@ -83,7 +85,7 @@ class InvoicePdfGenerator {
                       color: primaryBlue,
                       borderRadius: pw.BorderRadius.circular(4),
                     ),
-                    child: pw.Text(
+                    child: _rtlText(
                       'فاتورة',
                       style: pw.TextStyle(
                         font: arabicBold,
@@ -94,7 +96,7 @@ class InvoicePdfGenerator {
                     ),
                   ),
                   pw.SizedBox(height: 8),
-                  pw.Text(
+                  _rtlText(
                     'رقم الفاتورة: $invoiceNumber',
                     style: pw.TextStyle(
                       font: arabicBold,
@@ -103,7 +105,7 @@ class InvoicePdfGenerator {
                       color: black,
                     ),
                   ),
-                  pw.Text(
+                  _rtlText(
                     'التاريخ: ${DateFormat('dd/MM/yyyy').format(issueDate)}',
                     style: pw.TextStyle(
                       font: arabicFont,
@@ -125,7 +127,7 @@ class InvoicePdfGenerator {
                       fit: pw.BoxFit.contain,
                     )
                   else
-                    pw.Text(
+                    _rtlText(
                       'يمن بوكينج',
                       style: pw.TextStyle(
                         font: arabicBold,
@@ -133,9 +135,10 @@ class InvoicePdfGenerator {
                         fontWeight: pw.FontWeight.bold,
                         color: primaryBlue,
                       ),
+                      textAlign: pw.TextAlign.right,
                     ),
                   pw.SizedBox(height: 4),
-                  pw.Text(
+                  _rtlText(
                     'منصة الحجوزات الإلكترونية',
                     style: pw.TextStyle(
                       font: arabicFont,
@@ -175,7 +178,7 @@ class InvoicePdfGenerator {
                     color: _getStatusColor(booking.status.name),
                     borderRadius: pw.BorderRadius.circular(12),
                   ),
-                  child: pw.Text(
+                  child: _rtlText(
                     _getStatusTextArabic(booking.status.name),
                     style: pw.TextStyle(
                       font: arabicBold,
@@ -185,7 +188,7 @@ class InvoicePdfGenerator {
                     ),
                   ),
                 ),
-                pw.Text(
+                _rtlText(
                   'تأكيد الحجز',
                   style: pw.TextStyle(
                     font: arabicBold,
@@ -197,7 +200,7 @@ class InvoicePdfGenerator {
               ],
             ),
             pw.SizedBox(height: 8),
-            pw.Text(
+            _rtlText(
               'رقم التأكيد: $bookingReference',
               style: pw.TextStyle(
                 font: arabicBold,
@@ -221,7 +224,7 @@ class InvoicePdfGenerator {
             child: pw.Column(
               crossAxisAlignment: pw.CrossAxisAlignment.end,
               children: [
-                pw.Text(
+                _rtlText(
                   'معلومات المنشأة',
                   style: pw.TextStyle(
                     font: arabicBold,
@@ -259,18 +262,18 @@ class InvoicePdfGenerator {
           pw.SizedBox(width: 20),
           // Guest Information (moved to left for Arabic)
           pw.Expanded(
-            child: pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.end,
-              children: [
-                pw.Text(
-                  'معلومات الضيف',
-                  style: pw.TextStyle(
-                    font: arabicBold,
-                    fontSize: 12,
-                    fontWeight: pw.FontWeight.bold,
-                    color: darkBlue,
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.end,
+                children: [
+                  _rtlText(
+                    'معلومات النزيل',
+                    style: pw.TextStyle(
+                      font: arabicBold,
+                      fontSize: 12,
+                      fontWeight: pw.FontWeight.bold,
+                      color: darkBlue,
+                    ),
                   ),
-                ),
                 pw.SizedBox(height: 8),
                 pw.Container(
                   padding: const pw.EdgeInsets.all(12),
@@ -310,7 +313,7 @@ class InvoicePdfGenerator {
         child: pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.end,
           children: [
-            pw.Text(
+            _rtlText(
               'تفاصيل الحجز',
               style: pw.TextStyle(
                 font: arabicBold,
@@ -339,7 +342,7 @@ class InvoicePdfGenerator {
                     child: _rtlRow(
                       children: [
                         pw.Expanded(
-                          child: pw.Text(
+                          child: _rtlText(
                             'عدد الضيوف',
                             style: pw.TextStyle(
                               font: arabicBold,
@@ -351,7 +354,7 @@ class InvoicePdfGenerator {
                           ),
                         ),
                         pw.Expanded(
-                          child: pw.Text(
+                          child: _rtlText(
                             'الليالي',
                             style: pw.TextStyle(
                               font: arabicBold,
@@ -363,7 +366,7 @@ class InvoicePdfGenerator {
                           ),
                         ),
                         pw.Expanded(
-                          child: pw.Text(
+                          child: _rtlText(
                             'المغادرة',
                             style: pw.TextStyle(
                               font: arabicBold,
@@ -375,7 +378,7 @@ class InvoicePdfGenerator {
                           ),
                         ),
                         pw.Expanded(
-                          child: pw.Text(
+                          child: _rtlText(
                             'الوصول',
                             style: pw.TextStyle(
                               font: arabicBold,
@@ -388,7 +391,7 @@ class InvoicePdfGenerator {
                         ),
                         pw.Expanded(
                           flex: 2,
-                          child: pw.Text(
+                          child: _rtlText(
                             'الوحدة',
                             style: pw.TextStyle(
                               font: arabicBold,
@@ -408,7 +411,7 @@ class InvoicePdfGenerator {
                     child: _rtlRow(
                       children: [
                         pw.Expanded(
-                          child: pw.Text(
+                          child: _rtlText(
                             '$guestCount',
                             style: pw.TextStyle(
                               font: arabicFont,
@@ -419,7 +422,7 @@ class InvoicePdfGenerator {
                           ),
                         ),
                         pw.Expanded(
-                          child: pw.Text(
+                          child: _rtlText(
                             '${booking.nights}',
                             style: pw.TextStyle(
                               font: arabicFont,
@@ -430,7 +433,7 @@ class InvoicePdfGenerator {
                           ),
                         ),
                         pw.Expanded(
-                          child: pw.Text(
+                          child: _rtlText(
                             DateFormat('dd/MM/yyyy').format(booking.checkOut),
                             style: pw.TextStyle(
                               font: arabicFont,
@@ -441,7 +444,7 @@ class InvoicePdfGenerator {
                           ),
                         ),
                         pw.Expanded(
-                          child: pw.Text(
+                          child: _rtlText(
                             DateFormat('dd/MM/yyyy').format(booking.checkIn),
                             style: pw.TextStyle(
                               font: arabicFont,
@@ -453,7 +456,7 @@ class InvoicePdfGenerator {
                         ),
                         pw.Expanded(
                           flex: 2,
-                          child: pw.Text(
+                          child: _rtlText(
                             booking.unitName,
                             style: pw.TextStyle(
                               font: arabicFont,
@@ -488,7 +491,7 @@ class InvoicePdfGenerator {
       return pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.end,
         children: [
-          pw.Text(
+          _rtlText(
             'تفاصيل السعر',
             style: pw.TextStyle(
               font: arabicBold,
@@ -550,7 +553,7 @@ class InvoicePdfGenerator {
                   child: _rtlRow(
                     mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                     children: [
-                      pw.Text(
+                      _rtlText(
                         _formatMoneyArabic(booking.totalPrice.amount, currency),
                         style: pw.TextStyle(
                           font: arabicBold,
@@ -559,7 +562,7 @@ class InvoicePdfGenerator {
                           color: darkBlue,
                         ),
                       ),
-                      pw.Text(
+                      _rtlText(
                         'المبلغ الإجمالي',
                         style: pw.TextStyle(
                           font: arabicBold,
@@ -595,7 +598,7 @@ class InvoicePdfGenerator {
                 child: pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.end,
                   children: [
-                    pw.Text(
+                    _rtlText(
                       'سجل المدفوعات',
                       style: pw.TextStyle(
                         font: arabicBold,
@@ -626,7 +629,7 @@ class InvoicePdfGenerator {
                                     mainAxisAlignment:
                                         pw.MainAxisAlignment.spaceBetween,
                                     children: [
-                                      pw.Text(
+                                      _rtlText(
                                         _formatMoneyArabic(
                                             payment.amount.amount,
                                             payment.amount.currency),
@@ -637,7 +640,7 @@ class InvoicePdfGenerator {
                                           color: green,
                                         ),
                                       ),
-                                      pw.Text(
+                                      _rtlText(
                                         DateFormat('dd/MM/yyyy')
                                             .format(payment.paymentDate),
                                         style: pw.TextStyle(
@@ -672,7 +675,7 @@ class InvoicePdfGenerator {
                 child: pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.end,
                   children: [
-                    pw.Text(
+                    _rtlText(
                       'ملخص المدفوعات',
                       style: pw.TextStyle(
                         font: arabicBold,
@@ -708,7 +711,7 @@ class InvoicePdfGenerator {
                         color: remaining.amount > 0 ? orange : green,
                         borderRadius: pw.BorderRadius.circular(4),
                       ),
-                      child: pw.Text(
+                      child: _rtlText(
                         remaining.amount > 0
                             ? 'الدفع عند الوصول'
                             : 'مدفوع بالكامل',
@@ -718,6 +721,7 @@ class InvoicePdfGenerator {
                           fontWeight: pw.FontWeight.bold,
                           color: white,
                         ),
+                        textAlign: pw.TextAlign.center,
                       ),
                     ),
                   ],
@@ -939,6 +943,27 @@ class InvoicePdfGenerator {
     );
   }
 
+  static String _shapeArabic(String text) => ArabicTextUtils.shape(text);
+
+  static pw.Widget _rtlText(
+    String text, {
+    pw.TextStyle? style,
+    pw.TextAlign textAlign = pw.TextAlign.right,
+    pw.TextOverflow? overflow,
+    int? maxLines,
+  }) {
+    return pw.Directionality(
+      textDirection: pw.TextDirection.rtl,
+      child: pw.Text(
+        _shapeArabic(text),
+        style: style,
+        textAlign: textAlign,
+        overflow: overflow,
+        maxLines: maxLines,
+      ),
+    );
+  }
+
   static pw.Widget _buildInfoRowArabic(
       String label, String value, pw.Font font) {
     return pw.Container(
@@ -948,7 +973,7 @@ class InvoicePdfGenerator {
         children: [
           pw.SizedBox(
             width: 100,
-            child: pw.Text(
+            child: _rtlText(
               label,
               style: pw.TextStyle(
                 font: font,
@@ -958,7 +983,7 @@ class InvoicePdfGenerator {
             ),
           ),
           pw.Expanded(
-            child: pw.Text(
+            child: _rtlText(
               value,
               style: pw.TextStyle(
                 font: font,
@@ -987,7 +1012,7 @@ class InvoicePdfGenerator {
       child: _rtlRow(
         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
         children: [
-          pw.Text(
+          _rtlText(
             amount,
             style: pw.TextStyle(
               font: isHeader ? boldFont : font,
@@ -996,7 +1021,7 @@ class InvoicePdfGenerator {
               color: isHeader ? darkGray : black,
             ),
           ),
-          pw.Text(
+          _rtlText(
             label,
             style: pw.TextStyle(
               font: isHeader ? boldFont : font,
@@ -1018,7 +1043,7 @@ class InvoicePdfGenerator {
       child: _rtlRow(
         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
         children: [
-          pw.Text(
+          _rtlText(
             amount,
             style: pw.TextStyle(
               font: boldFont,
@@ -1027,7 +1052,7 @@ class InvoicePdfGenerator {
               color: color ?? black,
             ),
           ),
-          pw.Text(
+          _rtlText(
             label,
             style: pw.TextStyle(
               font: font,
@@ -1056,7 +1081,7 @@ class InvoicePdfGenerator {
             ),
           ),
           pw.Expanded(
-            child: pw.Text(
+            child: _rtlText(
               text,
               style: pw.TextStyle(
                 font: font,
@@ -1106,26 +1131,6 @@ class InvoicePdfGenerator {
     }
   }
 
-  // Existing helper methods remain unchanged
-  static String _formatMoney(double amount, String currency) {
-    final formatter = NumberFormat('#,##0.00');
-    return '$currency ${formatter.format(amount)}';
-  }
-
-  static String _getStatusText(String status) {
-    switch (status.toLowerCase()) {
-      case 'confirmed':
-        return 'CONFIRMED';
-      case 'pending':
-        return 'PENDING';
-      case 'cancelled':
-        return 'CANCELLED';
-      case 'completed':
-        return 'COMPLETED';
-      default:
-        return status.toUpperCase();
-    }
-  }
 
   static PdfColor _getStatusColor(String status) {
     switch (status.toLowerCase()) {
