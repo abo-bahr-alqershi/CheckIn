@@ -29,10 +29,14 @@ class ArabicTextUtils {
 
   static const Map<int, _ArabicCharData> _chars = {
     0x0621: _ArabicCharData(isolated: 0xFE80),
-    0x0622: _ArabicCharData(isolated: 0xFE81, finalForm: 0xFE82, connectPrev: true),
-    0x0623: _ArabicCharData(isolated: 0xFE83, finalForm: 0xFE84, connectPrev: true),
-    0x0624: _ArabicCharData(isolated: 0xFE85, finalForm: 0xFE86, connectPrev: true),
-    0x0625: _ArabicCharData(isolated: 0xFE87, finalForm: 0xFE88, connectPrev: true),
+    0x0622:
+        _ArabicCharData(isolated: 0xFE81, finalForm: 0xFE82, connectPrev: true),
+    0x0623:
+        _ArabicCharData(isolated: 0xFE83, finalForm: 0xFE84, connectPrev: true),
+    0x0624:
+        _ArabicCharData(isolated: 0xFE85, finalForm: 0xFE86, connectPrev: true),
+    0x0625:
+        _ArabicCharData(isolated: 0xFE87, finalForm: 0xFE88, connectPrev: true),
     0x0626: _ArabicCharData(
       isolated: 0xFE89,
       finalForm: 0xFE8A,
@@ -41,7 +45,8 @@ class ArabicTextUtils {
       connectPrev: true,
       connectNext: true,
     ),
-    0x0627: _ArabicCharData(isolated: 0xFE8D, finalForm: 0xFE8E, connectPrev: true),
+    0x0627:
+        _ArabicCharData(isolated: 0xFE8D, finalForm: 0xFE8E, connectPrev: true),
     0x0628: _ArabicCharData(
       isolated: 0xFE8F,
       finalForm: 0xFE90,
@@ -50,7 +55,8 @@ class ArabicTextUtils {
       connectPrev: true,
       connectNext: true,
     ),
-    0x0629: _ArabicCharData(isolated: 0xFE93, finalForm: 0xFE94, connectPrev: true),
+    0x0629:
+        _ArabicCharData(isolated: 0xFE93, finalForm: 0xFE94, connectPrev: true),
     0x062A: _ArabicCharData(
       isolated: 0xFE95,
       finalForm: 0xFE96,
@@ -91,10 +97,14 @@ class ArabicTextUtils {
       connectPrev: true,
       connectNext: true,
     ),
-    0x062F: _ArabicCharData(isolated: 0xFEA9, finalForm: 0xFEAA, connectPrev: true),
-    0x0630: _ArabicCharData(isolated: 0xFEAB, finalForm: 0xFEAC, connectPrev: true),
-    0x0631: _ArabicCharData(isolated: 0xFEAD, finalForm: 0xFEAE, connectPrev: true),
-    0x0632: _ArabicCharData(isolated: 0xFEAF, finalForm: 0xFEB0, connectPrev: true),
+    0x062F:
+        _ArabicCharData(isolated: 0xFEA9, finalForm: 0xFEAA, connectPrev: true),
+    0x0630:
+        _ArabicCharData(isolated: 0xFEAB, finalForm: 0xFEAC, connectPrev: true),
+    0x0631:
+        _ArabicCharData(isolated: 0xFEAD, finalForm: 0xFEAE, connectPrev: true),
+    0x0632:
+        _ArabicCharData(isolated: 0xFEAF, finalForm: 0xFEB0, connectPrev: true),
     0x0633: _ArabicCharData(
       isolated: 0xFEB1,
       finalForm: 0xFEB2,
@@ -215,8 +225,10 @@ class ArabicTextUtils {
       connectPrev: true,
       connectNext: true,
     ),
-    0x0648: _ArabicCharData(isolated: 0xFEED, finalForm: 0xFEEE, connectPrev: true),
-    0x0649: _ArabicCharData(isolated: 0xFEEF, finalForm: 0xFEF0, connectPrev: true),
+    0x0648:
+        _ArabicCharData(isolated: 0xFEED, finalForm: 0xFEEE, connectPrev: true),
+    0x0649:
+        _ArabicCharData(isolated: 0xFEEF, finalForm: 0xFEF0, connectPrev: true),
     0x064A: _ArabicCharData(
       isolated: 0xFEF1,
       finalForm: 0xFEF2,
@@ -289,7 +301,8 @@ class ArabicTextUtils {
           nextData != null && data.connectNext && nextData.connectPrev;
 
       buffer.writeCharCode(
-        _resolveForm(data, connectsPrev: connectsPrev, connectsNext: connectsNext),
+        _resolveForm(data,
+            connectsPrev: connectsPrev, connectsNext: connectsNext),
       );
       index++;
     }

@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show rootBundle;
@@ -482,11 +483,12 @@ class InvoicePdfGenerator {
 
     // Pricing Breakdown
     pw.Widget buildPricingBreakdown() {
-    final services = details.services;
-    final servicesTotal =
-      services.fold(0.0, (sum, s) => sum + s.totalPrice.amount);
-    final basePrice = booking.totalPrice.amount - servicesTotal;
-    final subtotal = basePrice + servicesTotal;
+      final services = details.services;
+      final servicesTotal = services.fold<double>(
+          0.0, (sum, service) => sum + service.totalPrice.amount);
+      final basePrice =
+          math.max(0.0, booking.totalPrice.amount - servicesTotal);
+      final subtotal = basePrice + servicesTotal;
 
       return pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.end,
@@ -517,19 +519,30 @@ class InvoicePdfGenerator {
                   isHeader: false,
                 ),
                 // Additional services
-                ...services.map((service) => _buildPriceRowArabic(
-                      '${service.name} (${service.quantity}x)',
-                      _formatMoneyArabic(service.totalPrice.amount,
-                          service.totalPrice.currency),
-                      arabicFont,
-                      arabicBold,
-                    )),
-                if (services.isNotEmpty)
+                ...services.map(
+                  (service) => _buildPriceRowArabic(
+                    '${service.name} (${service.quantity}x)',
+                    _formatMoneyArabic(
+                      service.totalPrice.amount,
+                      service.totalPrice.currency,
+                    ),
+                    arabicFont,
+                    arabicBold,
+                  ),
+                ),
+                if (services.isNotEmpty) ...[
+                  _buildPriceRowArabic(
+                    'إجمالي الخدمات الإضافية',
+                    _formatMoneyArabic(servicesTotal, currency),
+                    arabicFont,
+                    arabicBold,
+                  ),
                   pw.Container(
                     margin: const pw.EdgeInsets.symmetric(horizontal: 12),
                     height: 1,
                     color: lightGray,
                   ),
+                ],
                 _buildPriceRowArabic(
                   'إجمالي الرسوم',
                   _formatMoneyArabic(subtotal, currency),
@@ -1146,7 +1159,8 @@ class InvoicePdfGenerator {
     required String bookingId,
     required DateTime bookedAt,
   }) {
-    final sanitizedId = bookingId.replaceAll(RegExp(r'[^A-Za-z0-9]'), '').toUpperCase();
+    final sanitizedId =
+        bookingId.replaceAll(RegExp(r'[^A-Za-z0-9]'), '').toUpperCase();
     final idSegment = sanitizedId.isEmpty
         ? '000000'
         : sanitizedId.length >= 6
