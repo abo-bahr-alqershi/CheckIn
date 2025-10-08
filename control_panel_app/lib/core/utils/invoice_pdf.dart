@@ -262,18 +262,18 @@ class InvoicePdfGenerator {
           pw.SizedBox(width: 20),
           // Guest Information (moved to left for Arabic)
           pw.Expanded(
-              child: pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.end,
-                children: [
-                  _rtlText(
-                    'معلومات النزيل',
-                    style: pw.TextStyle(
-                      font: arabicBold,
-                      fontSize: 12,
-                      fontWeight: pw.FontWeight.bold,
-                      color: darkBlue,
-                    ),
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.end,
+              children: [
+                _rtlText(
+                  'معلومات النزيل',
+                  style: pw.TextStyle(
+                    font: arabicBold,
+                    fontSize: 12,
+                    fontWeight: pw.FontWeight.bold,
+                    color: darkBlue,
                   ),
+                ),
                 pw.SizedBox(height: 8),
                 pw.Container(
                   padding: const pw.EdgeInsets.all(12),
@@ -766,7 +766,7 @@ class InvoicePdfGenerator {
                   ),
                 ),
                 pw.SizedBox(width: 8),
-                pw.Text(
+                _rtlText(
                   'معلومات مهمة',
                   style: pw.TextStyle(
                     font: arabicBold,
@@ -818,7 +818,7 @@ class InvoicePdfGenerator {
                 pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.center,
                   children: [
-                    pw.Text(
+                    _rtlText(
                       'خدمة العملاء',
                       style: pw.TextStyle(
                         font: arabicBold,
@@ -826,24 +826,27 @@ class InvoicePdfGenerator {
                         fontWeight: pw.FontWeight.bold,
                         color: darkGray,
                       ),
+                      textAlign: pw.TextAlign.center,
                     ),
                     pw.SizedBox(height: 4),
-                    pw.Text(
-                      '+967 777 123 456',
+                    _rtlText(
+                      '+967 772 878 087',
                       style: pw.TextStyle(
                           font: arabicFont, fontSize: 10, color: gray),
+                      textAlign: pw.TextAlign.center,
                     ),
-                    pw.Text(
+                    _rtlText(
                       'متاح 24/7',
                       style: pw.TextStyle(
                           font: arabicFont, fontSize: 9, color: gray),
+                      textAlign: pw.TextAlign.center,
                     ),
                   ],
                 ),
                 pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.end,
                   children: [
-                    pw.Text(
+                    _rtlText(
                       'منصة يمن بوكينج',
                       style: pw.TextStyle(
                         font: arabicBold,
@@ -853,12 +856,12 @@ class InvoicePdfGenerator {
                       ),
                     ),
                     pw.SizedBox(height: 4),
-                    pw.Text(
+                    _rtlText(
                       'www.yemenbooking.com',
                       style: pw.TextStyle(
                           font: arabicFont, fontSize: 10, color: gray),
                     ),
-                    pw.Text(
+                    _rtlText(
                       'support@yemenbooking.com',
                       style: pw.TextStyle(
                           font: arabicFont, fontSize: 10, color: gray),
@@ -875,7 +878,7 @@ class InvoicePdfGenerator {
                 borderRadius: pw.BorderRadius.circular(4),
               ),
               child: pw.Center(
-                child: pw.Text(
+                child: _rtlText(
                   'شكراً لاختياركم يمن بوكينج. نتمنى لكم إقامة سعيدة!',
                   style: pw.TextStyle(
                     font: arabicBold,
@@ -883,11 +886,12 @@ class InvoicePdfGenerator {
                     fontWeight: pw.FontWeight.bold,
                     color: darkBlue,
                   ),
+                  textAlign: pw.TextAlign.center,
                 ),
               ),
             ),
             pw.SizedBox(height: 8),
-            pw.Text(
+            _rtlText(
               '© ${DateTime.now().year} يمن بوكينج. جميع الحقوق محفوظة. هذه فاتورة إلكترونية صادرة من النظام.',
               style: pw.TextStyle(font: arabicFont, fontSize: 8, color: gray),
               textAlign: pw.TextAlign.center,
@@ -1130,7 +1134,6 @@ class InvoicePdfGenerator {
         return status;
     }
   }
-
 
   static PdfColor _getStatusColor(String status) {
     switch (status.toLowerCase()) {
