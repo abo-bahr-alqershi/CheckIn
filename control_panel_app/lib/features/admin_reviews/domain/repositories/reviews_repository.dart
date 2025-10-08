@@ -2,11 +2,12 @@
 
 import 'package:dartz/dartz.dart';
 import 'package:bookn_cp_app/core/error/failures.dart';
+import 'package:bookn_cp_app/core/models/paginated_result.dart';
 import '../entities/review.dart';
 import '../entities/review_response.dart';
 
 abstract class ReviewsRepository {
-  Future<Either<Failure, List<Review>>> getAllReviews({
+  Future<Either<Failure, PaginatedResult<Review>>> getAllReviews({
     String? status,
     double? minRating,
     double? maxRating,

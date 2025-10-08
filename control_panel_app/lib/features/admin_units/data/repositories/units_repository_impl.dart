@@ -154,8 +154,10 @@ class UnitsRepositoryImpl implements UnitsRepository {
           if (tempKey != null && tempKey.isNotEmpty) 'tempKey': tempKey,
           if (adultCapacity != null) 'adultCapacity': adultCapacity,
           if (childrenCapacity != null) 'childrenCapacity': childrenCapacity,
-          if (allowsCancellation != null) 'allowsCancellation': allowsCancellation,
-          if (cancellationWindowDays != null) 'cancellationWindowDays': cancellationWindowDays,
+          if (allowsCancellation != null)
+            'allowsCancellation': allowsCancellation,
+          if (cancellationWindowDays != null)
+            'cancellationWindowDays': cancellationWindowDays,
         };
         final unitId = await remoteDataSource.createUnit(unitData);
         return Right(unitId);
@@ -192,7 +194,8 @@ class UnitsRepositoryImpl implements UnitsRepository {
           if (fieldValues != null)
             'fieldValues': _convertFieldValuesToString(fieldValues),
           if (images != null) 'images': images,
-          if (allowsCancellation != null) 'allowsCancellation': allowsCancellation,
+          if (allowsCancellation != null)
+            'allowsCancellation': allowsCancellation,
           // Always include cancellationWindowDays when allowsCancellation is explicitly true or when days is provided
           if ((allowsCancellation ?? false) && cancellationWindowDays == null)
             'cancellationWindowDays': null,

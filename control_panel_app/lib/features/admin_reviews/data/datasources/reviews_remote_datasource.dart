@@ -5,11 +5,12 @@ import 'package:bookn_cp_app/core/network/api_client.dart';
 import 'package:bookn_cp_app/core/error/exceptions.dart';
 import 'package:bookn_cp_app/services/local_storage_service.dart';
 import 'package:bookn_cp_app/core/constants/storage_constants.dart';
+import 'package:bookn_cp_app/core/models/paginated_result.dart';
 import '../models/review_model.dart';
 import '../models/review_response_model.dart';
 
 abstract class ReviewsRemoteDataSource {
-  Future<List<ReviewModel>> getAllReviews({
+  Future<PaginatedResult<ReviewModel>> getAllReviews({
     String? status,
     double? minRating,
     double? maxRating,
@@ -46,7 +47,7 @@ class ReviewsRemoteDataSourceImpl implements ReviewsRemoteDataSource {
   ReviewsRemoteDataSourceImpl({required this.apiClient, required this.localStorage});
   
   @override
-  Future<List<ReviewModel>> getAllReviews({
+  Future<PaginatedResult<ReviewModel>> getAllReviews({
     String? status,
     double? minRating,
     double? maxRating,
@@ -82,12 +83,11 @@ class ReviewsRemoteDataSourceImpl implements ReviewsRemoteDataSource {
       
       if (response.statusCode == 200) {
         final body = response.data;
-        final success = (body is Map<String, dynamic>) && (body['success'] == true || body['isSuccess'] == true);
-        if (success) {
-          final data = (body['data'] as List?) ?? const [];
-          return data.map((json) => ReviewModel.fromJson(json)).toList();
-        }
-        throw ServerException((body is Map && body['message'] is String) ? body['message'] as String : 'Failed to load reviews');
+        // Backend now returns PaginatedResult<ReviewDto>
+        return PaginatedResult<ReviewModel>.fromJson(
+          body is Map<String, dynamic> ? body : {},
+          (json) => ReviewModel.fromJson(json),
+        );
       }
       throw ServerException('Failed to load reviews');
     } on DioException catch (e) {

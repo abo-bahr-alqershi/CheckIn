@@ -396,8 +396,9 @@ class _PropertyMapClusterViewState extends State<PropertyMapClusterView>
     markerTitlePainter.layout(minWidth: 0, maxWidth: 70);
     markerTitlePainter.paint(canvas, const Offset(40, 8));
 
-    final bookingLabel =
-        property.bookingCount > 0 ? '${property.bookingCount} حجز' : 'بدون حجوزات';
+    final bookingLabel = property.bookingCount > 0
+        ? '${property.bookingCount} حجز'
+        : 'بدون حجوزات';
     final metricsPainter = TextPainter(
       text: TextSpan(
         text: '⭐ ${property.averageRating.toStringAsFixed(1)} • $bookingLabel',
@@ -413,12 +414,12 @@ class _PropertyMapClusterViewState extends State<PropertyMapClusterView>
     metricsPainter.layout(minWidth: 0, maxWidth: 70);
     metricsPainter.paint(canvas, const Offset(40, 32));
 
-  final picture = pictureRecorder.endRecording();
-  final image = await picture.toImage(width.toInt(), height.toInt());
-  final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
-  final Uint8List data = bytes!.buffer.asUint8List();
+    final picture = pictureRecorder.endRecording();
+    final image = await picture.toImage(width.toInt(), height.toInt());
+    final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+    final Uint8List data = bytes!.buffer.asUint8List();
 
-  return BitmapDescriptor.fromBytes(data);
+    return BitmapDescriptor.fromBytes(data);
   }
 
   Future<BitmapDescriptor> _createClusterMarker({
@@ -479,12 +480,12 @@ class _PropertyMapClusterViewState extends State<PropertyMapClusterView>
       ),
     );
 
-  final picture = pictureRecorder.endRecording();
-  final image = await picture.toImage(size.toInt(), size.toInt());
-  final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
-  final Uint8List data = bytes!.buffer.asUint8List();
+    final picture = pictureRecorder.endRecording();
+    final image = await picture.toImage(size.toInt(), size.toInt());
+    final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+    final Uint8List data = bytes!.buffer.asUint8List();
 
-  return BitmapDescriptor.fromBytes(data);
+    return BitmapDescriptor.fromBytes(data);
   }
 
   void _onMarkerTapped(Property property) {

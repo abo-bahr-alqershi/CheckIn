@@ -8,7 +8,7 @@ namespace YemenBooking.Application.Queries.Reviews
     /// استعلام لجلب جميع التقييمات مع دعم التصفية
     /// Query to get all reviews with filtering options
     /// </summary>
-    public class GetAllReviewsQuery : IRequest<ResultDto<IEnumerable<ReviewDto>>>
+    public class GetAllReviewsQuery : IRequest<PaginatedResult<ReviewDto>>
     {
         /// <summary>
         /// حالة التقييم (pending, approved, rejected, all)

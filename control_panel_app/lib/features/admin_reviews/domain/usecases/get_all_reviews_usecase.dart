@@ -3,6 +3,7 @@
 import 'package:dartz/dartz.dart';
 import 'package:bookn_cp_app/core/error/failures.dart';
 import 'package:bookn_cp_app/core/usecases/usecase.dart';
+import 'package:bookn_cp_app/core/models/paginated_result.dart';
 import '../entities/review.dart';
 import '../repositories/reviews_repository.dart';
 
@@ -34,13 +35,13 @@ class GetAllReviewsParams {
   });
 }
 
-class GetAllReviewsUseCase implements UseCase<List<Review>, GetAllReviewsParams> {
+class GetAllReviewsUseCase implements UseCase<PaginatedResult<Review>, GetAllReviewsParams> {
   final ReviewsRepository repository;
   
   GetAllReviewsUseCase(this.repository);
   
   @override
-  Future<Either<Failure, List<Review>>> call(GetAllReviewsParams params) {
+  Future<Either<Failure, PaginatedResult<Review>>> call(GetAllReviewsParams params) {
     return repository.getAllReviews(
       status: params.status,
       minRating: params.minRating,

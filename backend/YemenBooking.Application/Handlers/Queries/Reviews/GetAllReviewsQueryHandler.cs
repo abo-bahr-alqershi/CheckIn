@@ -17,7 +17,7 @@ namespace YemenBooking.Application.Handlers.Queries.Reviews
     /// معالج استعلام جلب جميع التقييمات مع دعم التصفية
     /// Handler for GetAllReviewsQuery
     /// </summary>
-    public class GetAllReviewsQueryHandler : IRequestHandler<GetAllReviewsQuery, ResultDto<IEnumerable<ReviewDto>>>
+    public class GetAllReviewsQueryHandler : IRequestHandler<GetAllReviewsQuery, PaginatedResult<ReviewDto>>
     {
         private readonly IReviewRepository _reviewRepository;
         private readonly ICurrentUserService _currentUserService;
@@ -33,14 +33,14 @@ namespace YemenBooking.Application.Handlers.Queries.Reviews
             _logger = logger;
         }
 
-        public async Task<ResultDto<IEnumerable<ReviewDto>>> Handle(GetAllReviewsQuery request, CancellationToken cancellationToken)
+        public async Task<PaginatedResult<ReviewDto>> Handle(GetAllReviewsQuery request, CancellationToken cancellationToken)
         {
             _logger.LogInformation("Processing GetAllReviewsQuery");
 
             var currentUser = await _currentUserService.GetCurrentUserAsync(cancellationToken);
             if (currentUser == null || !await _currentUserService.IsInRoleAsync("Admin"))
             {
-                return ResultDto<IEnumerable<ReviewDto>>.Failure("ليس لديك صلاحية لعرض التقييمات");
+                throw new UnauthorizedAccessException("ليس لديك صلاحية لعرض التقييمات");
             }
 
             var query = _reviewRepository.GetQueryable()
@@ -86,15 +86,42 @@ namespace YemenBooking.Application.Handlers.Queries.Reviews
             if (request.ReviewedBefore.HasValue)
                 query = query.Where(r => r.CreatedAt <= request.ReviewedBefore.Value);
 
+            // احصاء الإحصائيات قبل التطبيق Pagination
+            var allMatchingReviews = await query.ToListAsync(cancellationToken);
+            
+            // حساب الإحصائيات
+            var totalReviews = allMatchingReviews.Count;
+            var pendingReviews = allMatchingReviews.Count(r => r.IsPendingApproval);
+            var approvedReviews = allMatchingReviews.Count(r => !r.IsPendingApproval);
+            var reviewsWithImages = allMatchingReviews.Count(r => r.Images.Any());
+            var reviewsWithResponses = allMatchingReviews.Count(r => !string.IsNullOrWhiteSpace(r.ResponseText));
+            
+            // حساب متوسط التقييمات
+            var averageRating = totalReviews > 0 
+                ? (double)allMatchingReviews.Average(r => r.AverageRating) 
+                : 0.0;
+            var averageCleanliness = totalReviews > 0 
+                ? allMatchingReviews.Average(r => (double)r.Cleanliness) 
+                : 0.0;
+            var averageService = totalReviews > 0 
+                ? allMatchingReviews.Average(r => (double)r.Service) 
+                : 0.0;
+            var averageLocation = totalReviews > 0 
+                ? allMatchingReviews.Average(r => (double)r.Location) 
+                : 0.0;
+            var averageValue = totalReviews > 0 
+                ? allMatchingReviews.Average(r => (double)r.Value) 
+                : 0.0;
+
             // Pagination defaults
             var pageNumber = (request.PageNumber ?? 1) < 1 ? 1 : (request.PageNumber ?? 1);
             var pageSize = (request.PageSize ?? 20) < 1 ? 20 : (request.PageSize ?? 20);
 
-            var reviews = await query
+            var reviews = allMatchingReviews
                 .OrderByDescending(r => r.CreatedAt)
                 .Skip((pageNumber - 1) * pageSize)
                 .Take(pageSize)
-                .ToListAsync(cancellationToken);
+                .ToList();
 
             var reviewDtos = reviews.Select(r => new ReviewDto
             {
@@ -127,9 +154,35 @@ namespace YemenBooking.Application.Handlers.Queries.Reviews
                     AltText = img.AltText,
                     UploadedAt = img.UploadedAt
                 }).ToList()
-            });
+            }).ToList();
 
-            return ResultDto<IEnumerable<ReviewDto>>.Ok(reviewDtos);
+            var result = new PaginatedResult<ReviewDto>
+            {
+                Items = reviewDtos,
+                PageNumber = pageNumber,
+                PageSize = pageSize,
+                TotalCount = totalReviews
+            };
+            
+            // إضافة الإحصائيات في Metadata فقط في الصفحة الأولى
+            if (pageNumber == 1)
+            {
+                result.Metadata = new Dictionary<string, object>
+                {
+                    ["totalReviews"] = totalReviews,
+                    ["pendingReviews"] = pendingReviews,
+                    ["approvedReviews"] = approvedReviews,
+                    ["reviewsWithImages"] = reviewsWithImages,
+                    ["reviewsWithResponses"] = reviewsWithResponses,
+                    ["averageRating"] = Math.Round(averageRating, 2),
+                    ["averageCleanliness"] = Math.Round(averageCleanliness, 2),
+                    ["averageService"] = Math.Round(averageService, 2),
+                    ["averageLocation"] = Math.Round(averageLocation, 2),
+                    ["averageValue"] = Math.Round(averageValue, 2)
+                };
+            }
+
+            return result;
         }
     }
 } 

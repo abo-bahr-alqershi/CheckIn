@@ -3,6 +3,7 @@
 import 'package:dartz/dartz.dart';
 import 'package:bookn_cp_app/core/error/failures.dart';
 import 'package:bookn_cp_app/core/error/exceptions.dart';
+import 'package:bookn_cp_app/core/models/paginated_result.dart';
 import '../../domain/entities/review.dart';
 import '../../domain/entities/review_response.dart';
 import '../../domain/repositories/reviews_repository.dart';
@@ -19,7 +20,7 @@ class ReviewsRepositoryImpl implements ReviewsRepository {
   });
   
   @override
-  Future<Either<Failure, List<Review>>> getAllReviews({
+  Future<Either<Failure, PaginatedResult<Review>>> getAllReviews({
     String? status,
     double? minRating,
     double? maxRating,
@@ -33,7 +34,7 @@ class ReviewsRepositoryImpl implements ReviewsRepository {
     int? pageSize,
   }) async {
     try {
-      final reviews = await remoteDataSource.getAllReviews(
+      final paginatedReviews = await remoteDataSource.getAllReviews(
         status: status,
         minRating: minRating,
         maxRating: maxRating,
@@ -48,9 +49,9 @@ class ReviewsRepositoryImpl implements ReviewsRepository {
       );
       
       // Cache the results
-      await localDataSource.cacheReviews(reviews);
+      await localDataSource.cacheReviews(paginatedReviews.items);
       
-      return Right(reviews);
+      return Right(paginatedReviews);
     } on ServerException catch (e) {
       return Left(ServerFailure(e.message));
     } catch (e) {
