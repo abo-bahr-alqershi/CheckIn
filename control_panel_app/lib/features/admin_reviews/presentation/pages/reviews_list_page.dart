@@ -367,18 +367,33 @@ class _ReviewsListPageState extends State<ReviewsListPage>
               vertical: 20,
             ),
             child: ReviewStatsCard(
-              totalReviews: state.reviews.length,
-              pendingReviews: state.pendingCount,
-              averageRating: state.averageRating,
+              totalReviews: _parseInt(state.stats?['totalReviews']) ?? state.reviews.length,
+              pendingReviews: _parseInt(state.stats?['pendingReviews']) ?? state.pendingCount,
+              averageRating: _parseDouble(state.stats?['averageRating']) ?? state.averageRating,
               reviews: state.reviews,
               isDesktop: isDesktop,
               isTablet: isTablet,
+              withResponsesCount: _parseInt(state.stats?['reviewsWithResponses']),
             ),
           );
         }
         return const SizedBox();
       },
     );
+  }
+
+  int? _parseInt(Object? v) {
+    if (v is int) return v;
+    if (v is num) return v.toInt();
+    if (v is String) return int.tryParse(v);
+    return null;
+  }
+
+  double? _parseDouble(Object? v) {
+    if (v is double) return v;
+    if (v is num) return v.toDouble();
+    if (v is String) return double.tryParse(v);
+    return null;
   }
 
   Widget _buildViewToggle() {

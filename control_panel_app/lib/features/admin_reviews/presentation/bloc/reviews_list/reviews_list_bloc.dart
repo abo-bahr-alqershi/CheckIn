@@ -50,13 +50,15 @@ class ReviewsListBloc extends Bloc<ReviewsListEvent, ReviewsListState> {
     
     result.fold(
       (failure) => emit(ReviewsListError(failure.message)),
-      (reviews) {
-        _allReviews = reviews;
+      (page) {
+        _allReviews = page.items;
+        final stats = _extractStats(page.metadata);
         emit(ReviewsListLoaded(
-          reviews: reviews,
-          filteredReviews: reviews,
-          pendingCount: reviews.where((r) => r.isPending).length,
-          averageRating: _calculateAverageRating(reviews),
+          reviews: page.items,
+          filteredReviews: page.items,
+          pendingCount: _computePendingCount(page.items, stats),
+          averageRating: _computeAverageRating(page.items, stats),
+          stats: stats,
           approvingReviewIds: const <String>{},
         ));
       },
@@ -69,10 +71,52 @@ class ReviewsListBloc extends Bloc<ReviewsListEvent, ReviewsListState> {
   ) async {
     if (state is ReviewsListLoaded) {
       final currentState = state as ReviewsListLoaded;
-      
+
+      // If high-level filters that impact backend stats are provided (minRating or isPending),
+      // refetch from server to update metadata. Keep search locally.
+      final bool requiresServerRefetch = event.minRating != null || event.isPending != null;
+      if (requiresServerRefetch) {
+        emit(ReviewsListLoading());
+        final result = await getAllReviews(GetAllReviewsParams(
+          status: event.isPending == null
+              ? null
+              : (event.isPending! ? 'pending' : 'approved'),
+          minRating: event.minRating,
+          pageNumber: 1,
+          pageSize: currentState.reviews.length.clamp(10, 100),
+        ));
+        result.fold(
+          (failure) => emit(ReviewsListError(failure.message)),
+          (page) {
+            _allReviews = page.items;
+            // Apply only the text/response filters locally after refetch
+            var filtered = _allReviews;
+            if (event.searchQuery.isNotEmpty) {
+              filtered = filtered.where((review) =>
+                review.userName.toLowerCase().contains(event.searchQuery.toLowerCase()) ||
+                review.propertyName.toLowerCase().contains(event.searchQuery.toLowerCase()) ||
+                review.comment.toLowerCase().contains(event.searchQuery.toLowerCase())
+              ).toList();
+            }
+            if (event.hasResponse != null) {
+              filtered = filtered.where((r) => r.hasResponse == event.hasResponse).toList();
+            }
+            final stats = _extractStats(page.metadata);
+            emit(ReviewsListLoaded(
+              reviews: page.items,
+              filteredReviews: filtered,
+              pendingCount: _computePendingCount(page.items, stats),
+              averageRating: _computeAverageRating(page.items, stats),
+              stats: stats,
+              approvingReviewIds: const <String>{},
+            ));
+          },
+        );
+        return;
+      }
+
+      // Only local search/hasResponse filters; keep backend stats unchanged
       var filtered = _allReviews;
-      
-      // Apply filters
       if (event.searchQuery.isNotEmpty) {
         filtered = filtered.where((review) =>
           review.userName.toLowerCase().contains(event.searchQuery.toLowerCase()) ||
@@ -80,20 +124,12 @@ class ReviewsListBloc extends Bloc<ReviewsListEvent, ReviewsListState> {
           review.comment.toLowerCase().contains(event.searchQuery.toLowerCase())
         ).toList();
       }
-      
-      if (event.minRating != null) {
-        filtered = filtered.where((r) => r.averageRating >= event.minRating!).toList();
-      }
-      
-      if (event.isPending != null) {
-        filtered = filtered.where((r) => r.isPending == event.isPending).toList();
-      }
-      
       if (event.hasResponse != null) {
         filtered = filtered.where((r) => r.hasResponse == event.hasResponse).toList();
       }
-      
-      emit(currentState.copyWith(filteredReviews: filtered));
+      emit(currentState.copyWith(
+        filteredReviews: filtered,
+      ));
     }
   }
   
@@ -197,5 +233,34 @@ class ReviewsListBloc extends Bloc<ReviewsListEvent, ReviewsListState> {
       (sum, review) => sum + review.averageRating,
     );
     return total / reviews.length;
+  }
+
+  Map<String, dynamic>? _extractStats(Object? metadata) {
+    if (metadata == null) return null;
+    if (metadata is Map<String, dynamic>) return metadata;
+    if (metadata is Map) {
+      return metadata.map((key, value) => MapEntry(key.toString(), value));
+    }
+    return null;
+  }
+
+  int _computePendingCount(List<Review> reviews, Map<String, dynamic>? stats) {
+    final backendPending = stats != null ? stats['pendingReviews'] : null;
+    if (backendPending is int) return backendPending;
+    if (backendPending is String) {
+      final v = int.tryParse(backendPending);
+      if (v != null) return v;
+    }
+    return reviews.where((r) => r.isPending).length;
+  }
+
+  double _computeAverageRating(List<Review> reviews, Map<String, dynamic>? stats) {
+    final backendAvg = stats != null ? stats['averageRating'] : null;
+    if (backendAvg is num) return backendAvg.toDouble();
+    if (backendAvg is String) {
+      final v = double.tryParse(backendAvg);
+      if (v != null) return v;
+    }
+    return _calculateAverageRating(reviews);
   }
 }

@@ -14,6 +14,7 @@ class ReviewStatsCard extends StatelessWidget {
   final List<Review> reviews;
   final bool isDesktop;
   final bool isTablet;
+  final int? withResponsesCount;
 
   const ReviewStatsCard({
     super.key,
@@ -23,11 +24,12 @@ class ReviewStatsCard extends StatelessWidget {
     required this.reviews,
     required this.isDesktop,
     required this.isTablet,
+    this.withResponsesCount,
   });
 
   @override
   Widget build(BuildContext context) {
-    final withResponse = reviews.where((r) => r.hasResponse).length;
+    final withResponse = withResponsesCount ?? reviews.where((r) => r.hasResponse).length;
     final responseRate = totalReviews > 0 ? (withResponse / totalReviews) * 100 : 0.0;
 
     return SizedBox(
