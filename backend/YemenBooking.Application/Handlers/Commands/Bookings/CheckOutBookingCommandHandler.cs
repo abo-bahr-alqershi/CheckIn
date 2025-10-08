@@ -56,6 +56,19 @@ public class CheckOutBookingCommandHandler : IRequestHandler<CheckOutBookingComm
                 return ResultDto<bool>.Failed("لا يمكن تسجيل المغادرة إلا لحجز في حالة تم الوصول");
             }
 
+            // التحقق من تاريخ تنفيذ العملية: لا يمكن تسجيل المغادرة قبل تاريخ الوصول
+            var todayUtc = DateTime.UtcNow.Date;
+            if (todayUtc < booking.CheckIn.Date)
+            {
+                return ResultDto<bool>.Failed("لا يمكن تسجيل المغادرة قبل تاريخ الوصول المحدد");
+            }
+
+            // لا يسمح بتسجيل المغادرة قبل تسجيل الوصول الفعلي إن وُجد شرط عمل بذلك
+            if (booking.ActualCheckInDate.HasValue && DateTime.UtcNow < booking.ActualCheckInDate.Value)
+            {
+                return ResultDto<bool>.Failed("لا يمكن تسجيل المغادرة قبل وقت تسجيل الوصول الفعلي");
+            }
+
             booking.Status = BookingStatus.Completed;
             booking.ActualCheckOutDate = DateTime.UtcNow;
             booking.UpdatedAt = DateTime.UtcNow;
