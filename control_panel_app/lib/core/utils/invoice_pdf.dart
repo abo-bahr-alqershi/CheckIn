@@ -252,7 +252,7 @@ class InvoicePdfGenerator {
                         _buildInfoRowArabic('رقم التواصل:',
                             property?.phone ?? '---', arabicFont),
                       _buildInfoRowArabic(
-                          'الرقم الضريبي:', '300123456789012', arabicFont),
+                          'الرقم الضريبي:', '------------', arabicFont),
                     ],
                   ),
                 ),
@@ -779,11 +779,10 @@ class InvoicePdfGenerator {
             ),
             pw.SizedBox(height: 8),
             _buildBulletPointArabic(
-                'وقت تسجيل الوصول: 14:00 - وقت المغادرة: 12:00', arabicFont),
+                'وقت تسجيل الوصول: 12:00 ظهرا - وقت المغادرة: 12:00 ظهرا',
+                arabicFont),
             _buildBulletPointArabic(
                 'مطلوب إثبات هوية صالح عند تسجيل الوصول', arabicFont),
-            _buildBulletPointArabic(
-                'هذه الفاتورة تشمل ضريبة القيمة المضافة 15%', arabicFont),
             _buildBulletPointArabic(
                 'تطبق سياسة الإلغاء حسب شروط الحجز', arabicFont),
             _buildBulletPointArabic(
