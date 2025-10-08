@@ -58,6 +58,17 @@ public class CheckInBookingCommandHandler : IRequestHandler<CheckInBookingComman
                 return ResultDto<bool>.Failed("لا يمكن تسجيل الوصول إلا للحجز المؤكد");
             }
 
+            // التحقق من تاريخ تنفيذ العملية: لا يمكن تسجيل الوصول قبل تاريخ الوصول أو بعد تاريخ المغادرة
+            var todayUtc = DateTime.UtcNow.Date;
+            if (todayUtc < booking.CheckIn.Date)
+            {
+                return ResultDto<bool>.Failed("لا يمكن تسجيل الوصول قبل تاريخ الوصول المحدد");
+            }
+            if (todayUtc > booking.CheckOut.Date)
+            {
+                return ResultDto<bool>.Failed("لا يمكن تسجيل الوصول لحجز منتهي");
+            }
+
             booking.Status = BookingStatus.CheckedIn;
             booking.ActualCheckInDate = DateTime.UtcNow;
             booking.UpdatedAt = DateTime.UtcNow;
