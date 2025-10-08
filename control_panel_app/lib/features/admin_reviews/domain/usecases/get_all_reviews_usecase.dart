@@ -19,6 +19,7 @@ class GetAllReviewsParams {
   final DateTime? endDate;
   final int? pageNumber;
   final int? pageSize;
+  final bool? includeStats;
   
   GetAllReviewsParams({
     this.status,
@@ -32,6 +33,7 @@ class GetAllReviewsParams {
     this.endDate,
     this.pageNumber,
     this.pageSize,
+    this.includeStats,
   });
 }
 
@@ -54,6 +56,7 @@ class GetAllReviewsUseCase implements UseCase<PaginatedResult<Review>, GetAllRev
       endDate: params.endDate,
       pageNumber: params.pageNumber,
       pageSize: params.pageSize,
+      includeStats: params.includeStats,
     );
   }
 }

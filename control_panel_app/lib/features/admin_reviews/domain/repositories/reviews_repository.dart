@@ -19,6 +19,7 @@ abstract class ReviewsRepository {
     DateTime? endDate,
     int? pageNumber,
     int? pageSize,
+    bool? includeStats,
   });
   
   Future<Either<Failure, Review>> getReviewDetails(String reviewId);

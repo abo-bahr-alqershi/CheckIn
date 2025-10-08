@@ -86,42 +86,47 @@ namespace YemenBooking.Application.Handlers.Queries.Reviews
             if (request.ReviewedBefore.HasValue)
                 query = query.Where(r => r.CreatedAt <= request.ReviewedBefore.Value);
 
-            // احصاء الإحصائيات قبل التطبيق Pagination
-            var allMatchingReviews = await query.ToListAsync(cancellationToken);
-            
-            // حساب الإحصائيات
-            var totalReviews = allMatchingReviews.Count;
-            var pendingReviews = allMatchingReviews.Count(r => r.IsPendingApproval);
-            var approvedReviews = allMatchingReviews.Count(r => !r.IsPendingApproval);
-            var reviewsWithImages = allMatchingReviews.Count(r => r.Images.Any());
-            var reviewsWithResponses = allMatchingReviews.Count(r => !string.IsNullOrWhiteSpace(r.ResponseText));
-            
-            // حساب متوسط التقييمات
-            var averageRating = totalReviews > 0 
-                ? (double)allMatchingReviews.Average(r => r.AverageRating) 
-                : 0.0;
-            var averageCleanliness = totalReviews > 0 
-                ? allMatchingReviews.Average(r => (double)r.Cleanliness) 
-                : 0.0;
-            var averageService = totalReviews > 0 
-                ? allMatchingReviews.Average(r => (double)r.Service) 
-                : 0.0;
-            var averageLocation = totalReviews > 0 
-                ? allMatchingReviews.Average(r => (double)r.Location) 
-                : 0.0;
-            var averageValue = totalReviews > 0 
-                ? allMatchingReviews.Average(r => (double)r.Value) 
-                : 0.0;
+            // Compute counts without materializing entire set
+            var totalReviews = await query.CountAsync(cancellationToken);
+
+            // Only compute aggregates when requested (first page or IncludeStats == true)
+            var shouldIncludeStats = (request.IncludeStats == true) || ((request.IncludeStats ?? false) == false && (request.PageNumber ?? 1) == 1);
+
+            int pendingReviews = 0;
+            int approvedReviews = 0;
+            int reviewsWithImages = 0;
+            int reviewsWithResponses = 0;
+            double averageRating = 0.0;
+            double averageCleanliness = 0.0;
+            double averageService = 0.0;
+            double averageLocation = 0.0;
+            double averageValue = 0.0;
+
+            if (shouldIncludeStats && totalReviews > 0)
+            {
+                // Aggregate via single round-trip
+                pendingReviews = await query.Where(r => r.IsPendingApproval).CountAsync(cancellationToken);
+                approvedReviews = totalReviews - pendingReviews;
+                reviewsWithImages = await query.Where(r => r.Images.Any()).CountAsync(cancellationToken);
+                reviewsWithResponses = await query.Where(r => !string.IsNullOrWhiteSpace(r.ResponseText)).CountAsync(cancellationToken);
+
+                // Averages
+                averageRating = await query.AverageAsync(r => (double)r.AverageRating, cancellationToken);
+                averageCleanliness = await query.AverageAsync(r => (double)r.Cleanliness, cancellationToken);
+                averageService = await query.AverageAsync(r => (double)r.Service, cancellationToken);
+                averageLocation = await query.AverageAsync(r => (double)r.Location, cancellationToken);
+                averageValue = await query.AverageAsync(r => (double)r.Value, cancellationToken);
+            }
 
             // Pagination defaults
             var pageNumber = (request.PageNumber ?? 1) < 1 ? 1 : (request.PageNumber ?? 1);
             var pageSize = (request.PageSize ?? 20) < 1 ? 20 : (request.PageSize ?? 20);
 
-            var reviews = allMatchingReviews
+            var reviews = await query
                 .OrderByDescending(r => r.CreatedAt)
                 .Skip((pageNumber - 1) * pageSize)
                 .Take(pageSize)
-                .ToList();
+                .ToListAsync(cancellationToken);
 
             var reviewDtos = reviews.Select(r => new ReviewDto
             {
@@ -165,7 +170,7 @@ namespace YemenBooking.Application.Handlers.Queries.Reviews
             };
             
             // إضافة الإحصائيات في Metadata فقط في الصفحة الأولى
-            if (pageNumber == 1)
+            if (shouldIncludeStats)
             {
                 result.Metadata = new Dictionary<string, object>
                 {

@@ -46,6 +46,7 @@ class ReviewsListBloc extends Bloc<ReviewsListEvent, ReviewsListState> {
       endDate: event.endDate,
       pageNumber: event.pageNumber,
       pageSize: event.pageSize,
+      includeStats: true, // Always include stats so UI is consistent across pages
     ));
     
     result.fold(
@@ -84,6 +85,7 @@ class ReviewsListBloc extends Bloc<ReviewsListEvent, ReviewsListState> {
           minRating: event.minRating,
           pageNumber: 1,
           pageSize: currentState.reviews.length.clamp(10, 100),
+          includeStats: true,
         ));
         result.fold(
           (failure) => emit(ReviewsListError(failure.message)),

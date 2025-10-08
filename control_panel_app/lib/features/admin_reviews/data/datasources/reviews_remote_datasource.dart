@@ -22,6 +22,7 @@ abstract class ReviewsRemoteDataSource {
     DateTime? endDate,
     int? pageNumber,
     int? pageSize,
+    bool? includeStats,
   });
   
   // Not available in backend; kept for interface compatibility but unused
@@ -59,6 +60,7 @@ class ReviewsRemoteDataSourceImpl implements ReviewsRemoteDataSource {
     DateTime? endDate,
     int? pageNumber,
     int? pageSize,
+    bool? includeStats,
   }) async {
     try {
       final queryParams = <String, dynamic>{};
@@ -75,6 +77,7 @@ class ReviewsRemoteDataSourceImpl implements ReviewsRemoteDataSource {
       if (endDate != null) queryParams['reviewedBefore'] = endDate.toIso8601String();
       if (pageNumber != null) queryParams['pageNumber'] = pageNumber;
       if (pageSize != null) queryParams['pageSize'] = pageSize;
+      if (includeStats != null) queryParams['includeStats'] = includeStats;
       
       final response = await apiClient.get(
         '/api/admin/reviews',

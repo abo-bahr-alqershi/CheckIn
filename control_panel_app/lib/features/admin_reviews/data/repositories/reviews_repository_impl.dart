@@ -32,6 +32,7 @@ class ReviewsRepositoryImpl implements ReviewsRepository {
     DateTime? endDate,
     int? pageNumber,
     int? pageSize,
+    bool? includeStats,
   }) async {
     try {
       final paginatedReviews = await remoteDataSource.getAllReviews(
@@ -46,6 +47,7 @@ class ReviewsRepositoryImpl implements ReviewsRepository {
         endDate: endDate,
         pageNumber: pageNumber,
         pageSize: pageSize,
+        includeStats: includeStats,
       );
       
       // Cache the results
