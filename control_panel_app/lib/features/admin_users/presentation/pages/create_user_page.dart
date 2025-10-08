@@ -673,6 +673,15 @@ class _CreateUserPageState extends State<CreateUserPage>
           ),
           const SizedBox(height: 20),
 
+          // Validation summary in the final step
+          Builder(builder: (context) {
+            final errors = _getReviewValidationErrors();
+            if (errors.isEmpty) return const SizedBox.shrink();
+            return _buildValidationSummary(errors);
+          }),
+          if (_getReviewValidationErrors().isNotEmpty)
+            const SizedBox(height: 16),
+
           // Review Cards
           _buildReviewCard(
             title: 'المعلومات الأساسية',
@@ -1126,6 +1135,14 @@ class _CreateUserPageState extends State<CreateUserPage>
   }
 
   void _submitForm() {
+    // Ensure final-step explicit validation before saving
+    final reviewErrors = _getReviewValidationErrors();
+    if (reviewErrors.isNotEmpty) {
+      _showErrorMessage('يرجى تصحيح الأخطاء قبل الحفظ');
+      setState(() {});
+      return;
+    }
+
     if (_formKey.currentState!.validate()) {
       setState(() {
         _isSubmitting = true;
@@ -1152,6 +1169,99 @@ class _CreateUserPageState extends State<CreateUserPage>
             );
       }
     }
+  }
+
+  // Build validation summary card for the review step
+  Widget _buildValidationSummary(List<String> errors) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppTheme.error.withOpacity(0.10),
+            AppTheme.error.withOpacity(0.05),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppTheme.error.withOpacity(0.35),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: AppTheme.error.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  Icons.error_outline_rounded,
+                  color: AppTheme.error,
+                  size: 18,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'يرجى مراجعة الأخطاء التالية',
+                style: AppTextStyles.bodyMedium.copyWith(
+                  color: AppTheme.error,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ...errors.map((e) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(Icons.circle, size: 6, color: Colors.white70),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        e,
+                        style: AppTextStyles.bodySmall.copyWith(
+                          color: AppTheme.textWhite,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              )),
+        ],
+      ),
+    );
+  }
+
+  // Collect precise validation errors for the final review step
+  List<String> _getReviewValidationErrors() {
+    final List<String> errors = [];
+
+    final nameError = Validators.validateName(_nameController.text);
+    if (nameError != null) errors.add(nameError);
+
+    final emailError = Validators.validateEmail(_emailController.text);
+    if (emailError != null) errors.add(emailError);
+
+    if (widget.userId == null) {
+      final pwdError = Validators.validatePassword(_passwordController.text);
+      if (pwdError != null) errors.add(pwdError);
+    }
+
+    final phoneError = Validators.validatePhone(_phoneController.text);
+    if (phoneError != null) errors.add(phoneError);
+
+    if (_selectedRole == null || _selectedRole!.isEmpty) {
+      errors.add('يرجى اختيار دور المستخدم');
+    }
+
+    return errors;
   }
 
   String _getRoleText(String role) {
