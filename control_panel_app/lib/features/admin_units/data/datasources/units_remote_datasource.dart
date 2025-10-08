@@ -6,8 +6,10 @@ import '../models/unit_type_model.dart';
 import '../../domain/entities/unit_type.dart';
 import 'package:bookn_cp_app/core/network/api_exceptions.dart' as api;
 
+import 'package:bookn_cp_app/core/models/paginated_result.dart';
+
 abstract class UnitsRemoteDataSource {
-  Future<List<UnitModel>> getUnits({
+  Future<PaginatedResult<UnitModel>> getUnits({
     int? pageNumber,
     int? pageSize,
     String? propertyId,
@@ -49,7 +51,7 @@ class UnitsRemoteDataSourceImpl implements UnitsRemoteDataSource {
   UnitsRemoteDataSourceImpl({required this.apiClient});
 
   @override
-  Future<List<UnitModel>> getUnits({
+  Future<PaginatedResult<UnitModel>> getUnits({
     int? pageNumber,
     int? pageSize,
     String? propertyId,
@@ -95,8 +97,17 @@ class UnitsRemoteDataSourceImpl implements UnitsRemoteDataSource {
         queryParameters: queryParams,
       );
 
-      final List<dynamic> items = response.data['items'] ?? [];
-      return items.map((json) => UnitModel.fromJson(json)).toList();
+      return PaginatedResult<UnitModel>.fromJson(
+        response.data is Map<String, dynamic>
+            ? Map<String, dynamic>.from(response.data)
+            : <String, dynamic>{
+                'items': (response.data as List?) ?? const [],
+                'pageNumber': pageNumber ?? 1,
+                'pageSize': pageSize ?? ((response.data as List?)?.length ?? 0),
+                'totalCount': ((response.data as List?)?.length ?? 0),
+              },
+        (json) => UnitModel.fromJson(json),
+      );
     } on api.ApiException catch (e) {
       throw ServerException(e.message);
     } on DioException catch (e) {

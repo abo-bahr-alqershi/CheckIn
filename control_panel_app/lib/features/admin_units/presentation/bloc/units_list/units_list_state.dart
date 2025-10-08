@@ -22,6 +22,7 @@ class UnitsListLoaded extends UnitsListState {
   final bool hasMore;
   final String? searchQuery;
   final Map<String, dynamic>? filters;
+  final Map<String, dynamic>? stats;
 
   const UnitsListLoaded({
     required this.units,
@@ -32,6 +33,7 @@ class UnitsListLoaded extends UnitsListState {
     this.hasMore = false,
     this.searchQuery,
     this.filters,
+    this.stats,
   });
 
   @override
@@ -44,6 +46,7 @@ class UnitsListLoaded extends UnitsListState {
         hasMore,
         searchQuery,
         filters,
+        stats,
       ];
 
   UnitsListLoaded copyWith({
@@ -55,6 +58,7 @@ class UnitsListLoaded extends UnitsListState {
     bool? hasMore,
     String? searchQuery,
     Map<String, dynamic>? filters,
+    Map<String, dynamic>? stats,
   }) {
     return UnitsListLoaded(
       units: units ?? this.units,
@@ -65,6 +69,7 @@ class UnitsListLoaded extends UnitsListState {
       hasMore: hasMore ?? this.hasMore,
       searchQuery: searchQuery,
       filters: filters,
+      stats: stats ?? this.stats,
     );
   }
 }

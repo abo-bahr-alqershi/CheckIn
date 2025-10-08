@@ -1,11 +1,12 @@
 import 'package:dartz/dartz.dart' hide Unit;
 import '../../../../../core/error/failures.dart';
+import '../../../../../core/models/paginated_result.dart';
 import '../entities/unit.dart';
 import '../entities/unit_type.dart';
 import '../entities/unit_field_value.dart';
 
 abstract class UnitsRepository {
-  Future<Either<Failure, List<Unit>>> getUnits({
+  Future<Either<Failure, PaginatedResult<Unit>>> getUnits({
     int? pageNumber,
     int? pageSize,
     String? propertyId,

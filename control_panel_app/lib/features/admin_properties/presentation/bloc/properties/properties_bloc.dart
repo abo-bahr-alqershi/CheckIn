@@ -70,6 +70,9 @@ class PropertiesBloc extends Bloc<PropertiesEvent, PropertiesState> {
         totalPages: paginatedResult.totalPages,
         hasNextPage: paginatedResult.hasNextPage,
         hasPreviousPage: paginatedResult.hasPreviousPage,
+        stats: (paginatedResult.metadata is Map<String, dynamic>)
+            ? (paginatedResult.metadata as Map<String, dynamic>)
+            : null,
         activeFilters: null,
       )),
     );
