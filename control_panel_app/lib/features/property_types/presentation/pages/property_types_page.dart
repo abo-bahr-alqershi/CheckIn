@@ -22,6 +22,7 @@ import '../widgets/property_type_modal.dart';
 import '../widgets/unit_type_modal.dart';
 import '../widgets/unit_type_field_modal.dart';
 import 'package:flutter/src/painting/edge_insets.dart';
+import 'package:bookn_cp_app/core/widgets/loading_widget.dart';
 
 class AdminPropertyTypesPage extends StatefulWidget {
   const AdminPropertyTypesPage({super.key});
@@ -735,30 +736,10 @@ class _AdminPropertyTypesPageState extends State<AdminPropertyTypesPage>
   }
 
   Widget _buildLoadingState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 60,
-            height: 60,
-            decoration: BoxDecoration(
-              gradient: AppTheme.primaryGradient,
-              shape: BoxShape.circle,
-            ),
-            child: const CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-              strokeWidth: 2,
-            ),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'جاري التحميل...',
-            style: AppTextStyles.bodyMedium.copyWith(
-              color: AppTheme.textMuted,
-            ),
-          ),
-        ],
+    return const Center(
+      child: LoadingWidget(
+        type: LoadingType.futuristic,
+        message: 'جاري التحميل...',
       ),
     );
   }

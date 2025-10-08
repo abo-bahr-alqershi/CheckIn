@@ -1456,7 +1456,9 @@ class _CreatePropertyViewState extends State<_CreatePropertyView>
                 child: Center(
                   child: BlocBuilder<PropertiesBloc, PropertiesState>(
                     builder: (context, state) {
-                      if (state is PropertiesLoading) {
+                      final bool isSubmitting =
+                          state is PropertyCreating || state is PropertyUpdating;
+                      if (isSubmitting) {
                         return const SizedBox(
                           width: 20,
                           height: 20,
