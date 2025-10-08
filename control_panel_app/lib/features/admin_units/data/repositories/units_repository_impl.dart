@@ -64,9 +64,12 @@ class UnitsRepositoryImpl implements UnitsRepository {
           longitude: longitude,
           radiusKm: radiusKm,
         );
-        await localDataSource.cacheUnits(remoteUnits.items.map((e) => e as UnitModel).toList());
+        await localDataSource.cacheUnits(remoteUnits.items);
+
+        final units = remoteUnits.items.map<Unit>((unit) => unit).toList();
+
         return Right(PaginatedResult<Unit>(
-          items: remoteUnits.items,
+          items: units,
           pageNumber: remoteUnits.pageNumber,
           pageSize: remoteUnits.pageSize,
           totalCount: remoteUnits.totalCount,
@@ -82,11 +85,12 @@ class UnitsRepositoryImpl implements UnitsRepository {
     } else {
       try {
         final localUnits = await localDataSource.getCachedUnits();
+        final units = localUnits.map<Unit>((unit) => unit).toList();
         return Right(PaginatedResult<Unit>(
-          items: localUnits,
+          items: units,
           pageNumber: 1,
-          pageSize: localUnits.length,
-          totalCount: localUnits.length,
+          pageSize: units.length,
+          totalCount: units.length,
         ));
       } on CacheException {
         return const Left(CacheFailure('لا توجد بيانات محفوظة'));

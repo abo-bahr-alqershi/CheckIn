@@ -37,15 +37,14 @@ class UnitsListBloc extends Bloc<UnitsListEvent, UnitsListState> {
     );
 
     result.fold(
+      (failure) => emit(UnitsListError(message: failure.message)),
       (page) => emit(UnitsListLoaded(
         units: page.items,
         totalCount: page.totalCount,
         currentPage: page.pageNumber,
         pageSize: page.pageSize,
         hasMore: page.hasNextPage,
-        stats: (page.metadata is Map<String, dynamic>)
-            ? (page.metadata as Map<String, dynamic>)
-            : null,
+        stats: _extractStats(page.metadata),
       )),
     );
   }
@@ -68,16 +67,14 @@ class UnitsListBloc extends Bloc<UnitsListEvent, UnitsListState> {
 
       result.fold(
         (failure) => emit(UnitsListError(message: failure.message)),
-      (page) => emit(UnitsListLoaded(
+        (page) => emit(UnitsListLoaded(
           units: page.items,
           totalCount: page.totalCount,
           currentPage: page.pageNumber,
           pageSize: page.pageSize,
           searchQuery: event.query,
           hasMore: page.hasNextPage,
-          stats: (page.metadata is Map<String, dynamic>)
-              ? (page.metadata as Map<String, dynamic>)
-              : null,
+          stats: _extractStats(page.metadata),
         )),
       );
     }
@@ -115,16 +112,14 @@ class UnitsListBloc extends Bloc<UnitsListEvent, UnitsListState> {
 
       result.fold(
         (failure) => emit(UnitsListError(message: failure.message)),
-      (page) => emit(UnitsListLoaded(
+        (page) => emit(UnitsListLoaded(
           units: page.items,
           totalCount: page.totalCount,
           currentPage: page.pageNumber,
           pageSize: page.pageSize,
           filters: event.filters,
           hasMore: page.hasNextPage,
-          stats: (page.metadata is Map<String, dynamic>)
-              ? (page.metadata as Map<String, dynamic>)
-              : null,
+          stats: _extractStats(page.metadata),
         )),
       );
     }
@@ -136,7 +131,7 @@ class UnitsListBloc extends Bloc<UnitsListEvent, UnitsListState> {
   ) async {
     if (state is UnitsListLoaded) {
       final currentState = state as UnitsListLoaded;
-      
+
       final result = await deleteUnitUseCase(event.unitId);
 
       result.fold(
@@ -145,14 +140,18 @@ class UnitsListBloc extends Bloc<UnitsListEvent, UnitsListState> {
           final updatedUnits = currentState.units
               .where((unit) => unit.id != event.unitId)
               .toList();
-          
+
           emit(UnitsListLoaded(
             units: updatedUnits,
-            totalCount: updatedUnits.length,
+            totalCount: currentState.totalCount > 0
+                ? currentState.totalCount - 1
+                : currentState.totalCount,
             currentPage: currentState.currentPage,
             pageSize: currentState.pageSize,
             searchQuery: currentState.searchQuery,
             filters: currentState.filters,
+            hasMore: currentState.hasMore,
+            stats: currentState.stats,
           ));
         },
       );
@@ -163,6 +162,17 @@ class UnitsListBloc extends Bloc<UnitsListEvent, UnitsListState> {
     RefreshUnitsEvent event,
     Emitter<UnitsListState> emit,
   ) async {
-    add(LoadUnitsEvent());
+    add(const LoadUnitsEvent());
+  }
+
+  Map<String, dynamic>? _extractStats(Object? metadata) {
+    if (metadata == null) return null;
+    if (metadata is Map<String, dynamic>) return metadata;
+    if (metadata is Map) {
+      return metadata.map(
+        (key, value) => MapEntry(key.toString(), value),
+      );
+    }
+    return null;
   }
 }
