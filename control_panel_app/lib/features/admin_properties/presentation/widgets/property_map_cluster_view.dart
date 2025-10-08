@@ -6,7 +6,6 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'dart:ui' as ui;
 import 'dart:async';
 import 'dart:typed_data';
@@ -14,8 +13,6 @@ import 'dart:math' as math;
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../domain/entities/property.dart';
-import '../../domain/entities/map_location.dart';
-import '../bloc/properties/properties_bloc.dart';
 
 class PropertyMapClusterView extends StatefulWidget {
   final List<Property> properties;
@@ -43,12 +40,10 @@ class _PropertyMapClusterViewState extends State<PropertyMapClusterView>
   // Animation Controllers
   late AnimationController _markerAnimationController;
   late AnimationController _overlayAnimationController;
-  late AnimationController _pulseAnimationController;
 
   // Animations
   late Animation<double> _markerScaleAnimation;
   late Animation<double> _overlaySlideAnimation;
-  late Animation<double> _pulseAnimation;
 
   // State
   Property? _selectedProperty;
@@ -65,12 +60,11 @@ class _PropertyMapClusterViewState extends State<PropertyMapClusterView>
 
   // Map Style
   String? _darkMapStyle;
-  String? _lightMapStyle;
   final bool _isDarkMode = true;
 
   // Stats
   int _visiblePropertiesCount = 0;
-  double _averagePrice = 0;
+  double _averageRating = 0;
   int _approvedCount = 0;
   int _pendingCount = 0;
 
@@ -93,11 +87,6 @@ class _PropertyMapClusterViewState extends State<PropertyMapClusterView>
       vsync: this,
     );
 
-    _pulseAnimationController = AnimationController(
-      duration: const Duration(seconds: 2),
-      vsync: this,
-    )..repeat();
-
     _markerScaleAnimation = Tween<double>(
       begin: 0.0,
       end: 1.0,
@@ -112,14 +101,6 @@ class _PropertyMapClusterViewState extends State<PropertyMapClusterView>
     ).animate(CurvedAnimation(
       parent: _overlayAnimationController,
       curve: Curves.easeOutQuart,
-    ));
-
-    _pulseAnimation = Tween<double>(
-      begin: 1.0,
-      end: 1.2,
-    ).animate(CurvedAnimation(
-      parent: _pulseAnimationController,
-      curve: Curves.easeInOut,
     ));
 
     _markerAnimationController.forward();
@@ -172,15 +153,6 @@ class _PropertyMapClusterViewState extends State<PropertyMapClusterView>
       }
     ]
     ''';
-
-    _lightMapStyle = '''
-    [
-      {
-        "featureType": "poi",
-        "stylers": [{"visibility": "off"}]
-      }
-    ]
-    ''';
   }
 
   void _processProperties() {
@@ -198,10 +170,11 @@ class _PropertyMapClusterViewState extends State<PropertyMapClusterView>
     _pendingCount = widget.properties.where((p) => !p.isApproved).length;
 
     if (widget.properties.isNotEmpty) {
-      _averagePrice = widget.properties
-              .map((p) => p.basePricePerNight)
-              .reduce((a, b) => a + b) /
-          widget.properties.length;
+      final totalRating = widget.properties
+          .fold<double>(0, (sum, property) => sum + property.averageRating);
+      _averageRating = totalRating / widget.properties.length;
+    } else {
+      _averageRating = 0;
     }
   }
 
@@ -406,42 +379,46 @@ class _PropertyMapClusterViewState extends State<PropertyMapClusterView>
     iconPainter.layout();
     iconPainter.paint(canvas, const Offset(10, 10));
 
-    // Price
-    final pricePainter = TextPainter(
+    // Details
+    final markerTitlePainter = TextPainter(
       text: TextSpan(
-        text: property.basePricePerNight.toStringAsFixed(0),
+        text: property.typeName,
         style: const TextStyle(
           color: Colors.white,
-          fontSize: 14,
+          fontSize: 12,
           fontWeight: FontWeight.bold,
         ),
       ),
       textDirection: TextDirection.ltr,
+      maxLines: 1,
+      ellipsis: '…',
     );
-    pricePainter.layout();
-    pricePainter.paint(canvas, const Offset(40, 8));
+    markerTitlePainter.layout(minWidth: 0, maxWidth: 70);
+    markerTitlePainter.paint(canvas, const Offset(40, 8));
 
-    // Rating
-    if (property.starRating > 0) {
-      final ratingPainter = TextPainter(
-        text: TextSpan(
-          text: '${property.starRating}',
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 10,
-          ),
+    final bookingLabel =
+        property.bookingCount > 0 ? '${property.bookingCount} حجز' : 'بدون حجوزات';
+    final metricsPainter = TextPainter(
+      text: TextSpan(
+        text: '⭐ ${property.averageRating.toStringAsFixed(1)} • $bookingLabel',
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 10,
         ),
-        textDirection: TextDirection.ltr,
-      );
-      ratingPainter.layout();
-      ratingPainter.paint(canvas, const Offset(40, 28));
-    }
+      ),
+      textDirection: TextDirection.ltr,
+      maxLines: 1,
+      ellipsis: '…',
+    );
+    metricsPainter.layout(minWidth: 0, maxWidth: 70);
+    metricsPainter.paint(canvas, const Offset(40, 32));
 
-    final picture = pictureRecorder.endRecording();
-    final image = await picture.toImage(width.toInt(), height.toInt());
-    final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+  final picture = pictureRecorder.endRecording();
+  final image = await picture.toImage(width.toInt(), height.toInt());
+  final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+  final Uint8List data = bytes!.buffer.asUint8List();
 
-    return BitmapDescriptor.fromBytes(bytes!.buffer.asUint8List());
+  return BitmapDescriptor.fromBytes(data);
   }
 
   Future<BitmapDescriptor> _createClusterMarker({
@@ -502,11 +479,12 @@ class _PropertyMapClusterViewState extends State<PropertyMapClusterView>
       ),
     );
 
-    final picture = pictureRecorder.endRecording();
-    final image = await picture.toImage(size.toInt(), size.toInt());
-    final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+  final picture = pictureRecorder.endRecording();
+  final image = await picture.toImage(size.toInt(), size.toInt());
+  final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+  final Uint8List data = bytes!.buffer.asUint8List();
 
-    return BitmapDescriptor.fromBytes(bytes!.buffer.asUint8List());
+  return BitmapDescriptor.fromBytes(data);
   }
 
   void _onMarkerTapped(Property property) {
@@ -1036,8 +1014,8 @@ class _PropertyMapClusterViewState extends State<PropertyMapClusterView>
               if (!isCompact) ...[
                 const SizedBox(height: 8),
                 _buildStatRow(
-                  label: 'متوسط السعر',
-                  value: _averagePrice.toStringAsFixed(0),
+                  label: 'متوسط التقييم',
+                  value: _averageRating.toStringAsFixed(1),
                   color: AppTheme.primaryPurple,
                   isCompact: isCompact,
                 ),
@@ -1287,9 +1265,9 @@ class _PropertyMapClusterViewState extends State<PropertyMapClusterView>
                 ),
                 SizedBox(height: isCompact ? 12 : 16),
 
-                // Price Range
+                // Rating Range
                 Text(
-                  'نطاق السعر',
+                  'نطاق التقييم',
                   style: AppTextStyles.caption.copyWith(
                     color: AppTheme.textMuted,
                     fontSize: isCompact ? 11 : 12,
@@ -1305,9 +1283,10 @@ class _PropertyMapClusterViewState extends State<PropertyMapClusterView>
                   child: Column(
                     children: [
                       RangeSlider(
-                        values: const RangeValues(0, 1000),
+                        values: const RangeValues(0, 5),
                         min: 0,
-                        max: 2000,
+                        max: 5,
+                        divisions: 10,
                         activeColor: AppTheme.primaryBlue,
                         inactiveColor: AppTheme.darkBorder,
                         onChanged: (values) {},
@@ -1323,7 +1302,7 @@ class _PropertyMapClusterViewState extends State<PropertyMapClusterView>
                             ),
                           ),
                           Text(
-                            '2000+',
+                            '5',
                             style: AppTextStyles.caption.copyWith(
                               color: AppTheme.textLight,
                               fontSize: isCompact ? 10 : 11,
@@ -1425,7 +1404,6 @@ class _PropertyMapClusterViewState extends State<PropertyMapClusterView>
   void dispose() {
     _markerAnimationController.dispose();
     _overlayAnimationController.dispose();
-    _pulseAnimationController.dispose();
     super.dispose();
   }
 }
@@ -1594,10 +1572,10 @@ class _PropertyDetailsCard extends StatelessWidget {
                         ),
                         const SizedBox(width: 8),
                         _buildStatItem(
-                          icon: CupertinoIcons.money_dollar,
-                          value: property.basePricePerNight.toStringAsFixed(0),
-                          label: 'السعر',
-                          color: AppTheme.success,
+                          icon: CupertinoIcons.calendar,
+                          value: property.bookingCount.toString(),
+                          label: 'الحجوزات',
+                          color: AppTheme.primaryBlue,
                           isCompact: isCompact,
                         ),
                         const SizedBox(width: 8),
@@ -1861,19 +1839,19 @@ class _ClusterPropertiesSheet extends StatelessWidget {
                           ),
                         ),
 
-                        // Price
+                        // Metrics
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
                             Text(
-                              property.basePricePerNight.toStringAsFixed(0),
+                              '⭐ ${property.averageRating.toStringAsFixed(1)}',
                               style: AppTextStyles.bodyMedium.copyWith(
-                                color: AppTheme.primaryBlue,
+                                color: AppTheme.warning,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
                             Text(
-                              'YER',
+                              '${property.bookingCount} حجز',
                               style: AppTextStyles.caption.copyWith(
                                 color: AppTheme.textMuted,
                               ),

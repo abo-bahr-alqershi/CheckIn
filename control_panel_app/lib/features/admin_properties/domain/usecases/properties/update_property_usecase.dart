@@ -16,10 +16,9 @@ class UpdatePropertyParams {
   final int? starRating;
   final List<String>? images;
   final String? shortDescription;
-  final double? basePricePerNight;
   final String? currency;
   final bool? isFeatured;
-  
+
   UpdatePropertyParams({
     required this.propertyId,
     this.name,
@@ -31,11 +30,10 @@ class UpdatePropertyParams {
     this.starRating,
     this.images,
     this.shortDescription,
-    this.basePricePerNight,
     this.currency,
     this.isFeatured,
   });
-  
+
   Map<String, dynamic> toJson() {
     final Map<String, dynamic> data = {};
     if (name != null) data['name'] = name;
@@ -47,7 +45,6 @@ class UpdatePropertyParams {
     if (starRating != null) data['starRating'] = starRating;
     if (images != null) data['images'] = images;
     if (shortDescription != null) data['shortDescription'] = shortDescription;
-    if (basePricePerNight != null) data['basePricePerNight'] = basePricePerNight;
     if (currency != null) data['currency'] = currency;
     if (isFeatured != null) data['isFeatured'] = isFeatured;
     return data;
@@ -56,9 +53,9 @@ class UpdatePropertyParams {
 
 class UpdatePropertyUseCase implements UseCase<bool, UpdatePropertyParams> {
   final PropertiesRepository repository;
-  
+
   UpdatePropertyUseCase(this.repository);
-  
+
   @override
   Future<Either<Failure, bool>> call(UpdatePropertyParams params) async {
     return await repository.updateProperty(params.propertyId, params.toJson());
