@@ -1,8 +1,10 @@
 import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:flutter/services.dart' show rootBundle;
+import '../../features/admin_bookings/domain/entities/booking.dart';
 import '../../features/admin_bookings/domain/entities/booking_details.dart';
 import '../utils/formatters.dart';
 
@@ -14,6 +16,7 @@ class InvoicePdfGenerator {
     final booking = details.booking;
     final property = details.propertyDetails;
     final guest = details.guestInfo;
+    final guestContact = resolveGuestContact(booking, guest);
 
     final currency = booking.totalPrice.currency;
     final bookingReference = _formatBookingReference(booking.id);
@@ -70,9 +73,11 @@ class InvoicePdfGenerator {
                     style: pw.TextStyle(
                         fontSize: 12, fontWeight: pw.FontWeight.bold)),
                 pw.SizedBox(height: 6),
-                pw.Text('الاسم: ${guest?.name ?? booking.userName}'),
-                if (guest?.phone != null) pw.Text('الهاتف: ${guest!.phone}'),
-                if (guest?.email != null) pw.Text('البريد: ${guest!.email}'),
+                pw.Text('الاسم: ${guestContact.name}'),
+                if (guestContact.phone != null)
+                  pw.Text('الهاتف: ${guestContact.phone}'),
+                if (guestContact.email != null)
+                  pw.Text('البريد: ${guestContact.email}'),
               ],
             ),
           ),
@@ -255,5 +260,50 @@ class InvoicePdfGenerator {
     }
 
     return bookingId.substring(0, maxLength);
+  }
+
+  @visibleForTesting
+  static ({String name, String? phone, String? email}) resolveGuestContact(
+    Booking booking,
+    GuestInfo? guest,
+  ) {
+    final name = _coalesceNonEmpty([
+          guest?.name,
+          booking.userName,
+        ]) ??
+        'غير متوفر';
+
+    final phone = _coalesceNonEmpty([
+      guest?.phone,
+      booking.userPhone,
+    ]);
+
+    final email = _coalesceNonEmpty([
+      guest?.email,
+      booking.userEmail,
+    ]);
+
+    return (
+      name: name,
+      phone: phone != null ? Formatters.formatPhoneNumber(phone) : null,
+      email: email,
+    );
+  }
+
+  static String? _coalesceNonEmpty(List<String?> values) {
+    for (final value in values) {
+      final normalized = _normalize(value);
+      if (normalized != null) {
+        return normalized;
+      }
+    }
+    return null;
+  }
+
+  static String? _normalize(String? value) {
+    if (value == null) return null;
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) return null;
+    return trimmed;
   }
 }
