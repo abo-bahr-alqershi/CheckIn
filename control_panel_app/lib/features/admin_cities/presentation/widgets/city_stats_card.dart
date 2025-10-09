@@ -49,7 +49,9 @@ class CityStatsCard extends StatelessWidget {
       _StatItem(
         icon: CupertinoIcons.photo_fill,
         label: 'الصور',
-        value: _formatNumber(statistics['totalImages'] ?? 0),
+        value: _formatNumber((statistics['totalImages'] ?? 0) is int
+            ? (statistics['totalImages'] as int)
+            : int.tryParse('${statistics['totalImages']}') ?? 0),
         gradient: [AppTheme.warning, AppTheme.neonPurple],
         trend: _num(statistics['imagesTrend']),
       ),
