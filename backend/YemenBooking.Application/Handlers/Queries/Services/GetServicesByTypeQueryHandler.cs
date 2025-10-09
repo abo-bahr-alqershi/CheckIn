@@ -32,7 +32,8 @@ namespace YemenBooking.Application.Handlers.Queries.Services
         {
             _logger.LogInformation("جاري معالجة استعلام الخدمات حسب النوع: {ServiceType}", request.ServiceType);
 
-            var services = await _serviceRepository.GetServicesByTypeAsync(request.ServiceType, cancellationToken);
+            var services = (await _serviceRepository.GetServicesByTypeAsync(request.ServiceType, cancellationToken))
+                .ToList();
 
             var dtos = services.Select(s => new ServiceDto
             {

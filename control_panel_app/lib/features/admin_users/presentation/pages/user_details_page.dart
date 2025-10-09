@@ -26,7 +26,6 @@ import 'package:bookn_cp_app/features/admin_bookings/domain/usecases/bookings/ca
 import 'package:bookn_cp_app/features/admin_bookings/domain/usecases/bookings/check_in_usecase.dart';
 import 'package:bookn_cp_app/features/admin_bookings/domain/usecases/bookings/check_out_usecase.dart';
 import '../bloc/user_details/user_details_bloc.dart';
-import '../widgets/user_form_dialog.dart';
 import '../widgets/user_role_selector.dart';
 
 class UserDetailsPage extends StatefulWidget {
@@ -1436,16 +1435,16 @@ class _UserDetailsPageState extends State<UserDetailsPage>
         setState(() {
           _reviewsError = failure.message;
         });
-      }, (list) {
+      }, (paginated) {
         setState(() {
           final existingIds = _userReviews.map((r) => r.id).toSet();
-          final newItems =
-              list.where((r) => !existingIds.contains(r.id)).toList();
+          final newItems = paginated.items
+              .where((r) => !existingIds.contains(r.id))
+              .toList();
           _userReviews = [..._userReviews, ...newItems];
-          // Infer hasMore by page size
-          final fetchedCount = list.length;
-          _reviewsHasMore =
-              fetchedCount >= _reviewsPageSize && newItems.isNotEmpty;
+          final totalCount = paginated.totalCount;
+          final loadedCount = _userReviews.length;
+          _reviewsHasMore = loadedCount < totalCount;
           if (_reviewsHasMore) {
             _reviewsPage += 1;
           }
