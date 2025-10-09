@@ -192,7 +192,7 @@ public class UpdateUserProfileCommandHandler : IRequestHandler<UpdateUserProfile
                     entityId: request.UserId,
                     action: YemenBooking.Core.Entities.AuditAction.UPDATE,
                     oldValues: null,
-                    newValues: JsonSerializer.Serialize(new { user.Name, user.PhoneNumber, user.ProfileImageUrl }),
+                    newValues: JsonSerializer.Serialize(new { user.Name, user.Phone, user.ProfileImageUrl }),
                     performedBy: performerId,
                     notes: notes,
                     cancellationToken: cancellationToken);

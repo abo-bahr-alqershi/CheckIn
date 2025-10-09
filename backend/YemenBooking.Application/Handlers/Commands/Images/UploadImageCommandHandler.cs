@@ -215,18 +215,6 @@ namespace YemenBooking.Application.Handlers.Commands.Images
                 if (!uploadResult.IsSuccess || uploadResult.FileUrl == null)
                     return ResultDto<ImageDto>.Failed("حدث خطأ أثناء رفع الصورة");
 
-                // تسجيل عملية الرفع في السجل (يدوي) مع ذكر اسم المستخدم والمعرف
-                var notes = $"تم رفع الصورة {fileName} بواسطة {_currentUserService.Username} (ID={_currentUserService.UserId})";
-                await _auditService.LogAuditAsync(
-                    entityType: "Image",
-                    entityId: imageDto.Id,
-                    action: AuditAction.CREATE,
-                    oldValues: null,
-                    newValues: JsonSerializer.Serialize(new { Path = uploadResult.FilePath, Url = uploadResult.FileUrl }),
-                    performedBy: _currentUserService.UserId,
-                    notes: notes,
-                    cancellationToken: cancellationToken);
-
                 _logger.LogInformation("اكتمل رفع الصورة بنجاح: Url={Url}", uploadResult.FileUrl);
                 // معالجة الفيديو (مدة فقط) + قبول مصغرة من العميل إن وردت
                 int? videoDurationSeconds = null;
@@ -284,7 +272,7 @@ namespace YemenBooking.Application.Handlers.Commands.Images
                     Url = uploadResult.FileUrl,
                     Filename = fileName,
                     Size = uploadResult.FileSizeBytes,
-                    MimeType = request.File.ContentType,
+                    MimeType = request.File.ContentType ?? string.Empty,
                     Width = 0,
                     Height = 0,
                     Alt = request.Alt,
@@ -308,6 +296,18 @@ namespace YemenBooking.Application.Handlers.Commands.Images
                     Duration = videoDurationSeconds,
                     VideoThumbnail = videoThumbUrl
                 };
+
+                // تسجيل عملية الرفع في السجل (يدوي) مع ذكر اسم المستخدم والمعرف
+                var notes = $"تم رفع الصورة {fileName} بواسطة {_currentUserService.Username} (ID={_currentUserService.UserId})";
+                await _auditService.LogAuditAsync(
+                    entityType: "Image",
+                    entityId: imageDto.Id,
+                    action: AuditAction.CREATE,
+                    oldValues: null,
+                    newValues: JsonSerializer.Serialize(new { Path = uploadResult.FilePath, Url = uploadResult.FileUrl }),
+                    performedBy: _currentUserService.UserId,
+                    notes: notes,
+                    cancellationToken: cancellationToken);
                 // Determine PropertyId association: maintain null if none
                 Guid? propertyAssociation = request.PropertyId;
                 if (!propertyAssociation.HasValue && request.UnitId.HasValue)

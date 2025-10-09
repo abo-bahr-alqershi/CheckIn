@@ -153,7 +153,7 @@ public class CreateUnitTypeFieldCommandHandler : IRequestHandler<CreateUnitTypeF
                 entityId: createdField.Id,
                 action: YemenBooking.Core.Entities.AuditAction.CREATE,
                 oldValues: null,
-                newValues: JsonSerializer.Serialize(new {
+                newValues: System.Text.Json.JsonSerializer.Serialize(new {
                     createdField.Id,
                     createdField.UnitTypeId,
                     createdField.FieldTypeId,

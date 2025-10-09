@@ -20,15 +20,18 @@ namespace YemenBooking.Application.Handlers.Commands.Reports
     {
         private readonly IReportRepository _reportRepository;
         private readonly IAuditService _auditService;
+        private readonly ICurrentUserService _currentUserService;
         private readonly ILogger<TakeReportActionCommandHandler> _logger;
 
         public TakeReportActionCommandHandler(
             IReportRepository reportRepository,
             IAuditService auditService,
+            ICurrentUserService currentUserService,
             ILogger<TakeReportActionCommandHandler> logger)
         {
             _reportRepository = reportRepository;
             _auditService = auditService;
+            _currentUserService = currentUserService;
             _logger = logger;
         }
 
@@ -45,7 +48,7 @@ namespace YemenBooking.Application.Handlers.Commands.Reports
 
             // Update status and action note
             report.Status = request.Action;
-            report.ActionNote = request.ActionNote;
+            report.ActionNote = request.ActionNote ?? string.Empty;
             report.AdminId = request.AdminId;
             report.UpdatedAt = DateTime.UtcNow;
 
