@@ -21,7 +21,7 @@ class NotificationsStatsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 160,
+      height: 130,
       child: ListView(
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),
@@ -97,7 +97,7 @@ class NotificationsStatsCard extends StatelessWidget {
     final isPositive = trend >= 0;
 
     return Container(
-      width: 190,
+      width: 160,
       margin: const EdgeInsets.only(left: 12),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
@@ -141,13 +141,13 @@ class NotificationsStatsCard extends StatelessWidget {
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(12),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       SizedBox(
-                        height: 40,
+                        height: 32,
                         child: Row(
                           children: [
                             Container(
@@ -158,7 +158,7 @@ class NotificationsStatsCard extends StatelessWidget {
                               ),
                               child: Icon(
                                 icon,
-                                size: 18,
+                                size: 16,
                                 color: Colors.white,
                               ),
                             ),
@@ -183,7 +183,7 @@ class NotificationsStatsCard extends StatelessWidget {
                                       isPositive
                                           ? CupertinoIcons.arrow_up_right
                                           : CupertinoIcons.arrow_down_right,
-                                    size: 10,
+                                    size: 8,
                                       color: isPositive
                                           ? AppTheme.success
                                           : AppTheme.error,
@@ -210,7 +210,7 @@ class NotificationsStatsCard extends StatelessWidget {
                         title,
                         style: AppTextStyles.caption.copyWith(
                           color: AppTheme.textMuted,
-                          fontSize: 12,
+                          fontSize: 11,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -222,7 +222,7 @@ class NotificationsStatsCard extends StatelessWidget {
                           alignment: Alignment.centerLeft,
                           child: Text(
                             value,
-                            style: AppTextStyles.heading1.copyWith(
+                            style: AppTextStyles.heading2.copyWith(
                               color: gradient.colors.first,
                               fontWeight: FontWeight.bold,
                             ),
