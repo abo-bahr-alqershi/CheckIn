@@ -72,15 +72,17 @@ namespace YemenBooking.Application.Handlers.Commands.Services
             };
             var created = await _serviceRepository.CreatePropertyServiceAsync(service, cancellationToken);
 
-            // تسجيل التدقيق
-            await _auditService.LogBusinessOperationAsync(
-                "CreatePropertyService",
-                $"تم إنشاء خدمة جديدة {created.Id} للكيان {created.PropertyId}",
-                created.Id,
-                "PropertyService",
-                _currentUserService.UserId,
-                null,
-                cancellationToken);
+            // تسجيل التدقيق (يدوي) يتضمن اسم ومعرّف المنفذ
+            var notes = $"تم إنشاء خدمة جديدة {created.Id} للكيان {created.PropertyId} بواسطة {_currentUserService.Username} (ID={_currentUserService.UserId})";
+            await _auditService.LogAuditAsync(
+                entityType: "PropertyService",
+                entityId: created.Id,
+                action: YemenBooking.Core.Enums.AuditAction.CREATE,
+                oldValues: null,
+                newValues: System.Text.Json.JsonSerializer.Serialize(new { created.Id, created.PropertyId, created.Name }),
+                performedBy: _currentUserService.UserId,
+                notes: notes,
+                cancellationToken: cancellationToken);
 
             _logger.LogInformation("اكتمل إنشاء الخدمة بنجاح: ServiceId={ServiceId}", created.Id);
             return ResultDto<Guid>.Succeeded(created.Id, "تم إنشاء الخدمة بنجاح");

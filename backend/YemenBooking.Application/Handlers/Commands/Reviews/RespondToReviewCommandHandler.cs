@@ -75,14 +75,17 @@ namespace YemenBooking.Application.Handlers.Commands.Reviews
             review.UpdatedAt = DateTime.UtcNow;
             await _reviewRepository.UpdateReviewAsync(review, cancellationToken);
 
-            await _auditService.LogBusinessOperationAsync(
-                "CreateReviewResponse",
-                $"تم إضافة رد على التقييم {request.ReviewId}",
-                entity.Id,
-                nameof(ReviewResponse),
-                _currentUserService.UserId,
-                null,
-                cancellationToken);
+            // تسجيل التدقيق (يدوي) يتضمن اسم ومعرّف المنفذ
+            var notes = $"تم إضافة رد على التقييم {request.ReviewId} بواسطة {_currentUserService.Username} (ID={_currentUserService.UserId})";
+            await _auditService.LogAuditAsync(
+                entityType: nameof(ReviewResponse),
+                entityId: entity.Id,
+                action: YemenBooking.Core.Enums.AuditAction.CREATE,
+                oldValues: null,
+                newValues: System.Text.Json.JsonSerializer.Serialize(new { request.ReviewId, entity.Text }),
+                performedBy: _currentUserService.UserId,
+                notes: notes,
+                cancellationToken: cancellationToken);
 
             var dto = new ReviewResponseDto
             {

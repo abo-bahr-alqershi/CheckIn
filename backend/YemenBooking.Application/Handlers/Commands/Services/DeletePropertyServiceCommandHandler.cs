@@ -59,14 +59,17 @@ namespace YemenBooking.Application.Handlers.Commands.Services
             if (!success)
                 return ResultDto<bool>.Failed("فشل حذف الخدمة");
 
-            await _auditService.LogBusinessOperationAsync(
-                "DeletePropertyService",
-                $"تم حذف الخدمة {request.ServiceId}",
-                request.ServiceId,
-                "PropertyService",
-                _currentUserService.UserId,
-                null,
-                cancellationToken);
+            // تسجيل التدقيق (يدوي) يتضمن اسم ومعرّف المنفذ
+            var notes = $"تم حذف الخدمة {request.ServiceId} بواسطة {_currentUserService.Username} (ID={_currentUserService.UserId})";
+            await _auditService.LogAuditAsync(
+                entityType: "PropertyService",
+                entityId: request.ServiceId,
+                action: YemenBooking.Core.Enums.AuditAction.DELETE,
+                oldValues: System.Text.Json.JsonSerializer.Serialize(new { request.ServiceId }),
+                newValues: null,
+                performedBy: _currentUserService.UserId,
+                notes: notes,
+                cancellationToken: cancellationToken);
 
             _logger.LogInformation("اكتمل حذف الخدمة: ServiceId={ServiceId}", request.ServiceId);
             return ResultDto<bool>.Succeeded(true, "تم حذف الخدمة بنجاح");

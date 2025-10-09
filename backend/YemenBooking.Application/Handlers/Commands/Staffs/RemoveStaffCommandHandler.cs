@@ -58,15 +58,17 @@ namespace YemenBooking.Application.Handlers.Commands.Staffs
             if (!removed)
                 return ResultDto<bool>.Failed("فشل إزالة الموظف");
 
-            // تسجيل التدقيق
-            await _auditService.LogBusinessOperationAsync(
-                "RemoveStaff",
-                $"تم إزالة الموظف {request.StaffId}",
-                request.StaffId,
-                "Staff",
-                _currentUserService.UserId,
-                null,
-                cancellationToken);
+            // تسجيل التدقيق (يدوي) يتضمن اسم ومعرّف المنفذ
+            var notes = $"تم إزالة الموظف {request.StaffId} بواسطة {_currentUserService.Username} (ID={_currentUserService.UserId})";
+            await _auditService.LogAuditAsync(
+                entityType: "Staff",
+                entityId: request.StaffId,
+                action: YemenBooking.Core.Enums.AuditAction.DELETE,
+                oldValues: System.Text.Json.JsonSerializer.Serialize(new { request.StaffId }),
+                newValues: null,
+                performedBy: _currentUserService.UserId,
+                notes: notes,
+                cancellationToken: cancellationToken);
 
             _logger.LogInformation("اكتملت عملية إزالة الموظف بنجاح: StaffId={StaffId}", request.StaffId);
             return ResultDto<bool>.Succeeded(true, "تم إزالة الموظف بنجاح");

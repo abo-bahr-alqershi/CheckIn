@@ -67,15 +67,17 @@ namespace YemenBooking.Application.Handlers.Commands.Reviews
             if (!deleted)
                 return ResultDto<bool>.Failed("فشل حذف التقييم");
 
-            // تسجيل التدقيق
-            await _auditService.LogBusinessOperationAsync(
-                "DeleteReview",
-                $"تم حذف التقييم {request.ReviewId}",
-                request.ReviewId,
-                "Review",
-                _currentUserService.UserId,
-                null,
-                cancellationToken);
+            // تسجيل التدقيق (يدوي) يتضمن اسم ومعرّف المنفذ
+            var notes = $"تم حذف التقييم {request.ReviewId} بواسطة {_currentUserService.Username} (ID={_currentUserService.UserId})";
+            await _auditService.LogAuditAsync(
+                entityType: "Review",
+                entityId: request.ReviewId,
+                action: YemenBooking.Core.Enums.AuditAction.DELETE,
+                oldValues: System.Text.Json.JsonSerializer.Serialize(new { request.ReviewId }),
+                newValues: null,
+                performedBy: _currentUserService.UserId,
+                notes: notes,
+                cancellationToken: cancellationToken);
 
             // Update property average rating
             var bookingEntity = await _reviewRepository.GetBookingByIdAsync(review.BookingId, cancellationToken);
