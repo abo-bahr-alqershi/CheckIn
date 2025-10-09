@@ -8,6 +8,7 @@ abstract class CurrenciesRemoteDataSource {
   Future<List<CurrencyModel>> getCurrencies();
   Future<bool> saveCurrencies(List<CurrencyModel> currencies);
   Future<bool> deleteCurrency(String code);
+  Future<Map<String, dynamic>> getCurrencyStats({DateTime? startDate, DateTime? endDate});
 }
 
 class CurrenciesRemoteDataSourceImpl implements CurrenciesRemoteDataSource {
@@ -67,6 +68,28 @@ class CurrenciesRemoteDataSourceImpl implements CurrenciesRemoteDataSource {
           throw _handleDioError(inner);
         }
       }
+      throw _handleDioError(e);
+    }
+  }
+
+  @override
+  Future<Map<String, dynamic>> getCurrencyStats({DateTime? startDate, DateTime? endDate}) async {
+    try {
+      final params = <String, dynamic>{};
+      if (startDate != null) params['startDate'] = startDate.toIso8601String();
+      if (endDate != null) params['endDate'] = endDate.toIso8601String();
+      final response = await apiClient.get(
+        '${ApiConstants.adminBaseUrl}/system-settings/currencies/stats',
+        queryParameters: params,
+      );
+      final data = response.data;
+      if (data is Map && (data['data'] is Map)) {
+        return Map<String, dynamic>.from(data['data'] as Map);
+      }
+      // Some deployments might return bare object
+      if (data is Map<String, dynamic>) return data;
+      return <String, dynamic>{};
+    } on DioException catch (e) {
       throw _handleDioError(e);
     }
   }

@@ -1530,6 +1530,7 @@ void _initAdminCurrencies() {
         saveCurrencies: sl<ac_uc2.SaveCurrenciesUseCase>(),
         deleteCurrency: sl<ac_uc3.DeleteCurrencyUseCase>(),
         setDefaultCurrency: sl<ac_uc4.SetDefaultCurrencyUseCase>(),
+        repository: sl<ac_repo.CurrenciesRepository>(),
       ));
 
   // Use cases

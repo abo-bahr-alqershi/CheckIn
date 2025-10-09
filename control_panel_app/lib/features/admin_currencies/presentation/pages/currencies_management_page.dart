@@ -322,8 +322,21 @@ class _CurrenciesManagementPageState extends State<CurrenciesManagementPage>
           return AnimationLimiter(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: CurrencyStatsCard(
-                currencies: state.currencies,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  CurrencyStatsCard(
+                    currencies: state.currencies,
+                    stats: state.stats,
+                    startDate: DateTime.now().subtract(const Duration(days: 30)),
+                    endDate: DateTime.now(),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'الاتجاهات محسوبة لآخر 30 يومًا',
+                    style: AppTextStyles.caption.copyWith(color: AppTheme.textMuted),
+                  ),
+                ],
               ),
             ),
           );
