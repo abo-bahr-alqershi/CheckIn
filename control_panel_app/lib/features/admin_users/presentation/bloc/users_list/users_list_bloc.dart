@@ -221,6 +221,9 @@ class UsersListBloc extends Bloc<UsersListEvent, UsersListState> {
     Emitter<UsersListState> emit,
   ) async {
     if (state is UsersListLoaded) {
+      final current = state as UsersListLoaded;
+      emit(UsersRefreshing(users: current.users, totalCount: current.totalCount));
+
       _currentPage = 1;
       _allUsers = [];
       _hasMoreData = true;
@@ -239,8 +242,7 @@ class UsersListBloc extends Bloc<UsersListEvent, UsersListState> {
         (failure) => emit(UsersListError(message: failure.message)),
         (paginatedResult) {
           _allUsers = paginatedResult.items;
-          _hasMoreData =
-              paginatedResult.pageNumber < paginatedResult.totalPages;
+          _hasMoreData = paginatedResult.pageNumber < paginatedResult.totalPages;
 
           emit(UsersListLoaded(
             users: _allUsers,
