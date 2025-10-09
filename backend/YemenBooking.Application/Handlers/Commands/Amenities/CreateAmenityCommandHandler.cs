@@ -96,26 +96,30 @@ namespace YemenBooking.Application.Handlers.Commands.Amenities
                         await _unitOfWork.Repository<PropertyTypeAmenity>().AddAsync(pta, cancellationToken);
                         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-                        await _auditService.LogActivityAsync(
-                            nameof(PropertyTypeAmenity),
-                            pta.Id.ToString(),
-                            "CREATE",
-                            "تم ربط المرفق بنوع الكيان مباشرة بعد الإنشاء",
-                            null,
-                            pta,
-                            cancellationToken);
+                        var notesLink = $"تم ربط المرفق بنوع الكيان مباشرة بعد الإنشاء بواسطة {_currentUserService.Username} (ID={_currentUserService.UserId})";
+                        await _auditService.LogAuditAsync(
+                            entityType: nameof(PropertyTypeAmenity),
+                            entityId: pta.Id,
+                            action: YemenBooking.Core.Enums.AuditAction.CREATE,
+                            oldValues: null,
+                            newValues: System.Text.Json.JsonSerializer.Serialize(new { pta.PropertyTypeId, pta.AmenityId, pta.IsDefault }),
+                            performedBy: _currentUserService.UserId,
+                            notes: notesLink,
+                            cancellationToken: cancellationToken);
                     }
                 }
 
-                // الآثار الجانبية: تسجيل العملية في السجل
-                await _auditService.LogActivityAsync(
-                    nameof(Amenity),
-                    amenity.Id.ToString(),
-                    "CREATE",
-                    "تم إنشاء المرفق بنجاح",
-                    null,
-                    amenity,
-                    cancellationToken);
+                // الآثار الجانبية: تسجيل العملية في السجل (يدوي)
+                var notes = $"تم إنشاء المرفق بنجاح بواسطة {_currentUserService.Username} (ID={_currentUserService.UserId})";
+                await _auditService.LogAuditAsync(
+                    entityType: nameof(Amenity),
+                    entityId: amenity.Id,
+                    action: YemenBooking.Core.Enums.AuditAction.CREATE,
+                    oldValues: null,
+                    newValues: System.Text.Json.JsonSerializer.Serialize(new { amenity.Id, amenity.Name, amenity.Description, amenity.Icon }),
+                    performedBy: _currentUserService.UserId,
+                    notes: notes,
+                    cancellationToken: cancellationToken);
 
                 _logger.LogInformation("تم إنشاء المرفق بالمعرف {AmenityId}", amenity.Id);
 

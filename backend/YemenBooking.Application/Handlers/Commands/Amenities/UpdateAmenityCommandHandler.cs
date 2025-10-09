@@ -88,15 +88,17 @@ namespace YemenBooking.Application.Handlers.Commands.Amenities
                 await _unitOfWork.Repository<Amenity>().UpdateAsync(existing, cancellationToken);
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-                // الآثار الجانبية: تسجيل العملية في السجل مع القيم القديمة والجديدة
-                await _auditService.LogActivityAsync(
-                    nameof(Amenity),
-                    existing.Id.ToString(),
-                    "UPDATE",
-                    "تم تحديث بيانات المرفق عن طريق المستخدم",
-                    oldValues,
-                    existing,
-                    cancellationToken);
+                // الآثار الجانبية: تسجيل العملية في السجل مع القيم القديمة والجديدة (يدوي)
+                var notes = $"تم تحديث بيانات المرفق عن طريق {_currentUserService.Username} (ID={_currentUserService.UserId})";
+                await _auditService.LogAuditAsync(
+                    entityType: nameof(Amenity),
+                    entityId: existing.Id,
+                    action: YemenBooking.Core.Enums.AuditAction.UPDATE,
+                    oldValues: System.Text.Json.JsonSerializer.Serialize(new { oldValues.Id, oldValues.Name, oldValues.Description }),
+                    newValues: System.Text.Json.JsonSerializer.Serialize(new { existing.Id, existing.Name, existing.Description }),
+                    performedBy: _currentUserService.UserId,
+                    notes: notes,
+                    cancellationToken: cancellationToken);
 
                 _logger.LogInformation("تم تحديث المرفق بالمعرف {AmenityId}", existing.Id);
                 return ResultDto<bool>.Succeeded(true, "تم تحديث بيانات المرفق بنجاح");

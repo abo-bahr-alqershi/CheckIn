@@ -94,15 +94,17 @@ namespace YemenBooking.Application.Handlers.Commands.Amenities
                     .UpdateAsync(existingAmenity, cancellationToken);
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-                // الآثار الجانبية: تسجيل العملية في السجل
-                await _auditService.LogActivityAsync(
-                    nameof(Amenity),
-                    existingAmenity.Id.ToString(),
-                    "DELETE",
-                    "تم حذف المرفق",
-                    null,
-                    existingAmenity,
-                    cancellationToken);
+                // الآثار الجانبية: تسجيل العملية في السجل (يدوي) مع اسم المستخدم والمعرف
+                var notes = $"تم حذف المرفق بواسطة {_currentUserService.Username} (ID={_currentUserService.UserId})";
+                await _auditService.LogAuditAsync(
+                    entityType: nameof(Amenity),
+                    entityId: existingAmenity.Id,
+                    action: YemenBooking.Core.Enums.AuditAction.DELETE,
+                    oldValues: System.Text.Json.JsonSerializer.Serialize(new { existingAmenity.Id, existingAmenity.Name }),
+                    newValues: null,
+                    performedBy: _currentUserService.UserId,
+                    notes: notes,
+                    cancellationToken: cancellationToken);
 
                 // تحديث مباشر لفهرس العقارات المتأثرة
                 try
