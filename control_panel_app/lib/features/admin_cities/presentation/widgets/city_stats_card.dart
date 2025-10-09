@@ -18,34 +18,40 @@ class CityStatsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final double _num(Object? v) {
+      if (v is num) return v.toDouble();
+      if (v is String) return double.tryParse(v) ?? 0;
+      return 0;
+    }
+
     final stats = [
       _StatItem(
         icon: CupertinoIcons.building_2_fill,
         label: 'إجمالي المدن',
         value: citiesCount.toString(),
         gradient: [AppTheme.primaryBlue, AppTheme.primaryCyan],
-        trend: statistics['citiesTrend'] as double? ?? 0,
+        trend: _num(statistics['updatesTrendPct']),
       ),
       _StatItem(
         icon: CupertinoIcons.house_fill,
         label: 'العقارات',
         value: (statistics['totalProperties'] ?? 0).toString(),
         gradient: [AppTheme.primaryPurple, AppTheme.primaryViolet],
-        trend: statistics['propertiesTrend'] as double? ?? 0,
+        trend: _num(statistics['propertiesTrend']),
       ),
       _StatItem(
         icon: CupertinoIcons.checkmark_circle_fill,
         label: 'مدن نشطة',
-        value: (statistics['activeCities'] ?? 0).toString(),
+        value: (statistics['activeCities'] ?? statistics['active'] ?? 0).toString(),
         gradient: [AppTheme.success, AppTheme.neonGreen],
-        trend: statistics['activeTrend'] as double? ?? 0,
+        trend: _num(statistics['activeTrend']),
       ),
       _StatItem(
         icon: CupertinoIcons.photo_fill,
         label: 'الصور',
         value: _formatNumber(statistics['totalImages'] ?? 0),
         gradient: [AppTheme.warning, AppTheme.neonPurple],
-        trend: statistics['imagesTrend'] as double? ?? 0,
+        trend: _num(statistics['imagesTrend']),
       ),
     ];
 

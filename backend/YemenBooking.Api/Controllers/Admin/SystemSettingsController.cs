@@ -7,6 +7,7 @@ using YemenBooking.Application.Interfaces.Services;
 using YemenBooking.Application.DTOs;
 using System;
 using System.Linq;
+using System.Collections.Generic;
 
 namespace YemenBooking.Api.Controllers.Admin
 {
@@ -124,6 +125,42 @@ namespace YemenBooking.Api.Controllers.Admin
             }
 
             return Ok(ResultDto<CurrencyStatsDto>.Succeeded(dto));
+        }
+
+        /// <summary>
+        /// Get city statistics with optional last-30-days trends
+        /// </summary>
+        [HttpGet("cities/stats")]
+        public async Task<ActionResult<ResultDto<CityStatsDto>>> GetCitiesStatsAsync([FromQuery] DateTime? startDate = null, [FromQuery] DateTime? endDate = null, CancellationToken cancellationToken = default)
+        {
+            var cities = await _citySettingsService.GetCitiesAsync(cancellationToken);
+            var total = cities.Count;
+            var active = cities.Count(c => c.IsActive != false);
+            var byCountry = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            foreach (var c in cities)
+            {
+                var country = c.Country ?? string.Empty;
+                byCountry[country] = byCountry.TryGetValue(country, out var v) ? v + 1 : 1;
+            }
+
+            var dto = new CityStatsDto
+            {
+                TotalCities = total,
+                ActiveCities = active,
+                ByCountry = byCountry,
+                UpdatesCount = 0,
+                UpdatesTrendPct = null
+            };
+
+            // Trend based on cities added/changed in the period: since CityDto has no LastUpdated, we approximate by change in count per period (using settings snapshot).
+            if (startDate.HasValue && endDate.HasValue && endDate > startDate)
+            {
+                // Without historical audit here, expose trend as null when no baseline is available
+                dto.UpdatesCount = 0;
+                dto.UpdatesTrendPct = null;
+            }
+
+            return Ok(ResultDto<CityStatsDto>.Succeeded(dto));
         }
 
         /// <summary>

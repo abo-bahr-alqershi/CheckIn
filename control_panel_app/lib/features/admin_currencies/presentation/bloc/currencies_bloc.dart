@@ -44,8 +44,12 @@ class CurrenciesBloc extends Bloc<CurrenciesEvent, CurrenciesState> {
 
     final result = await getCurrencies(NoParams());
 
-    result.fold(
-      (failure) => emit(CurrenciesError(message: failure.message)),
+    await result.fold(
+      (failure) async {
+        if (!emit.isDone) {
+          emit(CurrenciesError(message: failure.message));
+        }
+      },
       (currencies) async {
         _allCurrencies = currencies;
         // Try fetch backend stats for last 30 days
@@ -55,11 +59,13 @@ class CurrenciesBloc extends Bloc<CurrenciesEvent, CurrenciesState> {
         final statsResult =
             await repository.getCurrencyStats(startDate: last30, endDate: now);
         stats = statsResult.fold((_) => null, (data) => data);
-        emit(CurrenciesLoaded(
-          currencies: currencies,
-          filteredCurrencies: currencies,
-          stats: stats,
-        ));
+        if (!emit.isDone) {
+          emit(CurrenciesLoaded(
+            currencies: currencies,
+            filteredCurrencies: currencies,
+            stats: stats,
+          ));
+        }
       },
     );
   }

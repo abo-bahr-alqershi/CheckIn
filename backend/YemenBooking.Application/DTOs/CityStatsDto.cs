@@ -1,0 +1,19 @@
+using System;
+using System.Collections.Generic;
+
+namespace YemenBooking.Application.DTOs
+{
+    /// <summary>
+    /// City statistics with optional trend indicators over a date window
+    /// </summary>
+    public class CityStatsDto
+    {
+        public int TotalCities { get; set; }
+        public int ActiveCities { get; set; }
+        public Dictionary<string, int> ByCountry { get; set; } = new();
+
+        // Trends over [startDate, endDate] vs previous equal-length window
+        public int UpdatesCount { get; set; }
+        public double? UpdatesTrendPct { get; set; }
+    }
+}

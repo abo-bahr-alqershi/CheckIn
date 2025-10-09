@@ -215,10 +215,10 @@ class CitiesRepositoryImpl implements CitiesRepository {
   }
 
   @override
-  Future<Either<Failure, Map<String, dynamic>>> getCitiesStatistics() async {
+  Future<Either<Failure, Map<String, dynamic>>> getCitiesStatistics({DateTime? startDate, DateTime? endDate}) async {
     if (await networkInfo.isConnected) {
       try {
-        final result = await remoteDataSource.getCitiesStatistics();
+        final result = await remoteDataSource.getCitiesStatistics(startDate: startDate, endDate: endDate);
         return Right(result);
       } on ApiException catch (e) {
         return Left(ServerFailure(e.message));

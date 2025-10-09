@@ -29,8 +29,8 @@ abstract class CitiesRepository {
   /// البحث في المدن
   Future<Either<Failure, List<City>>> searchCities(String query);
 
-  /// الحصول على إحصائيات المدن
-  Future<Either<Failure, Map<String, dynamic>>> getCitiesStatistics();
+  /// الحصول على إحصائيات المدن مع دعم اتجاهات عبر نافذة زمنية
+  Future<Either<Failure, Map<String, dynamic>>> getCitiesStatistics({DateTime? startDate, DateTime? endDate});
 
   /// رفع صورة للمدينة مع دعم التقدم
   Future<Either<Failure, String>> uploadCityImage(String cityName, String imagePath, {ProgressCallback? onSendProgress});
