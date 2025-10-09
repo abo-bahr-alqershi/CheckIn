@@ -170,7 +170,10 @@ class AdminNotificationsBloc
     });
 
     on<LoadAdminNotificationsStatsEvent>((event, emit) async {
-      final res = await getStatsUseCase();
+      // Default last 30 days window similar to currencies
+      final now = DateTime.now();
+      final last30 = now.subtract(const Duration(days: 30));
+      final res = await getStatsUseCase(startDate: last30, endDate: now);
       res.fold(
         (l) {
           _statsError = l.message;

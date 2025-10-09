@@ -106,10 +106,10 @@ class AdminNotificationsRepositoryImpl implements AdminNotificationsRepository {
   }
 
   @override
-  Future<Either<Failure, Map<String, int>>> getStats() async {
+  Future<Either<Failure, Map<String, int>>> getStats({DateTime? startDate, DateTime? endDate}) async {
     if (!await networkInfo.isConnected) return const Left(NetworkFailure());
     try {
-      final res = await remote.getStats();
+      final res = await remote.getStats(startDate: startDate, endDate: endDate);
       return Right(res);
     } catch (e) {
       return Left(ServerFailure(e.toString()));

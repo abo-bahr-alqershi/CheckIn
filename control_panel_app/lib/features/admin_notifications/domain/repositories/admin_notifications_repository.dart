@@ -39,6 +39,6 @@ abstract class AdminNotificationsRepository {
     bool? isRead,
   });
 
-  Future<Either<Failure, Map<String, int>>> getStats();
+  Future<Either<Failure, Map<String, int>>> getStats({DateTime? startDate, DateTime? endDate});
 }
 

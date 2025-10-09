@@ -6,5 +6,6 @@ class GetAdminNotificationsStatsUseCase {
   final AdminNotificationsRepository repository;
   GetAdminNotificationsStatsUseCase(this.repository);
 
-  Future<Either<Failure, Map<String, int>>> call() => repository.getStats();
+  Future<Either<Failure, Map<String, int>>> call({DateTime? startDate, DateTime? endDate}) =>
+      repository.getStats(startDate: startDate, endDate: endDate);
 }

@@ -310,11 +310,34 @@ class _AdminNotificationsPageState extends State<AdminNotificationsPage>
         builder: (context, state) {
           final stats = state.stats;
           if (stats != null) {
+            final now = DateTime.now();
+            final last30 = now.subtract(const Duration(days: 30));
             return AnimationLimiter(
               child: Container(
                 height: 130,
                 padding: const EdgeInsets.symmetric(vertical: 8),
-                child: NotificationsStatsCard(stats: stats),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: NotificationsStatsCard(
+                        stats: stats,
+                        startDate: last30,
+                        endDate: now,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Padding(
+                      padding: const EdgeInsets.only(left: 16, right: 16),
+                      child: Text(
+                        'الاتجاهات محسوبة لآخر 30 يومًا',
+                        style: AppTextStyles.caption.copyWith(
+                          color: AppTheme.textMuted,
+                        ),
+                      ),
+                    )
+                  ],
+                ),
               ),
             );
           }

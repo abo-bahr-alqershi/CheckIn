@@ -18,6 +18,16 @@ namespace YemenBooking.Application.DTOs
         public int Today { get; set; }
         public int Last7Days { get; set; }
         public int Last30Days { get; set; }
+
+        // Trends over [from,to] vs previous equal-length window (rounded %)
+        public int TotalTrend { get; set; }
+        public int SentTrend { get; set; }
+        public int PendingTrend { get; set; }
+        public int FailedTrend { get; set; }
+
+        // Read rate in % for the window and its trend
+        public int ReadRate { get; set; }
+        public int ReadRateTrend { get; set; }
     }
 }
 

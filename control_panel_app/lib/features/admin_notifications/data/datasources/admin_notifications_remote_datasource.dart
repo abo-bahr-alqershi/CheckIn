@@ -100,8 +100,11 @@ class AdminNotificationsRemoteDataSource {
     );
   }
 
-  Future<Map<String, int>> getStats() async {
-    final res = await apiClient.get('/api/admin/notifications/stats');
+  Future<Map<String, int>> getStats({DateTime? startDate, DateTime? endDate}) async {
+    final query = <String, dynamic>{};
+    if (startDate != null) query['from'] = startDate.toUtc().toIso8601String();
+    if (endDate != null) query['to'] = endDate.toUtc().toIso8601String();
+    final res = await apiClient.get('/api/admin/notifications/stats', queryParameters: query);
     final data = Map<String, dynamic>.from(res.data as Map);
     return data.map((key, value) => MapEntry(key, (value as num).toInt()));
   }

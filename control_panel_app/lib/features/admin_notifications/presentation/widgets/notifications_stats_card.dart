@@ -8,10 +8,14 @@ import '../../../../core/theme/app_text_styles.dart';
 
 class NotificationsStatsCard extends StatelessWidget {
   final Map<String, int> stats;
+  final DateTime? startDate;
+  final DateTime? endDate;
 
   const NotificationsStatsCard({
     super.key,
     required this.stats,
+    this.startDate,
+    this.endDate,
   });
 
   @override
