@@ -113,7 +113,7 @@ namespace YemenBooking.Application.Handlers.Commands.Users
                 oldValues: JsonSerializer.Serialize(oldValues),
                 newValues: JsonSerializer.Serialize(newValues),
                 performedBy: _currentUserService.UserId,
-                notes: $"تم تحديث بيانات المستخدم {request.UserId}",
+                notes: $"تم تحديث بيانات المستخدم {request.UserId} بواسطة {_currentUserService.Username} (ID={_currentUserService.UserId})",
                 cancellationToken: cancellationToken);
 
             _logger.LogInformation("اكتمل تحديث بيانات المستخدم بنجاح: UserId={UserId}", request.UserId);

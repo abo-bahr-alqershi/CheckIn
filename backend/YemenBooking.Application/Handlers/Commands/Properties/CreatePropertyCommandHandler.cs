@@ -139,7 +139,7 @@ namespace YemenBooking.Application.Handlers.Commands.Properties
                     created.IsFeatured
                 }),
                 performedBy: _currentUserService.UserId,
-                notes: $"تم إنشاء الكيان جديد {created.Id} باسم {created.Name}",
+                notes: $"تم إنشاء الكيان {created.Id} باسم {created.Name} بواسطة {_currentUserService.Username} (ID={_currentUserService.UserId})",
                 cancellationToken: cancellationToken);
 
             // إرسال إشعار للمراجعة إلى المالك

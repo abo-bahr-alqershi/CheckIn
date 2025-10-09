@@ -100,7 +100,7 @@ namespace YemenBooking.Application.Handlers.Commands.Users
                 oldValues: null,
                 newValues: JsonSerializer.Serialize(newValues),
                 performedBy: _currentUserService.UserId,
-                notes: $"تم إنشاء مستخدم جديد {created.Id} ({created.Email})",
+                notes: $"تم إنشاء مستخدم جديد {created.Id} ({created.Email}) بواسطة {_currentUserService.Username} (ID={_currentUserService.UserId})",
                 cancellationToken: cancellationToken);
 
             _logger.LogInformation("اكتمل إنشاء المستخدم بنجاح: UserId={UserId}", created.Id);

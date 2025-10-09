@@ -65,7 +65,7 @@ namespace YemenBooking.Application.Handlers.Commands.Users
                 oldValues: null,
                 newValues: JsonSerializer.Serialize(auditValues),
                 performedBy: _currentUserService.UserId,
-                notes: $"تم إلغاء تفعيل المستخدم {request.UserId}",
+                notes: $"تم إلغاء تفعيل المستخدم {request.UserId} بواسطة {_currentUserService.Username} (ID={_currentUserService.UserId})",
                 cancellationToken: cancellationToken);
 
             _logger.LogInformation("اكتمل إلغاء تفعيل المستخدم بنجاح: UserId={UserId}", request.UserId);

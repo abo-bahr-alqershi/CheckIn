@@ -156,7 +156,7 @@ namespace YemenBooking.Application.Handlers.Commands.Units
                 oldValues: JsonSerializer.Serialize(oldValues),
                 newValues: null,
                 performedBy: _currentUserService.UserId,
-                notes: $"تم حذف الوحدة {request.UnitId}",
+                notes: $"تم حذف الوحدة {request.UnitId} بواسطة {_currentUserService.Username} (ID={_currentUserService.UserId})",
                 cancellationToken: cancellationToken);
 
             _logger.LogInformation("اكتمل حذف الوحدة بنجاح: UnitId={UnitId}", request.UnitId);

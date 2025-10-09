@@ -54,7 +54,7 @@ namespace YemenBooking.Application.Handlers.Commands.Users
                 oldValues: null,
                 newValues: JsonSerializer.Serialize(new { SettingsUpdated = true }),
                 performedBy: userId,
-                notes: $"تم تحديث إعدادات المستخدم للمستخدم {userId}",
+                notes: $"تم تحديث إعدادات المستخدم للمستخدم {userId} بواسطة {_currentUserService.Username} (ID={_currentUserService.UserId})",
                 cancellationToken: cancellationToken);
 
             _logger.LogInformation("اكتملت عملية تحديث إعدادات المستخدم: UserId={UserId}", userId);

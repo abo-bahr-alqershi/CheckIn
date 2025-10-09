@@ -97,7 +97,7 @@ namespace YemenBooking.Application.Handlers.Commands.Users
                 oldValues: JsonSerializer.Serialize(new { Roles = oldRoleIds }),
                 newValues: JsonSerializer.Serialize(new { Roles = newRoleIds }),
                 performedBy: _currentUserService.UserId,
-                notes: $"تم تخصيص الدور {request.RoleId} للمستخدم {request.UserId}",
+                notes: $"تم تخصيص الدور {request.RoleId} للمستخدم {request.UserId} بواسطة {_currentUserService.Username} (ID={_currentUserService.UserId})",
                 cancellationToken: cancellationToken);
 
             _logger.LogInformation("اكتمل تخصيص الدور بنجاح: UserId={UserId}, RoleId={RoleId}", request.UserId, request.RoleId);

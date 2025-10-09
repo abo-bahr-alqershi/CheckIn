@@ -67,7 +67,7 @@ namespace YemenBooking.Application.Handlers.Commands.Users
                 oldValues: JsonSerializer.Serialize(new { ProfileImage = "previous" }),
                 newValues: JsonSerializer.Serialize(new { ProfileImage = user.ProfileImage }),
                 performedBy: _currentUserService.UserId,
-                notes: $"تم تحديث صورة الملف الشخصي للمستخدم {request.UserId}",
+                notes: $"تم تحديث صورة الملف الشخصي للمستخدم {request.UserId} بواسطة {_currentUserService.Username} (ID={_currentUserService.UserId})",
                 cancellationToken: cancellationToken);
 
             _logger.LogInformation("اكتمل تحديث صورة الملف الشخصي بنجاح: UserId={UserId}", request.UserId);
