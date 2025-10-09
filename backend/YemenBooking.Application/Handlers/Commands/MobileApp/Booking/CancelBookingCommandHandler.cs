@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using YemenBooking.Application.Commands.MobileApp.Bookings;
 using YemenBooking.Core.Interfaces;
 using YemenBooking.Application.Interfaces.Services;
+using System.Text.Json;
 using YemenBooking.Core.Interfaces.Repositories;
 using YemenBooking.Core.Enums;
 using YemenBooking.Application.DTOs;
@@ -19,6 +20,7 @@ public class CancelBookingCommandHandler : IRequestHandler<CancelBookingCommand,
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly IAuditService _auditService;
+    private readonly ICurrentUserService _currentUserService;
     private readonly ILogger<CancelBookingCommandHandler> _logger;
     private readonly IBookingRepository _bookingRepository;
     private readonly IUnitRepository _unitRepository;
@@ -31,6 +33,7 @@ public class CancelBookingCommandHandler : IRequestHandler<CancelBookingCommand,
     public CancelBookingCommandHandler(
         IUnitOfWork unitOfWork,
         IAuditService auditService,
+        ICurrentUserService currentUserService,
         ILogger<CancelBookingCommandHandler> logger,
         IBookingRepository bookingRepository,
         IUnitRepository unitRepository,
@@ -41,6 +44,7 @@ public class CancelBookingCommandHandler : IRequestHandler<CancelBookingCommand,
     {
         _unitOfWork = unitOfWork;
         _auditService = auditService;
+        _currentUserService = currentUserService;
         _logger = logger;
         _bookingRepository = bookingRepository;
         _unitRepository = unitRepository;
@@ -124,14 +128,16 @@ public class CancelBookingCommandHandler : IRequestHandler<CancelBookingCommand,
         {
             _logger.LogWarning(ex, "تعذرت الفهرسة المباشرة للإتاحة بعد إلغاء الحجز {BookingId}", request.BookingId);
         }
-        var notes = $"تم إلغاء الحجز {booking.Id} بواسطة المستخدم {request.UserId}";
+        var performerName = _currentUserService.Username;
+        var performerId = _currentUserService.UserId;
+        var notes = $"تم إلغاء الحجز {booking.Id} بواسطة {performerName} (ID={performerId})";
         await _auditService.LogAuditAsync(
             entityType: "Booking",
             entityId: booking.Id,
             action: YemenBooking.Core.Enums.AuditAction.DELETE,
-            oldValues: System.Text.Json.JsonSerializer.Serialize(new { booking.Id }),
+            oldValues: JsonSerializer.Serialize(new { booking.Id, PreviousStatus = "Pending" }),
             newValues: null,
-            performedBy: request.UserId,
+            performedBy: performerId,
             notes: notes,
             cancellationToken: cancellationToken);
 

@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.Extensions.Logging;
 using YemenBooking.Application.Features.Feedback.Commands;
 using YemenBooking.Application.Interfaces.Services;
+using System.Text.Json;
 
 namespace YemenBooking.Application.Handlers.Commands.MobileApp.General;
 
@@ -12,11 +13,15 @@ public class SubmitFeedbackCommandHandler : IRequestHandler<SubmitFeedbackComman
 {
     private readonly ILogger<SubmitFeedbackCommandHandler> _logger;
     private readonly IEmailService _emailService;
+    private readonly IAuditService _auditService;
+    private readonly ICurrentUserService _currentUserService;
 
-    public SubmitFeedbackCommandHandler(ILogger<SubmitFeedbackCommandHandler> logger, IEmailService emailService)
+    public SubmitFeedbackCommandHandler(ILogger<SubmitFeedbackCommandHandler> logger, IEmailService emailService, IAuditService auditService, ICurrentUserService currentUserService)
     {
         _logger = logger;
         _emailService = emailService;
+        _auditService = auditService;
+        _currentUserService = currentUserService;
     }
 
     public async Task<SubmitFeedbackResponse> Handle(SubmitFeedbackCommand request, CancellationToken cancellationToken)
@@ -27,6 +32,20 @@ public class SubmitFeedbackCommandHandler : IRequestHandler<SubmitFeedbackComman
         // في الوقت الحالي سنكتفي بإرسال بريد إلى فريق الدعم
         var body = $"نوع: {request.FeedbackType}\nموضوع: {request.Subject}\nمحتوى: {request.Content}";
         await _emailService.SendEmailAsync("support@yemenbooking.com", "تعليق جديد من التطبيق", body, true, cancellationToken);
+
+        // تدقيق يدوي: إرسال تعليق
+        var performerName = _currentUserService.Username;
+        var performerId = _currentUserService.UserId;
+        var notes = $"تم إرسال ملاحظة/تعليق من المستخدم {request.UserId} بواسطة {performerName} (ID={performerId})";
+        await _auditService.LogAuditAsync(
+            entityType: "Feedback",
+            entityId: request.UserId,
+            action: YemenBooking.Core.Enums.AuditAction.CREATE,
+            oldValues: null,
+            newValues: JsonSerializer.Serialize(new { request.FeedbackType, request.Subject }),
+            performedBy: performerId,
+            notes: notes,
+            cancellationToken: cancellationToken);
 
         return new SubmitFeedbackResponse
         {

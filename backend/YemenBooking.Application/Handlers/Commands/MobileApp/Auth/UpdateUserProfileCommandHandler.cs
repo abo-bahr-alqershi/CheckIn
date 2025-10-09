@@ -5,6 +5,7 @@ using YemenBooking.Application.DTOs;
 using YemenBooking.Application.DTOs.Auth;
 using YemenBooking.Core.Interfaces.Repositories;
 using YemenBooking.Application.Interfaces.Services;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 
 namespace YemenBooking.Application.Handlers.Commands.MobileApp.Auth;
@@ -18,6 +19,8 @@ public class UpdateUserProfileCommandHandler : IRequestHandler<UpdateUserProfile
     private readonly IUserRepository _userRepository;
     private readonly IFileUploadService _fileUploadService;
     private readonly ILogger<UpdateUserProfileCommandHandler> _logger;
+    private readonly IAuditService _auditService;
+    private readonly ICurrentUserService _currentUserService;
 
     /// <summary>
     /// منشئ معالج أمر تحديث ملف المستخدم الشخصي
@@ -29,11 +32,15 @@ public class UpdateUserProfileCommandHandler : IRequestHandler<UpdateUserProfile
     public UpdateUserProfileCommandHandler(
         IUserRepository userRepository,
         IFileUploadService fileUploadService,
-        ILogger<UpdateUserProfileCommandHandler> logger)
+        ILogger<UpdateUserProfileCommandHandler> logger,
+        IAuditService auditService,
+        ICurrentUserService currentUserService)
     {
         _userRepository = userRepository;
         _fileUploadService = fileUploadService;
         _logger = logger;
+        _auditService = auditService;
+        _currentUserService = currentUserService;
     }
 
     /// <summary>
@@ -176,6 +183,19 @@ public class UpdateUserProfileCommandHandler : IRequestHandler<UpdateUserProfile
                 
                 _logger.LogInformation("تم حفظ تحديثات الملف الشخصي بنجاح للمستخدم: {UserId}", request.UserId);
 
+                // تدقيق يدوي: تحديث الملف الشخصي
+                var performerName = _currentUserService.Username;
+                var performerId = _currentUserService.UserId;
+                var notes = $"تم تحديث الملف الشخصي للمستخدم {request.UserId} بواسطة {performerName} (ID={performerId})";
+                await _auditService.LogAuditAsync(
+                    entityType: "User",
+                    entityId: request.UserId,
+                    action: YemenBooking.Core.Enums.AuditAction.UPDATE,
+                    oldValues: null,
+                    newValues: JsonSerializer.Serialize(new { user.Name, user.PhoneNumber, user.ProfileImageUrl }),
+                    performedBy: performerId,
+                    notes: notes,
+                    cancellationToken: cancellationToken);
 
                 var response = new UpdateUserProfileResponse
                 {

@@ -7,6 +7,8 @@ using YemenBooking.Core.Interfaces.Repositories;
 using YemenBooking.Application.Interfaces.Services;
 using Microsoft.Extensions.Logging;
 using System.Text.RegularExpressions;
+using YemenBooking.Application.Interfaces.Services;
+using System.Text.Json;
 
 namespace YemenBooking.Application.Handlers.Commands.MobileApp.Auth;
 
@@ -18,13 +20,19 @@ public class ClientLoginUserCommandHandler : IRequestHandler<ClientLoginUserComm
 {
     private readonly IAuthenticationService _authService;
     private readonly ILogger<ClientLoginUserCommandHandler> _logger;
+    private readonly IAuditService _auditService;
+    private readonly ICurrentUserService _currentUserService;
 
     public ClientLoginUserCommandHandler(
         IAuthenticationService authService,
-        ILogger<ClientLoginUserCommandHandler> logger)
+        ILogger<ClientLoginUserCommandHandler> logger,
+        IAuditService auditService,
+        ICurrentUserService currentUserService)
     {
         _authService = authService;
         _logger = logger;
+        _auditService = auditService;
+        _currentUserService = currentUserService;
     }
 
     /// <summary>
@@ -102,7 +110,21 @@ public class ClientLoginUserCommandHandler : IRequestHandler<ClientLoginUserComm
             };
 
             _logger.LogInformation("تم تسجيل دخول المستخدم بنجاح {UserId}", authResult.UserId);
-            
+
+            // تدقيق يدوي: تسجيل الدخول
+            var performerName = _currentUserService.Username;
+            var performerId = _currentUserService.UserId;
+            var notes = $"تم تسجيل الدخول للمستخدم {authResult.UserId} بواسطة {performerName} (ID={performerId})";
+            await _auditService.LogAuditAsync(
+                entityType: "User",
+                entityId: authResult.UserId,
+                action: YemenBooking.Core.Enums.AuditAction.LOGIN,
+                oldValues: null,
+                newValues: JsonSerializer.Serialize(new { Success = true }),
+                performedBy: performerId,
+                notes: notes,
+                cancellationToken: cancellationToken);
+
             return ResultDto<ClientLoginUserResponse>.Ok(response, "تم تسجيل الدخول بنجاح");
         }
         catch (Exception ex)

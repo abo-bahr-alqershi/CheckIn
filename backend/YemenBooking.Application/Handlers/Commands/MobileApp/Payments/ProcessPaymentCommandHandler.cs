@@ -4,6 +4,7 @@ using YemenBooking.Application.Commands.MobileApp.Payments;
 using YemenBooking.Application.DTOs;
 using YemenBooking.Application.DTOs.Payments;
 using YemenBooking.Application.Interfaces.Services;
+using System.Text.Json;
 using YemenBooking.Core.Interfaces.Repositories;
 using YemenBooking.Core.Enums;
 using System.Text.RegularExpressions;
@@ -21,6 +22,8 @@ public class ProcessPaymentCommandHandler : IRequestHandler<ProcessPaymentComman
     private readonly IPaymentRepository _paymentRepository;
     private readonly IPaymentMethodRepository _paymentMethodRepository;
     private readonly ILogger<ProcessPaymentCommandHandler> _logger;
+    private readonly IAuditService _auditService;
+    private readonly ICurrentUserService _currentUserService;
 
     /// <summary>
     /// منشئ معالج أمر معالجة الدفع
@@ -36,13 +39,17 @@ public class ProcessPaymentCommandHandler : IRequestHandler<ProcessPaymentComman
         IBookingRepository bookingRepository,
         IPaymentRepository paymentRepository,
         IPaymentMethodRepository paymentMethodRepository,
-        ILogger<ProcessPaymentCommandHandler> logger)
+        ILogger<ProcessPaymentCommandHandler> logger,
+        IAuditService auditService,
+        ICurrentUserService currentUserService)
     {
         _paymentService = paymentService;
         _bookingRepository = bookingRepository;
         _paymentRepository = paymentRepository;
         _paymentMethodRepository = paymentMethodRepository;
         _logger = logger;
+        _auditService = auditService;
+        _currentUserService = currentUserService;
     }
 
     /// <summary>
@@ -147,11 +154,39 @@ public class ProcessPaymentCommandHandler : IRequestHandler<ProcessPaymentComman
 
                 _logger.LogInformation("تم إكمال الدفع بنجاح للحجز: {BookingId}, TransactionId: {TransactionId}", 
                     request.BookingId, paymentResult.TransactionId);
+
+                // سجل تدقيق الدفع الناجح
+                var performerName = _currentUserService.Username;
+                var performerId = _currentUserService.UserId;
+                var notes = $"تم إتمام الدفع للحجز {request.BookingId} بنجاح بواسطة {performerName} (ID={performerId})";
+                await _auditService.LogAuditAsync(
+                    entityType: "Payment",
+                    entityId: savedPayment.Id,
+                    action: AuditAction.UPDATE,
+                    oldValues: null,
+                    newValues: JsonSerializer.Serialize(new { PaymentId = savedPayment.Id, BookingId = request.BookingId, Amount = request.Amount.Amount, Method = request.PaymentMethod.ToString(), TransactionId = paymentResult.TransactionId }),
+                    performedBy: performerId,
+                    notes: notes,
+                    cancellationToken: cancellationToken);
             }
             else if (!paymentResult.Success)
             {
                 _logger.LogWarning("فشل في الدفع للحجز: {BookingId}, Reason: {Message}", 
                     request.BookingId, paymentResult.Message);
+
+                // سجل تدقيق الدفع الفاشل
+                var performerName = _currentUserService.Username;
+                var performerId = _currentUserService.UserId;
+                var notes = $"فشل الدفع للحجز {request.BookingId} بواسطة {performerName} (ID={performerId})";
+                await _auditService.LogAuditAsync(
+                    entityType: "Payment",
+                    entityId: savedPayment.Id,
+                    action: AuditAction.UPDATE,
+                    oldValues: null,
+                    newValues: JsonSerializer.Serialize(new { PaymentId = savedPayment.Id, BookingId = request.BookingId, Amount = request.Amount.Amount, Method = request.PaymentMethod.ToString(), Error = paymentResult.Message }),
+                    performedBy: performerId,
+                    notes: notes,
+                    cancellationToken: cancellationToken);
             }
 
             return ResultDto<ProcessPaymentResponse>.Ok(paymentResult, paymentResult.Message);

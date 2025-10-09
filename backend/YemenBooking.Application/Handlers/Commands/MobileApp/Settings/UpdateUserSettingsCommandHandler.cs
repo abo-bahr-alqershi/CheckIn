@@ -5,6 +5,8 @@ using YemenBooking.Application.DTOs;
 using YemenBooking.Application.Interfaces.Services;
 using YemenBooking.Core.Interfaces.Repositories;
 using YemenBooking.Core.Entities;
+using YemenBooking.Application.Interfaces.Services;
+using System.Text.Json;
 using System.Text.Json;
 using System.Collections.Generic;
 
@@ -19,6 +21,8 @@ public class UpdateUserSettingsCommandHandler : IRequestHandler<UpdateUserSettin
     private readonly IUserRepository _userRepository;
     private readonly IUserSettingsRepository _userSettingsRepository;
     private readonly ILogger<UpdateUserSettingsCommandHandler> _logger;
+    private readonly IAuditService _auditService;
+    private readonly ICurrentUserService _currentUserService;
 
     /// <summary>
     /// منشئ معالج أمر تحديث إعدادات المستخدم
@@ -30,11 +34,15 @@ public class UpdateUserSettingsCommandHandler : IRequestHandler<UpdateUserSettin
     public UpdateUserSettingsCommandHandler(
         IUserRepository userRepository,
         IUserSettingsRepository userSettingsRepository,
-        ILogger<UpdateUserSettingsCommandHandler> logger)
+        ILogger<UpdateUserSettingsCommandHandler> logger,
+        IAuditService auditService,
+        ICurrentUserService currentUserService)
     {
         _userRepository = userRepository;
         _userSettingsRepository = userSettingsRepository;
         _logger = logger;
+        _auditService = auditService;
+        _currentUserService = currentUserService;
     }
 
     /// <summary>
@@ -81,6 +89,19 @@ public class UpdateUserSettingsCommandHandler : IRequestHandler<UpdateUserSettin
 
             _logger.LogInformation("تم تحديث إعدادات المستخدم بنجاح: {UserId}", request.UserId);
 
+            // تدقيق يدوي: تحديث الإعدادات
+            var performerName = _currentUserService.Username;
+            var performerId = _currentUserService.UserId;
+            var notes = $"تم تحديث إعدادات المستخدم {request.UserId} بواسطة {performerName} (ID={performerId})";
+            await _auditService.LogAuditAsync(
+                entityType: "UserSettings",
+                entityId: request.UserId,
+                action: YemenBooking.Core.Enums.AuditAction.UPDATE,
+                oldValues: null,
+                newValues: JsonSerializer.Serialize(new { request.PreferredLanguage, request.PreferredCurrency, request.TimeZone, request.DarkMode, request.NotificationSettings }),
+                performedBy: performerId,
+                notes: notes,
+                cancellationToken: cancellationToken);
 
             return ResultDto<bool>.Ok( true, "تم تحديث الإعدادات بنجاح");
         }

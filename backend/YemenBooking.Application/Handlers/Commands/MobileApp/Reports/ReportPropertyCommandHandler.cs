@@ -7,6 +7,8 @@ using YemenBooking.Core.Interfaces.Repositories;
 using YemenBooking.Application.Interfaces.Services;
 using YemenBooking.Core.Entities;
 using YemenBooking.Core.Enums;
+using YemenBooking.Application.Interfaces.Services;
+using System.Text.Json;
 
 namespace YemenBooking.Application.Handlers.Commands.MobileApp.Reports;
 
@@ -21,6 +23,8 @@ public class ReportPropertyCommandHandler : IRequestHandler<ReportPropertyComman
     private readonly IUserRepository _userRepository;
     private readonly INotificationService _notificationService;
     private readonly ILogger<ReportPropertyCommandHandler> _logger;
+    private readonly IAuditService _auditService;
+    private readonly ICurrentUserService _currentUserService;
 
     /// <summary>
     /// منشئ معالج أمر الإبلاغ عن عقار
@@ -36,13 +40,17 @@ public class ReportPropertyCommandHandler : IRequestHandler<ReportPropertyComman
         IPropertyRepository propertyRepository,
         IUserRepository userRepository,
         INotificationService notificationService,
-        ILogger<ReportPropertyCommandHandler> logger)
+        ILogger<ReportPropertyCommandHandler> logger,
+        IAuditService auditService,
+        ICurrentUserService currentUserService)
     {
         _reportRepository = reportRepository;
         _propertyRepository = propertyRepository;
         _userRepository = userRepository;
         _notificationService = notificationService;
         _logger = logger;
+        _auditService = auditService;
+        _currentUserService = currentUserService;
     }
 
     /// <summary>
@@ -153,6 +161,20 @@ public class ReportPropertyCommandHandler : IRequestHandler<ReportPropertyComman
                 Success = true,
                 Message = "تم إرسال البلاغ بنجاح. سيتم مراجعته من قبل فريق الإدارة"
             };
+
+            // تدقيق يدوي: إنشاء بلاغ
+            var performerName = _currentUserService.Username;
+            var performerId = _currentUserService.UserId;
+            var notes = $"تم إنشاء بلاغ على العقار {request.ReportedPropertyId} بواسطة {performerName} (ID={performerId})";
+            await _auditService.LogAuditAsync(
+                entityType: "Report",
+                entityId: report.Id,
+                action: AuditAction.CREATE,
+                oldValues: null,
+                newValues: JsonSerializer.Serialize(new { report.Id, request.ReportedPropertyId, request.ReporterUserId }),
+                performedBy: performerId,
+                notes: notes,
+                cancellationToken: cancellationToken);
 
             return ResultDto<ReportPropertyResponse>.Ok(response, "تم إرسال البلاغ بنجاح");
         }

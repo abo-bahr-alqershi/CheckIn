@@ -5,6 +5,7 @@ using YemenBooking.Application.DTOs;
 using YemenBooking.Application.DTOs.Auth;
 using YemenBooking.Application.Commands.MobileApp.Auth;
 using YemenBooking.Application.Interfaces.Services;
+using System.Text.Json;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -19,7 +20,9 @@ namespace YemenBooking.Application.Handlers.Commands.MobileApp.Auth
     {
         private readonly IAuthenticationService _authService;
         private readonly IUserRepository _userRepository;
-        private readonly ILogger<ChangePasswordCommandHandler> _logger;
+    private readonly ILogger<ChangePasswordCommandHandler> _logger;
+    private readonly IAuditService _auditService;
+    private readonly ICurrentUserService _currentUserService;
 
         /// <summary>
         /// منشئ معالج أمر تغيير كلمة المرور
@@ -31,11 +34,15 @@ namespace YemenBooking.Application.Handlers.Commands.MobileApp.Auth
         public ChangePasswordCommandHandler(
         IAuthenticationService authService,
         IUserRepository userRepository,
-        ILogger<ChangePasswordCommandHandler> logger)
+        ILogger<ChangePasswordCommandHandler> logger,
+        IAuditService auditService,
+        ICurrentUserService currentUserService)
         {
             _authService = authService;
             _userRepository = userRepository;
-            _logger = logger;
+        _logger = logger;
+        _auditService = auditService;
+        _currentUserService = currentUserService;
         }
 
         /// <summary>
@@ -101,6 +108,20 @@ namespace YemenBooking.Application.Handlers.Commands.MobileApp.Auth
                 }
 
                 _logger.LogInformation("تم تغيير كلمة المرور بنجاح للمستخدم: {UserId}", request.UserId);
+
+                // تدقيق يدوي: تغيير كلمة المرور (عدم تسجيل كلمات المرور)
+                var performerName = _currentUserService.Username;
+                var performerId = _currentUserService.UserId;
+                var notes = $"تم تغيير كلمة المرور للمستخدم {request.UserId} بواسطة {performerName} (ID={performerId})";
+                await _auditService.LogAuditAsync(
+                    entityType: "User",
+                    entityId: request.UserId,
+                    action: YemenBooking.Core.Enums.AuditAction.PASSWORD_CHANGE,
+                    oldValues: null,
+                    newValues: JsonSerializer.Serialize(new { Success = true }),
+                    performedBy: performerId,
+                    notes: notes,
+                    cancellationToken: cancellationToken);
 
                 var response = new ChangePasswordResponse
                 {

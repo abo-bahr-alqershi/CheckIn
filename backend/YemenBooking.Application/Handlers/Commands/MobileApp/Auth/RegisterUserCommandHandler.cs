@@ -7,6 +7,8 @@ using YemenBooking.Application.Interfaces.Services;
 using YemenBooking.Core.Interfaces.Repositories;
 using YemenBooking.Core.Entities;
 using System.Text.RegularExpressions;
+using YemenBooking.Application.Interfaces.Services;
+using System.Text.Json;
 
 namespace YemenBooking.Application.Handlers.Commands.MobileApp.Auth;
 
@@ -22,6 +24,8 @@ public class RegisterUserCommandHandler : IRequestHandler<RegisterUserCommand, R
     private readonly IPasswordHashingService _passwordHashingService;
     private readonly IEmailVerificationService _emailVerificationService;
     private readonly ILogger<RegisterUserCommandHandler> _logger;
+    private readonly IAuditService _auditService;
+    private readonly ICurrentUserService _currentUserService;
 
     /// <summary>
     /// منشئ معالج أمر تسجيل مستخدم جديد
@@ -37,7 +41,9 @@ public class RegisterUserCommandHandler : IRequestHandler<RegisterUserCommand, R
         IEmailService emailService,
         IPasswordHashingService passwordHashingService,
         IEmailVerificationService emailVerificationService,
-        ILogger<RegisterUserCommandHandler> logger)
+        ILogger<RegisterUserCommandHandler> logger,
+        IAuditService auditService,
+        ICurrentUserService currentUserService)
     {
         _authService = authService;
         _userRepository = userRepository;
@@ -45,6 +51,8 @@ public class RegisterUserCommandHandler : IRequestHandler<RegisterUserCommand, R
         _passwordHashingService = passwordHashingService;
         _emailVerificationService = emailVerificationService;
         _logger = logger;
+        _auditService = auditService;
+        _currentUserService = currentUserService;
     }
 
     /// <summary>
@@ -161,6 +169,20 @@ public class RegisterUserCommandHandler : IRequestHandler<RegisterUserCommand, R
                 Email = newUser.Email,
                 IsEmailVerified = newUser.IsEmailVerified
             };
+
+            // تدقيق يدوي: تسجيل مستخدم جديد (بدون كلمة مرور)
+            var performerName = _currentUserService.Username;
+            var performerId = _currentUserService.UserId;
+            var notes = $"تم تسجيل مستخدم جديد {newUser.Id} بواسطة {performerName} (ID={performerId})";
+            await _auditService.LogAuditAsync(
+                entityType: "User",
+                entityId: newUser.Id,
+                action: YemenBooking.Core.Enums.AuditAction.CREATE,
+                oldValues: null,
+                newValues: JsonSerializer.Serialize(new { newUser.Id, newUser.Name, newUser.Email, newUser.Phone }),
+                performedBy: performerId,
+                notes: notes,
+                cancellationToken: cancellationToken);
 
             return ResultDto<RegisterUserResponse>.Ok(response, "تم تسجيل المستخدم بنجاح");
         }

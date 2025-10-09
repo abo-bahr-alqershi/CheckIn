@@ -6,6 +6,8 @@ using YemenBooking.Application.Interfaces.Services;
 using YemenBooking.Core.Interfaces.Repositories;
 using YemenBooking.Core.Entities;
 using YemenBooking.Core.Enums;
+using YemenBooking.Application.Interfaces.Services;
+using System.Text.Json;
 
 namespace YemenBooking.Application.Handlers.Commands.MobileApp.Reviews;
 
@@ -21,6 +23,8 @@ public class SubmitReviewCommandHandler : IRequestHandler<SubmitReviewCommand, R
     private readonly IFileUploadService _fileUploadService;
     private readonly INotificationService _notificationService;
     private readonly ILogger<SubmitReviewCommandHandler> _logger;
+    private readonly IAuditService _auditService;
+    private readonly ICurrentUserService _currentUserService;
 
     /// <summary>
     /// منشئ معالج أمر إرسال مراجعة جديدة
@@ -38,7 +42,9 @@ public class SubmitReviewCommandHandler : IRequestHandler<SubmitReviewCommand, R
         IPropertyRepository propertyRepository,
         IFileUploadService fileUploadService,
         INotificationService notificationService,
-        ILogger<SubmitReviewCommandHandler> logger)
+        ILogger<SubmitReviewCommandHandler> logger,
+        IAuditService auditService,
+        ICurrentUserService currentUserService)
     {
         _reviewRepository = reviewRepository;
         _bookingRepository = bookingRepository;
@@ -46,6 +52,8 @@ public class SubmitReviewCommandHandler : IRequestHandler<SubmitReviewCommand, R
         _fileUploadService = fileUploadService;
         _notificationService = notificationService;
         _logger = logger;
+        _auditService = auditService;
+        _currentUserService = currentUserService;
     }
 
     /// <summary>
@@ -154,6 +162,20 @@ public class SubmitReviewCommandHandler : IRequestHandler<SubmitReviewCommand, R
 
             _logger.LogInformation("تم إرسال المراجعة بنجاح: {ReviewId} للحجز: {BookingId}", 
                 review.Id, request.BookingId);
+
+            // تدقيق يدوي: إرسال مراجعة
+            var performerName = _currentUserService.Username;
+            var performerId = _currentUserService.UserId;
+            var notes = $"تم إرسال مراجعة للعقار {request.PropertyId} (حجز {request.BookingId}) بواسطة {performerName} (ID={performerId})";
+            await _auditService.LogAuditAsync(
+                entityType: "Review",
+                entityId: review.Id,
+                action: AuditAction.CREATE,
+                oldValues: null,
+                newValues: JsonSerializer.Serialize(new { review.Id, request.PropertyId, request.BookingId, overallRating }),
+                performedBy: performerId,
+                notes: notes,
+                cancellationToken: cancellationToken);
 
             var response = new SubmitReviewResponse
             {

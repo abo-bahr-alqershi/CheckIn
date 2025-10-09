@@ -4,6 +4,7 @@ using YemenBooking.Application.Commands.MobileApp.Auth;
 using YemenBooking.Application.DTOs;
 using YemenBooking.Application.DTOs.Auth;
 using YemenBooking.Application.Interfaces.Services;
+using System.Text.Json;
 using YemenBooking.Core.Interfaces.Repositories;
 
 namespace YemenBooking.Application.Handlers.Commands.MobileApp.Auth;
@@ -17,6 +18,8 @@ public class VerifyEmailCommandHandler : IRequestHandler<VerifyEmailCommand, Res
     private readonly IUserRepository _userRepository;
     private readonly IEmailVerificationService _emailVerificationService;
     private readonly ILogger<VerifyEmailCommandHandler> _logger;
+    private readonly IAuditService _auditService;
+    private readonly ICurrentUserService _currentUserService;
 
     /// <summary>
     /// منشئ معالج أمر تأكيد البريد الإلكتروني
@@ -28,11 +31,15 @@ public class VerifyEmailCommandHandler : IRequestHandler<VerifyEmailCommand, Res
     public VerifyEmailCommandHandler(
         IUserRepository userRepository,
         IEmailVerificationService emailVerificationService,
-        ILogger<VerifyEmailCommandHandler> logger)
+        ILogger<VerifyEmailCommandHandler> logger,
+        IAuditService auditService,
+        ICurrentUserService currentUserService)
     {
         _userRepository = userRepository;
         _emailVerificationService = emailVerificationService;
         _logger = logger;
+        _auditService = auditService;
+        _currentUserService = currentUserService;
     }
 
     /// <summary>
@@ -113,6 +120,20 @@ public class VerifyEmailCommandHandler : IRequestHandler<VerifyEmailCommand, Res
                 Success = true,
                 Message = "تم تأكيد البريد الإلكتروني بنجاح. يمكنك الآن الاستفادة من جميع ميزات التطبيق"
             };
+
+            // تدقيق يدوي: تأكيد البريد الإلكتروني
+            var performerName = _currentUserService.Username;
+            var performerId = _currentUserService.UserId;
+            var notes = $"تم تأكيد البريد الإلكتروني للمستخدم {request.UserId} بواسطة {performerName} (ID={performerId})";
+            await _auditService.LogAuditAsync(
+                entityType: "User",
+                entityId: request.UserId,
+                action: YemenBooking.Core.Enums.AuditAction.UPDATE,
+                oldValues: null,
+                newValues: JsonSerializer.Serialize(new { EmailVerified = true }),
+                performedBy: performerId,
+                notes: notes,
+                cancellationToken: cancellationToken);
 
             return ResultDto<VerifyEmailResponse>.Ok(response, "تم تأكيد البريد الإلكتروني بنجاح");
         }

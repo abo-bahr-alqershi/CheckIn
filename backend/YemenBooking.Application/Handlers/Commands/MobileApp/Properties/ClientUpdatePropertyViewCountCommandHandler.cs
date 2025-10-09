@@ -4,6 +4,8 @@ using YemenBooking.Application.DTOs;
 using YemenBooking.Application.Commands.MobileApp.Properties;
 using YemenBooking.Core.Interfaces;
 using YemenBooking.Core.Interfaces.Repositories;
+using YemenBooking.Application.Interfaces.Services;
+using System.Text.Json;
 
 namespace YemenBooking.Application.Handlers.Commands.MobileApp.Properties;
 
@@ -14,10 +16,14 @@ namespace YemenBooking.Application.Handlers.Commands.MobileApp.Properties;
 public class ClientUpdatePropertyViewCountCommandHandler : IRequestHandler<ClientUpdatePropertyViewCountCommand, ResultDto<bool>>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IAuditService _auditService;
+    private readonly ICurrentUserService _currentUserService;
 
-    public ClientUpdatePropertyViewCountCommandHandler(IUnitOfWork unitOfWork)
+    public ClientUpdatePropertyViewCountCommandHandler(IUnitOfWork unitOfWork, IAuditService auditService, ICurrentUserService currentUserService)
     {
         _unitOfWork = unitOfWork;
+        _auditService = auditService;
+        _currentUserService = currentUserService;
     }
 
     /// <summary>
@@ -53,6 +59,20 @@ public class ClientUpdatePropertyViewCountCommandHandler : IRequestHandler<Clien
             // حفظ التغييرات
             // Save changes
             await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            // تدقيق يدوي: زيادة عدد المشاهدات
+            var performerName = _currentUserService.Username;
+            var performerId = _currentUserService.UserId;
+            var notes = $"تم تحديث عدد المشاهدات للعقار {request.PropertyId} بواسطة {performerName} (ID={performerId})";
+            await _auditService.LogAuditAsync(
+                entityType: "Property",
+                entityId: request.PropertyId,
+                action: YemenBooking.Core.Enums.AuditAction.UPDATE,
+                oldValues: null,
+                newValues: JsonSerializer.Serialize(new { ViewCount = property.ViewCount }),
+                performedBy: performerId,
+                notes: notes,
+                cancellationToken: cancellationToken);
 
             return ResultDto<bool>.Ok(true, "تم تحديث عدد المشاهدات بنجاح");
         }

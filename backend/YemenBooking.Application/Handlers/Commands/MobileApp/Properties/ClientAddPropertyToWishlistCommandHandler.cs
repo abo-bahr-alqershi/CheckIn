@@ -5,6 +5,8 @@ using YemenBooking.Application.Commands.MobileApp.Properties;
 using YemenBooking.Core.Interfaces;
 using YemenBooking.Core.Interfaces.Repositories;
 using YemenBooking.Core.Enums;
+using YemenBooking.Application.Interfaces.Services;
+using System.Text.Json;
 
 namespace YemenBooking.Application.Handlers.Commands.MobileApp.Properties;
 
@@ -15,10 +17,14 @@ namespace YemenBooking.Application.Handlers.Commands.MobileApp.Properties;
 public class ClientAddPropertyToWishlistCommandHandler : IRequestHandler<ClientAddPropertyToWishlistCommand, ResultDto<bool>>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IAuditService _auditService;
+    private readonly ICurrentUserService _currentUserService;
 
-    public ClientAddPropertyToWishlistCommandHandler(IUnitOfWork unitOfWork)
+    public ClientAddPropertyToWishlistCommandHandler(IUnitOfWork unitOfWork, IAuditService auditService, ICurrentUserService currentUserService)
     {
         _unitOfWork = unitOfWork;
+        _auditService = auditService;
+        _currentUserService = currentUserService;
     }
 
     /// <summary>
@@ -99,6 +105,20 @@ public class ClientAddPropertyToWishlistCommandHandler : IRequestHandler<ClientA
             // حفظ التغييرات
             // Save changes
             await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            // تدقيق يدوي: إضافة إلى الأمنيات
+            var performerName = _currentUserService.Username;
+            var performerId = _currentUserService.UserId;
+            var notes = $"تمت إضافة العقار {request.PropertyId} إلى قائمة الأمنيات بواسطة {performerName} (ID={performerId})";
+            await _auditService.LogAuditAsync(
+                entityType: "Wishlist",
+                entityId: wishlistItem.Id,
+                action: YemenBooking.Core.Enums.AuditAction.CREATE,
+                oldValues: null,
+                newValues: JsonSerializer.Serialize(new { wishlistItem.Id, request.PropertyId, request.UserId }),
+                performedBy: performerId,
+                notes: notes,
+                cancellationToken: cancellationToken);
 
             return ResultDto<bool>.Ok(true, "تم إضافة العقار لقائمة الأمنيات بنجاح");
         }
