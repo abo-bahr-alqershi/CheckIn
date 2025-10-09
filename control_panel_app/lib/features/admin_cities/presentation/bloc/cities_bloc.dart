@@ -257,7 +257,9 @@ class CitiesBloc extends Bloc<CitiesEvent, CitiesState> {
     LoadCitiesStatisticsEvent event,
     Emitter<CitiesState> emit,
   ) async {
-    final result = await getCitiesStatistics(NoParams());
+    final now = DateTime.now();
+    final last30 = now.subtract(const Duration(days: 30));
+    final result = await getCitiesStatistics(GetCitiesStatsParams(startDate: last30, endDate: now));
 
     result.fold(
       (failure) => null, // Silently fail for statistics

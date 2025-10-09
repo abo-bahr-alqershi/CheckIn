@@ -27,7 +27,7 @@ abstract class CitiesRemoteDataSource {
   Future<List<CityModel>> searchCities(String query);
   
   /// الحصول على إحصائيات المدن
-  Future<Map<String, dynamic>> getCitiesStatistics();
+  Future<Map<String, dynamic>> getCitiesStatistics({DateTime? startDate, DateTime? endDate});
   
   /// رفع صورة للمدينة
   Future<String> uploadCityImage(String cityName, String imagePath, {ProgressCallback? onSendProgress});
@@ -164,8 +164,19 @@ class CitiesRemoteDataSourceImpl implements CitiesRemoteDataSource {
 
   /// 📊 الحصول على إحصائيات المدن
   @override
-  Future<Map<String, dynamic>> getCitiesStatistics() async {
+  Future<Map<String, dynamic>> getCitiesStatistics({DateTime? startDate, DateTime? endDate}) async {
     try {
+      final params = <String, dynamic>{};
+      if (startDate != null) params['startDate'] = startDate.toIso8601String();
+      if (endDate != null) params['endDate'] = endDate.toIso8601String();
+      final resp = await apiClient.get('/api/admin/system-settings/cities/stats', queryParameters: params);
+      if (resp.data is Map<String, dynamic>) {
+        final map = resp.data as Map<String, dynamic>;
+        if (map['success'] == true && map['data'] is Map) {
+          return Map<String, dynamic>.from(map['data'] as Map);
+        }
+      }
+      // Fallback to local calculation
       final all = await getCities();
       final total = all.length;
       final active = all.where((c) => c.isActive ?? true).length;
@@ -173,11 +184,7 @@ class CitiesRemoteDataSourceImpl implements CitiesRemoteDataSource {
       for (final c in all) {
         byCountry[c.country] = (byCountry[c.country] ?? 0) + 1;
       }
-      return {
-        'total': total,
-        'active': active,
-        'byCountry': byCountry,
-      };
+      return {'totalCities': total, 'activeCities': active, 'byCountry': byCountry};
     } on DioException catch (e) {
       throw ApiException.fromDioError(e);
     }
