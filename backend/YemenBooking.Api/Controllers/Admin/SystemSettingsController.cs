@@ -136,6 +136,7 @@ namespace YemenBooking.Api.Controllers.Admin
             var cities = await _citySettingsService.GetCitiesAsync(cancellationToken);
             var total = cities.Count;
             var active = cities.Count(c => c.IsActive != false);
+            var totalImages = cities.Sum(c => c.Images?.Count ?? 0);
             var byCountry = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
             foreach (var c in cities)
             {
@@ -148,6 +149,8 @@ namespace YemenBooking.Api.Controllers.Admin
                 TotalCities = total,
                 ActiveCities = active,
                 ByCountry = byCountry,
+                TotalImages = totalImages,
+                ImagesTrend = null,
                 UpdatesCount = 0,
                 UpdatesTrendPct = null
             };
