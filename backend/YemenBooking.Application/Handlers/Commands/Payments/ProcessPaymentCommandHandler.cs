@@ -399,14 +399,16 @@ public class ProcessPaymentCommandHandler : IRequestHandler<ProcessPaymentComman
     {
         // تسجيل العملية
         // Audit logging
-        await _auditService.LogBusinessOperationAsync(
-            "ProcessPayment",
-            $"Processed payment for booking {booking.Id} with amount {payment.Amount.Amount} {payment.Amount.Currency}",
-            payment.Id,
-            "Payment",
-            _currentUserService.UserId,
-            null,
-            cancellationToken);
+        var notes = $"Processed payment for booking {booking.Id} by {_currentUserService.Username} (ID={_currentUserService.UserId})";
+        await _auditService.LogAuditAsync(
+            entityType: "Payment",
+            entityId: payment.Id,
+            action: YemenBooking.Core.Enums.AuditAction.CREATE,
+            oldValues: null,
+            newValues: System.Text.Json.JsonSerializer.Serialize(new { Amount = payment.Amount.Amount, Currency = payment.Amount.Currency, BookingId = booking.Id }),
+            performedBy: _currentUserService.UserId,
+            notes: notes,
+            cancellationToken: cancellationToken);
 
         // نشر حدث معالجة الدفع
         // Publish payment processed event

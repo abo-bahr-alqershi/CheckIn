@@ -67,14 +67,16 @@ namespace YemenBooking.Application.Handlers.Commands.Policies
             if (!success)
                 return ResultDto<bool>.Failed("فشل حذف السياسة");
 
-            await _auditService.LogBusinessOperationAsync(
-                "DeletePropertyPolicy",
-                $"تم حذف السياسة {request.PolicyId}",
-                request.PolicyId,
-                "PropertyPolicy",
-                _currentUserService.UserId,
-                null,
-                cancellationToken);
+            var notes = $"تم حذف السياسة {request.PolicyId} بواسطة {_currentUserService.Username} (ID={_currentUserService.UserId})";
+            await _auditService.LogAuditAsync(
+                entityType: "PropertyPolicy",
+                entityId: request.PolicyId,
+                action: YemenBooking.Core.Enums.AuditAction.DELETE,
+                oldValues: System.Text.Json.JsonSerializer.Serialize(new { PolicyId = request.PolicyId }),
+                newValues: null,
+                performedBy: _currentUserService.UserId,
+                notes: notes,
+                cancellationToken: cancellationToken);
 
             _logger.LogInformation("اكتمل حذف السياسة: PolicyId={PolicyId}", request.PolicyId);
             return ResultDto<bool>.Succeeded(true, "تم حذف السياسة بنجاح");

@@ -61,15 +61,17 @@ public class AddServicesToBookingCommandHandler : IRequestHandler<AddServicesToB
         booking.UpdatedAt = DateTime.UtcNow;
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // سجل التدقيق
-        await _auditService.LogBusinessOperationAsync(
-            "AddServiceToBooking",
-            $"تمت إضافة الخدمة {request.ServiceId} إلى الحجز {request.BookingId}",
-            request.BookingId,
-            "Booking",
-            null,
-            null,
-            cancellationToken);
+        // سجل التدقيق (يدوي) مع ذكر اسم ومعرف المنفذ (مستخدم الجوال)
+        var notes = $"تمت إضافة الخدمة {request.ServiceId} إلى الحجز {request.BookingId} بواسطة المستخدم {request.UserId}";
+        await _auditService.LogAuditAsync(
+            entityType: "Booking",
+            entityId: request.BookingId,
+            action: YemenBooking.Core.Enums.AuditAction.UPDATE,
+            oldValues: null,
+            newValues: System.Text.Json.JsonSerializer.Serialize(new { ServiceId = request.ServiceId, Quantity = request.Quantity }),
+            performedBy: request.UserId,
+            notes: notes,
+            cancellationToken: cancellationToken);
 
         return new ResultDto<AddServicesToBookingResponse>
         {

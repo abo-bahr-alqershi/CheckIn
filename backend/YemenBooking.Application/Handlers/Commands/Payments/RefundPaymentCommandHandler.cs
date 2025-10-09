@@ -359,14 +359,16 @@ public class RefundPaymentCommandHandler : IRequestHandler<RefundPaymentCommand,
     {
         // تسجيل العملية
         // Audit logging
-        await _auditService.LogBusinessOperationAsync(
-            "ProcessRefund",
-            $"تم معالجة استرداد بمبلغ {refundAmount.Amount} {refundAmount.Currency} للحجز {booking.Id}",
-            payment.Id,
-            null,
-            _currentUserService.UserId,
-            null,
-            cancellationToken);
+        var notes = $"تم معالجة الاسترداد للحجز {booking.Id} بواسطة {_currentUserService.Username} (ID={_currentUserService.UserId})";
+        await _auditService.LogAuditAsync(
+            entityType: "Payment",
+            entityId: payment.Id,
+            action: YemenBooking.Core.Enums.AuditAction.UPDATE,
+            oldValues: null,
+            newValues: System.Text.Json.JsonSerializer.Serialize(new { RefundAmount = refundAmount.Amount, Currency = refundAmount.Currency, BookingId = booking.Id }),
+            performedBy: _currentUserService.UserId,
+            notes: notes,
+            cancellationToken: cancellationToken);
 
         // نشر حدث معالجة الاسترداد
         // Publish refund processed event

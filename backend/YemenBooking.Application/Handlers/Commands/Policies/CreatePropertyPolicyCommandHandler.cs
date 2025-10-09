@@ -77,15 +77,17 @@ namespace YemenBooking.Application.Handlers.Commands.Policies
             };
             var created = await _policyRepository.CreatePropertyPolicyAsync(policy, cancellationToken);
 
-            // تسجيل العملية في سجل التدقيق
-            await _auditService.LogBusinessOperationAsync(
-                "CreatePropertyPolicy",
-                $"تم إنشاء سياسة جديدة للكيان {request.PropertyId} من النوع {request.PolicyType}",
-                created.Id,
-                "PropertyPolicy",
-                _currentUserService.UserId,
-                new Dictionary<string, object> { { "PolicyId", created.Id }, { "Type", request.PolicyType } },
-                cancellationToken);
+            // تسجيل العملية في سجل التدقيق (يدوي) مع ذكر اسم المستخدم والمعرف
+            var notes = $"تم إنشاء سياسة جديدة للكيان {request.PropertyId} من النوع {request.PolicyType} بواسطة {_currentUserService.Username} (ID={_currentUserService.UserId})";
+            await _auditService.LogAuditAsync(
+                entityType: "PropertyPolicy",
+                entityId: created.Id,
+                action: YemenBooking.Core.Enums.AuditAction.CREATE,
+                oldValues: null,
+                newValues: System.Text.Json.JsonSerializer.Serialize(new { PolicyId = created.Id, Type = request.PolicyType }),
+                performedBy: _currentUserService.UserId,
+                notes: notes,
+                cancellationToken: cancellationToken);
 
             _logger.LogInformation("اكتمل إنشاء السياسة بنجاح: PolicyId={PolicyId}", created.Id);
             return ResultDto<Guid>.Succeeded(created.Id, "تم إنشاء السياسة بنجاح");

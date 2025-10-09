@@ -334,12 +334,16 @@ public class VoidPaymentCommandHandler : IRequestHandler<VoidPaymentCommand, Res
     {
         // تسجيل العملية
         // Audit logging
-        await _auditService.LogAsync(
-            "VoidPayment",
-            payment.Id.ToString(),
-            $"تم إبطال الدفعة للحجز {booking.Id} / Payment voided for booking {booking.Id}",
-            _currentUserService.UserId,
-            cancellationToken);
+        var notes = $"Payment voided for booking {booking.Id} by {_currentUserService.Username} (ID={_currentUserService.UserId})";
+        await _auditService.LogAuditAsync(
+            entityType: "Payment",
+            entityId: payment.Id,
+            action: YemenBooking.Core.Enums.AuditAction.UPDATE,
+            oldValues: null,
+            newValues: System.Text.Json.JsonSerializer.Serialize(new { Voided = true, BookingId = booking.Id }),
+            performedBy: _currentUserService.UserId,
+            notes: notes,
+            cancellationToken: cancellationToken);
 
         // نشر حدث إبطال الدفعة
         // Publish payment voided event

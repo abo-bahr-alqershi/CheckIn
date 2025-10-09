@@ -124,14 +124,16 @@ public class CancelBookingCommandHandler : IRequestHandler<CancelBookingCommand,
         {
             _logger.LogWarning(ex, "تعذرت الفهرسة المباشرة للإتاحة بعد إلغاء الحجز {BookingId}", request.BookingId);
         }
-        await _auditService.LogBusinessOperationAsync(
-            "CancelBooking",
-            $"تم إلغاء الحجز {booking.Id}",
-            booking.Id,
-            "Booking",
-            request.UserId,
-            null,
-            cancellationToken);
+        var notes = $"تم إلغاء الحجز {booking.Id} بواسطة المستخدم {request.UserId}";
+        await _auditService.LogAuditAsync(
+            entityType: "Booking",
+            entityId: booking.Id,
+            action: YemenBooking.Core.Enums.AuditAction.DELETE,
+            oldValues: System.Text.Json.JsonSerializer.Serialize(new { booking.Id }),
+            newValues: null,
+            performedBy: request.UserId,
+            notes: notes,
+            cancellationToken: cancellationToken);
 
         return new ResultDto<CancelBookingResponse>
         {

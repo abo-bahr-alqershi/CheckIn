@@ -399,12 +399,16 @@ public class UpdatePaymentStatusCommandHandler : IRequestHandler<UpdatePaymentSt
     {
         // تسجيل العملية
         // Audit logging
-        await _auditService.LogAsync(
-            "UpdatePaymentStatus",
-            payment.Id.ToString(),
-            $"تم تحديث حالة الدفعة إلى {newStatus} للحجز {booking.Id} / Payment status updated to {newStatus} for booking {booking.Id}",
-            _currentUserService.UserId,
-            cancellationToken);
+        var notes = $"Payment status updated to {newStatus} for booking {booking.Id} by {_currentUserService.Username} (ID={_currentUserService.UserId})";
+        await _auditService.LogAuditAsync(
+            entityType: "Payment",
+            entityId: payment.Id,
+            action: YemenBooking.Core.Enums.AuditAction.UPDATE,
+            oldValues: null,
+            newValues: System.Text.Json.JsonSerializer.Serialize(new { NewStatus = newStatus, BookingId = booking.Id }),
+            performedBy: _currentUserService.UserId,
+            notes: notes,
+            cancellationToken: cancellationToken);
 
         // نشر حدث تحديث حالة الدفعة
         // Publish payment status updated event
