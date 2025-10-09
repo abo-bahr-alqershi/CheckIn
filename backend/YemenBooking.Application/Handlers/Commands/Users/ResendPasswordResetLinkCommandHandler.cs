@@ -8,6 +8,7 @@ using YemenBooking.Application.DTOs;
 using YemenBooking.Application.Interfaces.Services;
 using YemenBooking.Core.Interfaces.Repositories;
 using YemenBooking.Core.Interfaces;
+using System.Text.Json;
 
 namespace YemenBooking.Application.Handlers.Commands.Users
 {
@@ -64,15 +65,16 @@ namespace YemenBooking.Application.Handlers.Commands.Users
             if (!emailSent)
                 return ResultDto<bool>.Failed("فشل في إرسال رابط إعادة تعيين كلمة المرور");
 
-            // تسجيل التدقيق
-            await _auditService.LogBusinessOperationAsync(
-                "ResendPasswordReset",
-                $"تم إرسال رابط إعادة تعيين كلمة المرور للمستخدم {user.Id}",
-                user.Id,
-                "User",
-                _currentUserService.UserId,
-                null,
-                cancellationToken);
+            // تسجيل التدقيق (يدوي) بدون تفاصيل حساسة
+            await _auditService.LogAuditAsync(
+                entityType: "User",
+                entityId: user.Id,
+                action: YemenBooking.Core.Enums.AuditAction.PASSWORD_RESET,
+                oldValues: null,
+                newValues: JsonSerializer.Serialize(new { PasswordResetLinkResent = true }),
+                performedBy: _currentUserService.UserId,
+                notes: $"تم إرسال رابط إعادة تعيين كلمة المرور للمستخدم {user.Id}",
+                cancellationToken: cancellationToken);
 
             _logger.LogInformation("اكتمل إرسال رابط إعادة تعيين كلمة المرور: Email={Email}", user.Email);
             return ResultDto<bool>.Succeeded(true, "تم إرسال رابط إعادة تعيين كلمة المرور إلى البريد الإلكتروني");

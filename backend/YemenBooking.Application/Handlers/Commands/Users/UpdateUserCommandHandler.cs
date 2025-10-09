@@ -9,6 +9,7 @@ using YemenBooking.Core.Entities;
 using YemenBooking.Core.Interfaces.Repositories;
 using YemenBooking.Application.Interfaces.Services;
 using YemenBooking.Core.Interfaces;
+using System.Text.Json;
 
 namespace YemenBooking.Application.Handlers.Commands.Users
 {
@@ -84,17 +85,36 @@ namespace YemenBooking.Application.Handlers.Commands.Users
             user.UpdatedBy = _currentUserService.UserId;
             user.UpdatedAt = DateTime.UtcNow;
 
+            // احتفظ بالقيم القديمة قبل التحديث للمراجعة
+            var oldValues = new
+            {
+                user.Id,
+                user.Name,
+                user.Email,
+                user.Phone,
+                user.ProfileImage
+            };
+
             await _userRepository.UpdateUserAsync(user, cancellationToken);
 
-            // تسجيل التدقيق
-            await _auditService.LogBusinessOperationAsync(
-                "UpdateUser",
-                $"تم تحديث بيانات المستخدم {request.UserId}",
-                request.UserId,
-                "User",
-                _currentUserService.UserId,
-                null,
-                cancellationToken);
+            // تسجيل التدقيق اليدوي بالقيم القديمة والجديدة
+            var newValues = new
+            {
+                user.Id,
+                user.Name,
+                user.Email,
+                user.Phone,
+                user.ProfileImage
+            };
+            await _auditService.LogAuditAsync(
+                entityType: "User",
+                entityId: user.Id,
+                action: YemenBooking.Core.Enums.AuditAction.UPDATE,
+                oldValues: JsonSerializer.Serialize(oldValues),
+                newValues: JsonSerializer.Serialize(newValues),
+                performedBy: _currentUserService.UserId,
+                notes: $"تم تحديث بيانات المستخدم {request.UserId}",
+                cancellationToken: cancellationToken);
 
             _logger.LogInformation("اكتمل تحديث بيانات المستخدم بنجاح: UserId={UserId}", request.UserId);
             return ResultDto<bool>.Succeeded(true, "تم تحديث بيانات المستخدم بنجاح");

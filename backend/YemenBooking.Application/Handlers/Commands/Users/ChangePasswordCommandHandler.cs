@@ -8,6 +8,7 @@ using YemenBooking.Application.DTOs;
 using YemenBooking.Core.Interfaces.Repositories;
 using YemenBooking.Application.Interfaces.Services;
 using YemenBooking.Core.Interfaces;
+using System.Text.Json;
 
 namespace YemenBooking.Application.Handlers.Commands.Users
 {
@@ -75,15 +76,16 @@ namespace YemenBooking.Application.Handlers.Commands.Users
 
             await _userRepository.UpdateUserAsync(user, cancellationToken);
 
-            // تسجيل التدقيق
-            await _auditService.LogBusinessOperationAsync(
-                "ChangePassword",
-                $"تم تغيير كلمة مرور المستخدم {request.UserId}",
-                request.UserId,
-                "User",
-                _currentUserService.UserId,
-                null,
-                cancellationToken);
+            // تسجيل التدقيق اليدوي كعملية حساسة بدون قيم حساسة
+            await _auditService.LogAuditAsync(
+                entityType: "User",
+                entityId: request.UserId,
+                action: YemenBooking.Core.Enums.AuditAction.PASSWORD_CHANGE,
+                oldValues: null,
+                newValues: JsonSerializer.Serialize(new { PasswordChanged = true }),
+                performedBy: _currentUserService.UserId,
+                notes: $"تم تغيير كلمة مرور المستخدم {request.UserId}",
+                cancellationToken: cancellationToken);
 
             _logger.LogInformation("اكتمل تغيير كلمة المرور بنجاح: UserId={UserId}", request.UserId);
             return ResultDto<bool>.Succeeded(true, "تم تغيير كلمة المرور بنجاح");

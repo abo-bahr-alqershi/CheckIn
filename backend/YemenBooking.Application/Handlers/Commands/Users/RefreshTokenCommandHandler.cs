@@ -8,6 +8,7 @@ using YemenBooking.Application.DTOs;
 using YemenBooking.Application.Interfaces.Services;
 using YemenBooking.Core.Interfaces;
 using YemenBooking.Core.Interfaces.Repositories;
+using System.Text.Json;
 
 namespace YemenBooking.Application.Handlers.Commands.Users
 {
@@ -77,15 +78,16 @@ namespace YemenBooking.Application.Handlers.Commands.Users
                 PropertyCurrency = coreResult.PropertyCurrency
             };
 
-            // تسجيل التدقيق
-            await _auditService.LogBusinessOperationAsync(
-                "RefreshToken",
-                $"تم تجديد رمز الوصول للمستخدم {authResult.UserId}",
-                authResult.UserId,
-                "User",
-                authResult.UserId,
-                null,
-                cancellationToken);
+            // تسجيل التدقيق (يدوي)
+            await _auditService.LogAuditAsync(
+                entityType: "User",
+                entityId: authResult.UserId,
+                action: YemenBooking.Core.Enums.AuditAction.UPDATE,
+                oldValues: null,
+                newValues: JsonSerializer.Serialize(new { TokenRefreshed = true }),
+                performedBy: authResult.UserId,
+                notes: $"تم تجديد رمز الوصول للمستخدم {authResult.UserId}",
+                cancellationToken: cancellationToken);
 
             _logger.LogInformation("اكتمل تجديد رمز الوصول بنجاح: UserId={UserId}", authResult.UserId);
             return ResultDto<AuthResultDto>.Succeeded(authResult, "تم تجديد رمز الوصول بنجاح");

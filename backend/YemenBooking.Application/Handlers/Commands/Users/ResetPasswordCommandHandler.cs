@@ -8,6 +8,7 @@ using YemenBooking.Application.DTOs;
 using YemenBooking.Application.Interfaces.Services;
 using YemenBooking.Core.Interfaces;
 using System.Collections.Generic;
+using System.Text.Json;
 
 namespace YemenBooking.Application.Handlers.Commands.Users
 {
@@ -56,12 +57,15 @@ namespace YemenBooking.Application.Handlers.Commands.Users
             if (!result)
                 return ResultDto<bool>.Failed("فشل إعادة تعيين كلمة المرور");
 
-            // تسجيل التدقيق
-            await _auditService.LogBusinessOperationAsync(
-                operationType: "ResetPassword",
-                operationDescription: $"كلمة المرور تم إعادة تعيينها بنجاح",
+            // تسجيل التدقيق اليدوي كعملية حساسة بدون قيم حساسة
+            await _auditService.LogAuditAsync(
+                entityType: "User",
+                entityId: _currentUserService.UserId,
+                action: YemenBooking.Core.Enums.AuditAction.PASSWORD_RESET,
+                oldValues: null,
+                newValues: JsonSerializer.Serialize(new { PasswordReset = true }),
                 performedBy: _currentUserService.UserId,
-                metadata: new Dictionary<string, object> { { "Username", _currentUserService.Username } },
+                notes: "كلمة المرور تم إعادة تعيينها بنجاح",
                 cancellationToken: cancellationToken);
 
             return ResultDto<bool>.Succeeded(true);

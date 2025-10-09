@@ -12,6 +12,7 @@ using YemenBooking.Core.Interfaces;
 using YemenBooking.Application.Interfaces.Services;
 using YemenBooking.Core.Interfaces.Repositories;
 using Unit = MediatR.Unit;
+using System.Text.Json;
 
 namespace YemenBooking.Application.Handlers.Commands.UnitTypeFields;
 
@@ -190,15 +191,27 @@ public class UpdateUnitTypeFieldCommandHandler : IRequestHandler<UpdateUnitTypeF
             // الخطوة 8: إعادة تقييم صحة القيم الموجودة إذا لزم الأمر
             await RevalidateExistingValuesAsync(updatedField, cancellationToken);
 
-            // الخطوة 9: تسجيل العملية في سجل التدقيق
-            await _auditService.LogActivityAsync(
-                "UnitTypeField",
-                updatedField.Id.ToString(),
-                "Update",
-                $"تم تحديث الحقل الديناميكي: {updatedField.FieldName} لنوع الوحدة: {updatedField.UnitTypeId}",
-                originalValues,
-                updatedField,
-                cancellationToken);
+            // الخطوة 9: تسجيل العملية في سجل التدقيق (يدوي مع JSON للقيم القديمة والجديدة)
+            await _auditService.LogAuditAsync(
+                entityType: "UnitTypeField",
+                entityId: updatedField.Id,
+                action: YemenBooking.Core.Enums.AuditAction.UPDATE,
+                oldValues: JsonSerializer.Serialize(originalValues),
+                newValues: JsonSerializer.Serialize(new {
+                    updatedField.FieldName,
+                    updatedField.DisplayName,
+                    updatedField.Description,
+                    updatedField.FieldOptions,
+                    updatedField.ValidationRules,
+                    updatedField.IsRequired,
+                    updatedField.IsSearchable,
+                    updatedField.IsPublic,
+                    updatedField.SortOrder,
+                    updatedField.Category
+                }),
+                performedBy: _currentUserService.UserId,
+                notes: $"تم تحديث الحقل الديناميكي: {updatedField.FieldName} لنوع الوحدة: {updatedField.UnitTypeId}",
+                cancellationToken: cancellationToken);
 
             // الخطوة 10: نشر الحدث
             // await _eventPublisher.PublishEventAsync(new UnitTypeFieldUpdatedEvent

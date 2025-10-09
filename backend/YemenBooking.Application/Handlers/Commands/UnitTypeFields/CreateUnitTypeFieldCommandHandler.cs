@@ -11,6 +11,7 @@ using YemenBooking.Core.Entities;
 using YemenBooking.Core.Interfaces;
 using YemenBooking.Application.Interfaces.Services;
 using YemenBooking.Core.Interfaces.Repositories;
+using System.Text.Json;
 
 namespace YemenBooking.Application.Handlers.Commands.UnitTypeFields;
 
@@ -146,15 +147,27 @@ public class CreateUnitTypeFieldCommandHandler : IRequestHandler<CreateUnitTypeF
                 await AssignFieldToGroupAsync(createdField.Id, Guid.Parse(request.GroupId), cancellationToken);
             }
 
-            // الخطوة 7: تسجيل العملية في سجل التدقيق
-            await _auditService.LogActivityAsync(
-                "UnitTypeField",
-                createdField.Id.ToString(),
-                "Create",
-                $"تم إنشاء حقل جديد: {createdField.FieldName} لنوع الوحدة: {createdField.UnitTypeId}",
-                null,
-                createdField,
-                cancellationToken);
+            // الخطوة 7: تسجيل العملية في سجل التدقيق (يدوي مع JSON واضح)
+            await _auditService.LogAuditAsync(
+                entityType: "UnitTypeField",
+                entityId: createdField.Id,
+                action: YemenBooking.Core.Enums.AuditAction.CREATE,
+                oldValues: null,
+                newValues: JsonSerializer.Serialize(new {
+                    createdField.Id,
+                    createdField.UnitTypeId,
+                    createdField.FieldTypeId,
+                    createdField.FieldName,
+                    createdField.DisplayName,
+                    createdField.IsRequired,
+                    createdField.IsSearchable,
+                    createdField.IsPublic,
+                    createdField.SortOrder,
+                    createdField.Category
+                }),
+                performedBy: _currentUserService.UserId,
+                notes: $"تم إنشاء حقل جديد: {createdField.FieldName} لنوع الوحدة: {createdField.UnitTypeId}",
+                cancellationToken: cancellationToken);
 
             // الخطوة 8: نشر الحدث
             // await _eventPublisher.PublishEventAsync(new UnitTypeFieldCreatedEvent

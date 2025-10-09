@@ -9,6 +9,7 @@ using YemenBooking.Core.Interfaces.Repositories;
 using YemenBooking.Application.Interfaces.Services;
 using YemenBooking.Core.Interfaces;
 using System.Linq;
+using System.Text.Json;
 
 namespace YemenBooking.Application.Handlers.Commands.Properties
 {
@@ -105,15 +106,22 @@ namespace YemenBooking.Application.Handlers.Commands.Properties
             if (!success)
                 return ResultDto<bool>.Failed("فشل حذف الكيان");
 
-            // تسجيل العملية في سجل التدقيق
-            await _auditService.LogBusinessOperationAsync(
-                "DeleteProperty",
-                $"تم حذف الكيان {request.PropertyId}",
-                request.PropertyId,
-                "Property",
-                _currentUserService.UserId,
-                null,
-                cancellationToken);
+            // تسجيل العملية في سجل التدقيق (يدوي مع JSON للقيم القديمة)
+            await _auditService.LogAuditAsync(
+                entityType: "Property",
+                entityId: request.PropertyId,
+                action: YemenBooking.Core.Enums.AuditAction.DELETE,
+                oldValues: JsonSerializer.Serialize(new {
+                    property.Id,
+                    property.Name,
+                    property.Address,
+                    property.City,
+                    property.Currency
+                }),
+                newValues: null,
+                performedBy: _currentUserService.UserId,
+                notes: $"تم حذف الكيان {request.PropertyId}",
+                cancellationToken: cancellationToken);
 
             // استدعاء الفهرسة المباشرة لضمان حذف العقار من الفهرس
             try

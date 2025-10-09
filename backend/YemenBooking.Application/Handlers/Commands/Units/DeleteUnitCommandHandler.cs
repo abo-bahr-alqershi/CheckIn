@@ -12,6 +12,7 @@ using YemenBooking.Core.Events;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using YemenBooking.Application.Interfaces.Services;
+using System.Text.Json;
 
 namespace YemenBooking.Application.Handlers.Commands.Units
 {
@@ -146,15 +147,17 @@ namespace YemenBooking.Application.Handlers.Commands.Units
                 _logger.LogWarning(ex, "فشلت الفهرسة المباشرة للحقول الديناميكية بعد حذف الوحدة: {UnitId}", request.UnitId);
             }
 
-            // تسجيل التدقيق
-            await _auditService.LogBusinessOperationAsync(
-                "DeleteUnit",
-                $"تم حذف الوحدة {request.UnitId}",
-                request.UnitId,
-                "Unit",
-                _currentUserService.UserId,
-                null,
-                cancellationToken);
+            // تسجيل التدقيق اليدوي مع القيم القديمة
+            var oldValues = new { unit.Id, unit.PropertyId, unit.Name };
+            await _auditService.LogAuditAsync(
+                entityType: "Unit",
+                entityId: request.UnitId,
+                action: YemenBooking.Core.Enums.AuditAction.DELETE,
+                oldValues: JsonSerializer.Serialize(oldValues),
+                newValues: null,
+                performedBy: _currentUserService.UserId,
+                notes: $"تم حذف الوحدة {request.UnitId}",
+                cancellationToken: cancellationToken);
 
             _logger.LogInformation("اكتمل حذف الوحدة بنجاح: UnitId={UnitId}", request.UnitId);
             return ResultDto<bool>.Succeeded(true, "تم حذف الوحدة بنجاح");

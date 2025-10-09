@@ -6,6 +6,7 @@ using YemenBooking.Application.Commands.Users;
 using YemenBooking.Application.DTOs;
 using YemenBooking.Core.Interfaces.Repositories;
 using YemenBooking.Application.Interfaces.Services;
+using System.Text.Json;
 
 namespace YemenBooking.Application.Handlers.Commands.Users
 {
@@ -45,15 +46,16 @@ namespace YemenBooking.Application.Handlers.Commands.Users
             if (!updated)
                 return ResultDto<bool>.Failed("فشل في تحديث إعدادات المستخدم");
 
-            // تسجيل التدقيق
-            await _auditService.LogBusinessOperationAsync(
-                "UpdateUserSettings",
-                $"تم تحديث إعدادات المستخدم للمستخدم {userId}",
-                userId,
-                "User",
-                userId,
-                null,
-                cancellationToken);
+            // تسجيل التدقيق اليدوي مع القيم الجديدة فقط (تجنب التسريب)
+            await _auditService.LogAuditAsync(
+                entityType: "User",
+                entityId: userId,
+                action: YemenBooking.Core.Enums.AuditAction.UPDATE,
+                oldValues: null,
+                newValues: JsonSerializer.Serialize(new { SettingsUpdated = true }),
+                performedBy: userId,
+                notes: $"تم تحديث إعدادات المستخدم للمستخدم {userId}",
+                cancellationToken: cancellationToken);
 
             _logger.LogInformation("اكتملت عملية تحديث إعدادات المستخدم: UserId={UserId}", userId);
             return ResultDto<bool>.Succeeded(true, "تم تحديث إعدادات المستخدم بنجاح");

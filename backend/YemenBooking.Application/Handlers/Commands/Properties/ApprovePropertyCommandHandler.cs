@@ -9,6 +9,7 @@ using YemenBooking.Core.Interfaces.Repositories;
 using YemenBooking.Application.Interfaces.Services;
 using YemenBooking.Core.Interfaces;
 using YemenBooking.Core.Notifications;
+using System.Text.Json;
 
 namespace YemenBooking.Application.Handlers.Commands.Properties
 {
@@ -69,15 +70,16 @@ namespace YemenBooking.Application.Handlers.Commands.Properties
             // تحديث فهرس LiteDB لتعكس حالة الاعتماد
             await _indexingService.OnPropertyUpdatedAsync(request.PropertyId, cancellationToken);
 
-            // تسجيل العملية في سجل التدقيق
-            await _auditService.LogBusinessOperationAsync(
-                "ApproveProperty",
-                $"تمت الموافقة على الكيان {request.PropertyId}",
-                request.PropertyId,
-                "Property",
-                _currentUserService.UserId,
-                null,
-                cancellationToken);
+            // تسجيل العملية في سجل التدقيق (يدوي)
+            await _auditService.LogAuditAsync(
+                entityType: "Property",
+                entityId: request.PropertyId,
+                action: YemenBooking.Core.Enums.AuditAction.APPROVE,
+                oldValues: null,
+                newValues: JsonSerializer.Serialize(new { Approved = true }),
+                performedBy: _currentUserService.UserId,
+                notes: $"تمت الموافقة على الكيان {request.PropertyId}",
+                cancellationToken: cancellationToken);
 
             // إرسال إشعار للمالك
             await _notificationService.SendAsync(new NotificationRequest

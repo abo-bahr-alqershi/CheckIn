@@ -7,6 +7,7 @@ using YemenBooking.Application.Commands.Users;
 using YemenBooking.Application.DTOs;
 using YemenBooking.Core.Interfaces.Repositories;
 using YemenBooking.Core.Interfaces;
+using System.Text.Json;
 using YemenBooking.Application.Interfaces.Services;
 
 namespace YemenBooking.Application.Handlers.Commands.Users
@@ -55,15 +56,17 @@ namespace YemenBooking.Application.Handlers.Commands.Users
             if (!result)
                 return ResultDto<bool>.Failed("فشل إلغاء تفعيل المستخدم");
 
-            // تسجيل التدقيق
-            await _auditService.LogBusinessOperationAsync(
-                "DeactivateUser",
-                $"تم إلغاء تفعيل المستخدم {request.UserId}",
-                request.UserId,
-                "User",
-                _currentUserService.UserId,
-                null,
-                cancellationToken);
+            // تسجيل التدقيق اليدوي
+            var auditValues = new { UserId = request.UserId, Deactivated = true };
+            await _auditService.LogAuditAsync(
+                entityType: "User",
+                entityId: request.UserId,
+                action: YemenBooking.Core.Enums.AuditAction.DEACTIVATE,
+                oldValues: null,
+                newValues: JsonSerializer.Serialize(auditValues),
+                performedBy: _currentUserService.UserId,
+                notes: $"تم إلغاء تفعيل المستخدم {request.UserId}",
+                cancellationToken: cancellationToken);
 
             _logger.LogInformation("اكتمل إلغاء تفعيل المستخدم بنجاح: UserId={UserId}", request.UserId);
             return ResultDto<bool>.Succeeded(true, "تم إلغاء تفعيل المستخدم بنجاح");

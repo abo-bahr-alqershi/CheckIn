@@ -9,6 +9,7 @@ using YemenBooking.Application.DTOs;
 using YemenBooking.Core.Interfaces.Repositories;
 using YemenBooking.Core.Interfaces;
 using YemenBooking.Application.Interfaces.Services;
+using System.Text.Json;
 
 namespace YemenBooking.Application.Handlers.Commands.Users
 {
@@ -86,15 +87,18 @@ namespace YemenBooking.Application.Handlers.Commands.Users
             if (!result)
                 return ResultDto<bool>.Failed("فشل تخصيص الدور للمستخدم");
 
-            // تسجيل التدقيق
-            await _auditService.LogBusinessOperationAsync(
-                "AssignUserRole",
-                $"تم تخصيص الدور {request.RoleId} للمستخدم {request.UserId}",
-                request.UserId,
-                "UserRole",
-                _currentUserService.UserId,
-                null,
-                cancellationToken);
+            // تسجيل التدقيق اليدوي مع القيم القديمة والجديدة للأدوار
+            var oldRoleIds = assignedRoles.Select(r => r.RoleId).ToList();
+            var newRoleIds = new[] { request.RoleId };
+            await _auditService.LogAuditAsync(
+                entityType: "UserRole",
+                entityId: request.UserId,
+                action: YemenBooking.Core.Enums.AuditAction.UPDATE,
+                oldValues: JsonSerializer.Serialize(new { Roles = oldRoleIds }),
+                newValues: JsonSerializer.Serialize(new { Roles = newRoleIds }),
+                performedBy: _currentUserService.UserId,
+                notes: $"تم تخصيص الدور {request.RoleId} للمستخدم {request.UserId}",
+                cancellationToken: cancellationToken);
 
             _logger.LogInformation("اكتمل تخصيص الدور بنجاح: UserId={UserId}, RoleId={RoleId}", request.UserId, request.RoleId);
             return ResultDto<bool>.Succeeded(true, "تم تخصيص الدور للمستخدم بنجاح");

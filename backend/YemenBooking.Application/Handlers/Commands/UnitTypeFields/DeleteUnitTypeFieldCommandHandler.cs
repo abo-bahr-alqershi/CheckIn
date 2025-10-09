@@ -10,6 +10,7 @@ using YemenBooking.Core.Interfaces.Repositories;
 using YemenBooking.Core.Interfaces;
 using YemenBooking.Application.DTOs;
 using YemenBooking.Application.Interfaces.Services;
+using System.Text.Json;
 
 namespace YemenBooking.Application.Handlers.Commands.UnitTypeFields
 {
@@ -72,15 +73,21 @@ namespace YemenBooking.Application.Handlers.Commands.UnitTypeFields
                 if (!deleted)
                     throw new BusinessRuleException("DeletionFailed", "فشل حذف حقل نوع الوحدة");
 
-                // تسجيل التدقيق
-                await _auditService.LogActivityAsync(
-                    "UnitTypeField",
-                    existingField.Id.ToString(),
-                    "Delete",
-                    $"تم حذف حقل الديناميكي: {existingField.FieldName} من نوع الوحدة {existingField.UnitTypeId}",
-                    existingField,
-                    null,
-                    cancellationToken);
+                // تسجيل التدقيق اليدوي مع القيم القديمة فقط
+                await _auditService.LogAuditAsync(
+                    entityType: "UnitTypeField",
+                    entityId: existingField.Id,
+                    action: YemenBooking.Core.Enums.AuditAction.DELETE,
+                    oldValues: JsonSerializer.Serialize(new {
+                        existingField.Id,
+                        existingField.UnitTypeId,
+                        existingField.FieldName,
+                        existingField.DisplayName
+                    }),
+                    newValues: null,
+                    performedBy: _currentUserService.UserId,
+                    notes: $"تم حذف حقل الديناميكي: {existingField.FieldName} من نوع الوحدة {existingField.UnitTypeId}",
+                    cancellationToken: cancellationToken);
 
                 // نشر الحدث
                 // await _eventPublisher.PublishEventAsync(new UnitTypeFieldDeletedEvent
