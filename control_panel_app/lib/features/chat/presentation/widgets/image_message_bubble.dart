@@ -434,7 +434,6 @@ class _ImageMessageBubbleState extends State<ImageMessageBubble>
                 CachedImageWidget(
                   imageUrl: url,
                   fit: BoxFit.cover,
-                  removeContainer: true,
                 ),
                 Positioned(
                   bottom: 4,

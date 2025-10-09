@@ -85,7 +85,6 @@ class _ExpandableImageViewerState extends State<ExpandableImageViewer> {
                   child: CachedImageWidget(
                     imageUrl: image.fileUrl,
                     fit: BoxFit.contain,
-                    removeContainer: true,
                   ),
                   initialScale: PhotoViewComputedScale.contained,
                   minScale: PhotoViewComputedScale.contained,

@@ -82,7 +82,6 @@ class WhatsAppStyleImageGrid extends StatelessWidget {
               CachedImageWidget(
                 imageUrl: image.fileUrl,
                 fit: BoxFit.cover,
-                removeContainer: true,
               ),
               if (_hasOverlayFor(image)) _buildReactionOverlay(image),
             ],
@@ -257,7 +256,6 @@ class WhatsAppStyleImageGrid extends StatelessWidget {
             CachedImageWidget(
               imageUrl: image.fileUrl,
               fit: BoxFit.cover,
-              removeContainer: true,
             ),
             if (_hasOverlayFor(image)) _buildReactionOverlay(image),
           ],

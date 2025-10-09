@@ -338,7 +338,6 @@ class ConversationItemWidget extends StatelessWidget {
             child: CachedImageWidget(
               imageUrl: thumbnailUrl,
               fit: BoxFit.cover,
-              removeContainer: true,
             ),
           ),
         );

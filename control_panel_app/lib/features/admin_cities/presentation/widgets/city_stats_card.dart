@@ -18,7 +18,7 @@ class CityStatsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final double _num(Object? v) {
+    double numb(Object? v) {
       if (v is num) return v.toDouble();
       if (v is String) return double.tryParse(v) ?? 0;
       return 0;
@@ -30,28 +30,29 @@ class CityStatsCard extends StatelessWidget {
         label: 'إجمالي المدن',
         value: citiesCount.toString(),
         gradient: [AppTheme.primaryBlue, AppTheme.primaryCyan],
-        trend: _num(statistics['updatesTrendPct']),
+        trend: numb(statistics['updatesTrendPct']),
       ),
       _StatItem(
         icon: CupertinoIcons.house_fill,
         label: 'العقارات',
         value: (statistics['totalProperties'] ?? 0).toString(),
         gradient: [AppTheme.primaryPurple, AppTheme.primaryViolet],
-        trend: _num(statistics['propertiesTrend']),
+        trend: numb(statistics['propertiesTrend']),
       ),
       _StatItem(
         icon: CupertinoIcons.checkmark_circle_fill,
         label: 'مدن نشطة',
-        value: (statistics['activeCities'] ?? statistics['active'] ?? 0).toString(),
+        value: (statistics['activeCities'] ?? statistics['active'] ?? 0)
+            .toString(),
         gradient: [AppTheme.success, AppTheme.neonGreen],
-        trend: _num(statistics['activeTrend']),
+        trend: numb(statistics['activeTrend']),
       ),
       _StatItem(
         icon: CupertinoIcons.photo_fill,
         label: 'الصور',
         value: _formatNumber(statistics['totalImages'] ?? 0),
         gradient: [AppTheme.warning, AppTheme.neonPurple],
-        trend: _num(statistics['imagesTrend']),
+        trend: numb(statistics['imagesTrend']),
       ),
     ];
 

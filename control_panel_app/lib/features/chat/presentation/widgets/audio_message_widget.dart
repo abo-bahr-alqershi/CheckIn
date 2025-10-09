@@ -534,7 +534,6 @@ class _AudioMessageWidgetState extends State<AudioMessageWidget>
           width: size,
           height: size,
           fit: BoxFit.cover,
-          removeContainer: true,
         ),
       );
     } else {
