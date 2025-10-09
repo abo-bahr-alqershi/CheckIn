@@ -137,4 +137,19 @@ class CurrenciesRepositoryImpl implements CurrenciesRepository {
       return Left(ServerFailure(e.toString()));
     }
   }
+
+  @override
+  Future<Either<Failure, Map<String, dynamic>>> getCurrencyStats({DateTime? startDate, DateTime? endDate}) async {
+    if (!await networkInfo.isConnected) {
+      return const Left(NetworkFailure('لا يوجد اتصال بالإنترنت'));
+    }
+    try {
+      final stats = await remoteDataSource.getCurrencyStats(startDate: startDate, endDate: endDate);
+      return Right(stats);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message));
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
 }

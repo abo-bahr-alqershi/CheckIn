@@ -4,6 +4,7 @@ import '../../../../core/usecases/usecase.dart';
 import '../../domain/entities/currency.dart';
 import '../../domain/usecases/delete_currency_usecase.dart';
 import '../../domain/usecases/get_currencies_usecase.dart';
+import '../../domain/repositories/currencies_repository.dart';
 import '../../domain/usecases/save_currencies_usecase.dart';
 import '../../domain/usecases/set_default_currency_usecase.dart';
 import 'currencies_event.dart';
@@ -14,6 +15,7 @@ class CurrenciesBloc extends Bloc<CurrenciesEvent, CurrenciesState> {
   final SaveCurrenciesUseCase saveCurrencies;
   final DeleteCurrencyUseCase deleteCurrency;
   final SetDefaultCurrencyUseCase setDefaultCurrency;
+  final CurrenciesRepository repository;
 
   List<Currency> _allCurrencies = [];
 
@@ -22,6 +24,7 @@ class CurrenciesBloc extends Bloc<CurrenciesEvent, CurrenciesState> {
     required this.saveCurrencies,
     required this.deleteCurrency,
     required this.setDefaultCurrency,
+    required this.repository,
   }) : super(CurrenciesInitial()) {
     on<LoadCurrenciesEvent>(_onLoadCurrencies);
     on<AddCurrencyEvent>(_onAddCurrency);
@@ -45,9 +48,16 @@ class CurrenciesBloc extends Bloc<CurrenciesEvent, CurrenciesState> {
       (failure) => emit(CurrenciesError(message: failure.message)),
       (currencies) {
         _allCurrencies = currencies;
+        // Try fetch backend stats for last 30 days
+        Map<String, dynamic>? stats;
+        final now = DateTime.now();
+        final last30 = now.subtract(const Duration(days: 30));
+        final statsResult = await repository.getCurrencyStats(startDate: last30, endDate: now);
+        stats = statsResult.fold((_) => null, (data) => data);
         emit(CurrenciesLoaded(
           currencies: currencies,
           filteredCurrencies: currencies,
+          stats: stats,
         ));
       },
     );

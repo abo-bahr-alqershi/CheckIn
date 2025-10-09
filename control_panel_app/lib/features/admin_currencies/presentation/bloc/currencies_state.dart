@@ -17,12 +17,14 @@ class CurrenciesLoaded extends CurrenciesState {
   final List<Currency> filteredCurrencies;
   final String searchQuery;
   final bool isSaving;
+  final Map<String, dynamic>? stats;
 
   const CurrenciesLoaded({
     required this.currencies,
     required this.filteredCurrencies,
     this.searchQuery = '',
     this.isSaving = false,
+    this.stats,
   });
 
   CurrenciesLoaded copyWith({
@@ -30,17 +32,19 @@ class CurrenciesLoaded extends CurrenciesState {
     List<Currency>? filteredCurrencies,
     String? searchQuery,
     bool? isSaving,
+    Map<String, dynamic>? stats,
   }) {
     return CurrenciesLoaded(
       currencies: currencies ?? this.currencies,
       filteredCurrencies: filteredCurrencies ?? this.filteredCurrencies,
       searchQuery: searchQuery ?? this.searchQuery,
       isSaving: isSaving ?? this.isSaving,
+      stats: stats ?? this.stats,
     );
   }
 
   @override
-  List<Object?> get props => [currencies, filteredCurrencies, searchQuery, isSaving];
+  List<Object?> get props => [currencies, filteredCurrencies, searchQuery, isSaving, stats];
 }
 
 class CurrenciesError extends CurrenciesState {

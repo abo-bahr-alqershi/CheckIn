@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using YemenBooking.Application.Interfaces.Services;
 using YemenBooking.Application.DTOs;
 using System;
+using System.Linq;
 
 namespace YemenBooking.Api.Controllers.Admin
 {
@@ -17,6 +18,13 @@ namespace YemenBooking.Api.Controllers.Admin
         private readonly ISystemSettingsService _settingsService;
         private readonly ICurrencySettingsService _currencySettingsService;
         private readonly ICitySettingsService _citySettingsService;
+        private static double? Trend(double current, double previous)
+        {
+            if (previous == 0)
+                return current == 0 ? 0.0 : (double?)null;
+            var pct = ((current - previous) / previous) * 100.0;
+            return Math.Round(pct, 1);
+        }
 
         public SystemSettingsController(ISystemSettingsService settingsService, ICurrencySettingsService currencySettingsService, ICitySettingsService citySettingsService)
         {
@@ -57,6 +65,65 @@ namespace YemenBooking.Api.Controllers.Admin
         {
             var currencies = await _currencySettingsService.GetCurrenciesAsync(cancellationToken);
             return Ok(ResultDto<List<CurrencyDto>>.Succeeded(currencies));
+        }
+
+        /// <summary>
+        /// Get currency statistics with optional last-30-days trends
+        /// </summary>
+        [HttpGet("currencies/stats")]
+        public async Task<ActionResult<ResultDto<CurrencyStatsDto>>> GetCurrenciesStatsAsync([FromQuery] DateTime? startDate = null, [FromQuery] DateTime? endDate = null, CancellationToken cancellationToken = default)
+        {
+            var list = await _currencySettingsService.GetCurrenciesAsync(cancellationToken);
+            var total = list.Count;
+            var def = list.FirstOrDefault(c => c.IsDefault)?.Code;
+            var withRate = list.Count(c => c.ExchangeRate.HasValue);
+            var avgRate = withRate > 0 ? list.Where(c => c.ExchangeRate.HasValue).Average(c => (double)c.ExchangeRate!.Value) : 0.0;
+            DateTime? lastUpdated = null;
+            foreach (var c in list)
+            {
+                if (c.LastUpdated.HasValue)
+                {
+                    if (!lastUpdated.HasValue || c.LastUpdated.Value > lastUpdated.Value)
+                        lastUpdated = c.LastUpdated.Value;
+                }
+            }
+
+            var dto = new CurrencyStatsDto
+            {
+                TotalCurrencies = total,
+                DefaultCurrencyCode = def,
+                CurrenciesWithExchangeRate = withRate,
+                AverageExchangeRate = Math.Round(avgRate, 4),
+                LastUpdated = lastUpdated,
+                UpdatesCount = 0,
+                UpdatesTrendPct = null,
+                AverageUpdatedRate = null,
+                AverageUpdatedRateTrendPct = null
+            };
+
+            if (startDate.HasValue && endDate.HasValue && endDate > startDate)
+            {
+                var currentStart = startDate.Value;
+                var currentEnd = endDate.Value;
+                var period = currentEnd - currentStart;
+                var previousStart = currentStart - period;
+                var previousEnd = currentStart;
+
+                var currentUpdated = list.Where(c => c.LastUpdated.HasValue && c.LastUpdated.Value >= currentStart && c.LastUpdated.Value <= currentEnd).ToList();
+                var previousUpdated = list.Where(c => c.LastUpdated.HasValue && c.LastUpdated.Value >= previousStart && c.LastUpdated.Value <= previousEnd).ToList();
+
+                var currUpdates = currentUpdated.Count;
+                var prevUpdates = previousUpdated.Count;
+                var currAvgUpdatedRate = currentUpdated.Count > 0 ? currentUpdated.Where(c => c.ExchangeRate.HasValue).Average(c => (double)c.ExchangeRate!.Value) : 0.0;
+                var prevAvgUpdatedRate = previousUpdated.Count > 0 ? previousUpdated.Where(c => c.ExchangeRate.HasValue).Average(c => (double)c.ExchangeRate!.Value) : 0.0;
+
+                dto.UpdatesCount = currUpdates;
+                dto.UpdatesTrendPct = Trend(currUpdates, prevUpdates);
+                dto.AverageUpdatedRate = Math.Round(currAvgUpdatedRate, 4);
+                dto.AverageUpdatedRateTrendPct = Trend(currAvgUpdatedRate, prevAvgUpdatedRate);
+            }
+
+            return Ok(ResultDto<CurrencyStatsDto>.Succeeded(dto));
         }
 
         /// <summary>
