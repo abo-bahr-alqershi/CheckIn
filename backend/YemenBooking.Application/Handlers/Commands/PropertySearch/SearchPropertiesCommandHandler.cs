@@ -497,11 +497,16 @@ public class SearchPropertiesCommandHandler : IRequestHandler<SearchPropertiesCo
     {
         try
         {
-            await _auditService.LogAsync(
-                "PropertySearch",
-                Guid.NewGuid().ToString(),
-                $"بحث في الكيانات - النتائج: {resultCount}, المدة: {durationMs}ms",
-                _currentUserService.UserId);
+            var notes = $"بحث في الكيانات - النتائج: {resultCount}، المدة: {durationMs}ms - بواسطة {_currentUserService.Username} (ID={_currentUserService.UserId})";
+            await _auditService.LogAuditAsync(
+                entityType: "PropertySearch",
+                entityId: _currentUserService.UserId,
+                action: YemenBooking.Core.Enums.AuditAction.VIEW,
+                oldValues: null,
+                newValues: Newtonsoft.Json.JsonConvert.SerializeObject(new { ResultCount = resultCount, DurationMs = durationMs }),
+                performedBy: _currentUserService.UserId,
+                notes: notes,
+                cancellationToken: default);
         }
         catch (Exception ex)
         {

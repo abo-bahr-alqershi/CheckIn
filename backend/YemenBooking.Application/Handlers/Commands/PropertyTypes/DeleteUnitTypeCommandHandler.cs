@@ -63,15 +63,17 @@ namespace YemenBooking.Application.Handlers.Commands.PropertyTypes
             if (!success)
                 return ResultDto<bool>.Failed("فشل حذف نوع الوحدة");
 
-            // تسجيل التدقيق
-            await _auditService.LogBusinessOperationAsync(
-                "DeleteUnitType",
-                $"تم حذف نوع الوحدة {request.UnitTypeId}",
-                request.UnitTypeId,
-                "UnitType",
-                _currentUserService.UserId,
-                null,
-                cancellationToken);
+            // تسجيل التدقيق (يدوي) مع ذكر اسم المستخدم والمعرف
+            var notes = $"تم حذف نوع الوحدة {request.UnitTypeId} بواسطة {_currentUserService.Username} (ID={_currentUserService.UserId})";
+            await _auditService.LogAuditAsync(
+                entityType: "UnitType",
+                entityId: request.UnitTypeId,
+                action: YemenBooking.Core.Enums.AuditAction.DELETE,
+                oldValues: System.Text.Json.JsonSerializer.Serialize(new { request.UnitTypeId }),
+                newValues: null,
+                performedBy: _currentUserService.UserId,
+                notes: notes,
+                cancellationToken: cancellationToken);
 
             _logger.LogInformation("اكتمل حذف نوع الوحدة: UnitTypeId={UnitTypeId}", request.UnitTypeId);
             return ResultDto<bool>.Succeeded(true, "تم حذف نوع الوحدة بنجاح");

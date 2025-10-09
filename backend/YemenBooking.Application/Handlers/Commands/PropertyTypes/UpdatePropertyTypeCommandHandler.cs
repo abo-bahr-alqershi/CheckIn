@@ -67,15 +67,17 @@ namespace YemenBooking.Application.Handlers.Commands.PropertyTypes
 
             await _repository.UpdatePropertyTypeAsync(type, cancellationToken);
 
-            // تسجيل التدقيق
-            await _auditService.LogBusinessOperationAsync(
-                "UpdatePropertyType",
-                $"تم تحديث نوع الكيان {request.PropertyTypeId}",
-                request.PropertyTypeId,
-                "PropertyType",
-                _currentUserService.UserId,
-                null,
-                cancellationToken);
+            // تسجيل التدقيق (يدوي) مع ذكر اسم المستخدم والمعرف
+            var notes = $"تم تحديث نوع الكيان {request.PropertyTypeId} بواسطة {_currentUserService.Username} (ID={_currentUserService.UserId})";
+            await _auditService.LogAuditAsync(
+                entityType: "PropertyType",
+                entityId: request.PropertyTypeId,
+                action: YemenBooking.Core.Enums.AuditAction.UPDATE,
+                oldValues: null,
+                newValues: System.Text.Json.JsonSerializer.Serialize(new { Updated = true }),
+                performedBy: _currentUserService.UserId,
+                notes: notes,
+                cancellationToken: cancellationToken);
 
             _logger.LogInformation("اكتمل تحديث نوع الكيان: Id={PropertyTypeId}", request.PropertyTypeId);
             return ResultDto<bool>.Succeeded(true, "تم تحديث نوع الكيان بنجاح");
