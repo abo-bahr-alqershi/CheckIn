@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using YemenBooking.Application.Features.Notifications.Commands;
 using YemenBooking.Core.Interfaces.Repositories;
 using YemenBooking.Application.Interfaces.Services;
+using System.Text.Json;
 using YemenBooking.Application.DTOs;
 
 namespace YemenBooking.Application.Handlers.Commands.MobileApp.Notifications;
@@ -14,12 +15,14 @@ public class DismissNotificationCommandHandler : IRequestHandler<DismissNotifica
 {
     private readonly INotificationRepository _notificationRepository;
     private readonly IAuditService _auditService;
+    private readonly ICurrentUserService _currentUserService;
     private readonly ILogger<DismissNotificationCommandHandler> _logger;
 
-    public DismissNotificationCommandHandler(INotificationRepository notificationRepository, IAuditService auditService, ILogger<DismissNotificationCommandHandler> logger)
+    public DismissNotificationCommandHandler(INotificationRepository notificationRepository, IAuditService auditService, ICurrentUserService currentUserService, ILogger<DismissNotificationCommandHandler> logger)
     {
         _notificationRepository = notificationRepository;
         _auditService = auditService;
+        _currentUserService = currentUserService;
         _logger = logger;
     }
 
@@ -38,14 +41,16 @@ public class DismissNotificationCommandHandler : IRequestHandler<DismissNotifica
         await _notificationRepository.UpdateAsync(notification, cancellationToken);
 
         // تدقيق يدوي مع ذكر اسم ومعرف المنفذ
-        var notes = $"تم إخفاء الإشعار {notification.Id} بواسطة المستخدم {request.UserId}";
+        var performerName = _currentUserService.Username;
+        var performerId = _currentUserService.UserId;
+        var notes = $"تم إخفاء الإشعار {notification.Id} بواسطة {performerName} (ID={performerId})";
         await _auditService.LogAuditAsync(
             entityType: "Notification",
             entityId: notification.Id,
             action: YemenBooking.Core.Enums.AuditAction.UPDATE,
             oldValues: null,
-            newValues: System.Text.Json.JsonSerializer.Serialize(new { Dismissed = true }),
-            performedBy: request.UserId,
+            newValues: JsonSerializer.Serialize(new { Dismissed = true }),
+            performedBy: performerId,
             notes: notes,
             cancellationToken: cancellationToken);
 

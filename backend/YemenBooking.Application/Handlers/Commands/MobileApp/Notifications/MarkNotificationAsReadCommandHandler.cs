@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using YemenBooking.Application.Commands.MobileApp.Notifications; // updated namespace
 using YemenBooking.Core.Interfaces.Repositories;
 using YemenBooking.Application.Interfaces.Services;
+using System.Text.Json;
 
 namespace YemenBooking.Application.Handlers.Commands.MobileApp.Notifications;
 
@@ -13,12 +14,14 @@ public class MarkNotificationAsReadCommandHandler : IRequestHandler<MarkNotifica
 {
     private readonly INotificationRepository _notificationRepository;
     private readonly IAuditService _auditService;
+    private readonly ICurrentUserService _currentUserService;
     private readonly ILogger<MarkNotificationAsReadCommandHandler> _logger;
 
-    public MarkNotificationAsReadCommandHandler(INotificationRepository notificationRepository, IAuditService auditService, ILogger<MarkNotificationAsReadCommandHandler> logger)
+    public MarkNotificationAsReadCommandHandler(INotificationRepository notificationRepository, IAuditService auditService, ICurrentUserService currentUserService, ILogger<MarkNotificationAsReadCommandHandler> logger)
     {
         _notificationRepository = notificationRepository;
         _auditService = auditService;
+        _currentUserService = currentUserService;
         _logger = logger;
     }
 
@@ -37,14 +40,16 @@ public class MarkNotificationAsReadCommandHandler : IRequestHandler<MarkNotifica
         await _notificationRepository.UpdateAsync(notification, cancellationToken);
 
         // تدقيق يدوي مع ذكر اسم ومعرف المنفذ
-        var notes = $"تم وضع علامة مقروء على الإشعار {notification.Id} بواسطة المستخدم {request.UserId}";
+        var performerName = _currentUserService.Username;
+        var performerId = _currentUserService.UserId;
+        var notes = $"تم وضع علامة مقروء على الإشعار {notification.Id} بواسطة {performerName} (ID={performerId})";
         await _auditService.LogAuditAsync(
             entityType: "Notification",
             entityId: notification.Id,
             action: YemenBooking.Core.Enums.AuditAction.UPDATE,
             oldValues: null,
-            newValues: System.Text.Json.JsonSerializer.Serialize(new { IsRead = true }),
-            performedBy: request.UserId,
+            newValues: JsonSerializer.Serialize(new { IsRead = true }),
+            performedBy: performerId,
             notes: notes,
             cancellationToken: cancellationToken);
 
