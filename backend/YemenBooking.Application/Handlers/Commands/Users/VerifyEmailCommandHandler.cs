@@ -7,6 +7,7 @@ using YemenBooking.Application.Commands.Users;
 using YemenBooking.Application.DTOs;
 using YemenBooking.Application.Interfaces.Services;
 using YemenBooking.Core.Interfaces;
+using System.Text.Json;
 using YemenBooking.Core.Interfaces.Repositories;
 
 namespace YemenBooking.Application.Handlers.Commands.Users
@@ -56,15 +57,16 @@ namespace YemenBooking.Application.Handlers.Commands.Users
                 // حاليًا يمكن تحديث الحقل EmailConfirmed حسب المنطق الداخلي
             }
 
-            // تسجيل التدقيق
-            await _auditService.LogBusinessOperationAsync(
-                "VerifyEmail",
-                "تم تأكيد البريد الإلكتروني بنجاح",
-                _currentUserService.UserId,
-                "User",
-                _currentUserService.UserId,
-                null,
-                cancellationToken);
+            // تسجيل التدقيق (يدوي)
+            await _auditService.LogAuditAsync(
+                entityType: "User",
+                entityId: _currentUserService.UserId,
+                action: YemenBooking.Core.Entities.AuditAction.ACTIVATE,
+                oldValues: null,
+                newValues: JsonSerializer.Serialize(new { EmailVerified = true }),
+                performedBy: _currentUserService.UserId,
+                notes: "تم تأكيد البريد الإلكتروني بنجاح",
+                cancellationToken: cancellationToken);
 
             _logger.LogInformation("اكتمل تأكيد البريد الإلكتروني بنجاح");
             return ResultDto<bool>.Succeeded(true, "تم تأكيد البريد الإلكتروني بنجاح");

@@ -13,6 +13,7 @@ using YemenBooking.Core.Notifications;
 using YemenBooking.Core.Enums;
 using System.IO;
 using System.Linq;
+using System.Text.Json;
 
 namespace YemenBooking.Application.Handlers.Commands.Properties
 {
@@ -121,15 +122,25 @@ namespace YemenBooking.Application.Handlers.Commands.Properties
             if (ownerRole != null)
                 await _roleRepository.AssignRoleToUserAsync(request.OwnerId, ownerRole.Id, cancellationToken);
 
-            // تسجيل العملية في سجل التدقيق
-            await _auditService.LogBusinessOperationAsync(
-                "CreateProperty",
-                $"تم إنشاء الكيان جديد {created.Id} باسم {created.Name}",
-                created.Id,
-                "Property",
-                _currentUserService.UserId,
-                null,
-                cancellationToken);
+            // تسجيل العملية في سجل التدقيق (يدوي مع JSON للقيم الجديدة)
+            await _auditService.LogAuditAsync(
+                entityType: "Property",
+                entityId: created.Id,
+                action: AuditAction.CREATE,
+                oldValues: null,
+                newValues: JsonSerializer.Serialize(new {
+                    created.Id,
+                    created.Name,
+                    created.Address,
+                    created.City,
+                    created.Currency,
+                    created.StarRating,
+                    created.IsApproved,
+                    created.IsFeatured
+                }),
+                performedBy: _currentUserService.UserId,
+                notes: $"تم إنشاء الكيان جديد {created.Id} باسم {created.Name}",
+                cancellationToken: cancellationToken);
 
             // إرسال إشعار للمراجعة إلى المالك
             await _notificationService.SendAsync(new NotificationRequest

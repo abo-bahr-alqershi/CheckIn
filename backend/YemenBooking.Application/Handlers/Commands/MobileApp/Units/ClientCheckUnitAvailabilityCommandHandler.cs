@@ -5,6 +5,8 @@ using YemenBooking.Application.Commands.MobileApp.Units;
 using YemenBooking.Core.Interfaces;
 using YemenBooking.Core.Interfaces.Repositories;
 using YemenBooking.Core.Enums;
+using YemenBooking.Application.Interfaces.Services;
+using System.Text.Json;
 
 namespace YemenBooking.Application.Handlers.Commands.MobileApp.Units;
 
@@ -15,10 +17,14 @@ namespace YemenBooking.Application.Handlers.Commands.MobileApp.Units;
 public class ClientCheckUnitAvailabilityCommandHandler : IRequestHandler<ClientCheckUnitAvailabilityCommand, ResultDto<ClientUnitAvailabilityResponse>>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IAuditService _auditService;
+    private readonly ICurrentUserService _currentUserService;
 
-    public ClientCheckUnitAvailabilityCommandHandler(IUnitOfWork unitOfWork)
+    public ClientCheckUnitAvailabilityCommandHandler(IUnitOfWork unitOfWork, IAuditService auditService, ICurrentUserService currentUserService)
     {
         _unitOfWork = unitOfWork;
+        _auditService = auditService;
+        _currentUserService = currentUserService;
     }
 
     /// <summary>
@@ -76,6 +82,20 @@ public class ClientCheckUnitAvailabilityCommandHandler : IRequestHandler<ClientC
                 UnavailabilityReason = isAvailable ? null : "الوحدة محجوزة في هذه التواريخ",
                 AlternativeDates = new List<ClientAlternativeDateDto>()
             };
+
+            // سجل تدقيق: فحص توفر
+            var performerName = _currentUserService.Username;
+            var performerId = _currentUserService.UserId;
+            var notes = $"تم فحص توفر الوحدة {request.UnitId} من {request.CheckInDate:yyyy-MM-dd} إلى {request.CheckOutDate:yyyy-MM-dd} بواسطة {performerName} (ID={performerId})";
+            await _auditService.LogAuditAsync(
+                entityType: "Unit",
+                entityId: request.UnitId,
+                action: YemenBooking.Core.Entities.AuditAction.VIEW,
+                oldValues: null,
+                newValues: JsonSerializer.Serialize(new { request.CheckInDate, request.CheckOutDate, isAvailable, totalPrice, nights }),
+                performedBy: performerId,
+                notes: notes,
+                cancellationToken: cancellationToken);
 
             return ResultDto<ClientUnitAvailabilityResponse>.Ok(response, 
                 isAvailable ? "الوحدة متاحة للحجز" : "الوحدة غير متاحة للفترة المطلوبة");

@@ -73,15 +73,17 @@ namespace YemenBooking.Application.Handlers.Commands.Dashboard
                 review.UpdatedAt = DateTime.UtcNow;
                 await _reviewRepository.UpdateReviewAsync(review, cancellationToken);
 
-                // تسجيل التدقيق
-                await _auditService.LogActivityAsync(
-                    "Review",
-                    review.Id.ToString(),
-                    "Approve",
-                    $"تمت الموافقة على المراجعة {review.Id}",
-                    null,
-                    review,
-                    cancellationToken);
+                // تسجيل التدقيق اليدوي مع ذكر اسم المستخدم والمعرف في الملاحظات
+                var notes = $"تمت الموافقة على المراجعة {review.Id} بواسطة {_currentUserService.Username} (ID={_currentUserService.UserId})";
+                await _auditService.LogAuditAsync(
+                    entityType: "Review",
+                    entityId: review.Id,
+                    action: YemenBooking.Core.Entities.AuditAction.APPROVE,
+                    oldValues: null,
+                    newValues: System.Text.Json.JsonSerializer.Serialize(new { Approved = true }),
+                    performedBy: _currentUserService.UserId,
+                    notes: notes,
+                    cancellationToken: cancellationToken);
 
                 // نشر الحدث
                 // await _eventPublisher.PublishEventAsync(new ReviewApprovedEvent

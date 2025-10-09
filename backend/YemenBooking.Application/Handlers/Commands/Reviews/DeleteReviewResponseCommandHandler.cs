@@ -47,14 +47,17 @@ namespace YemenBooking.Application.Handlers.Commands.Reviews
             var ok = await _responseRepository.DeleteAsync(request.ResponseId, cancellationToken);
             if (!ok) return ResultDto<bool>.Failed("فشل حذف الرد");
 
-            await _auditService.LogBusinessOperationAsync(
-                "DeleteReviewResponse",
-                $"تم حذف رد {request.ResponseId}",
-                request.ResponseId,
-                nameof(Core.Entities.ReviewResponse),
-                _currentUserService.UserId,
-                null,
-                cancellationToken);
+            // تسجيل التدقيق (يدوي) يتضمن اسم ومعرّف المنفذ
+            var notes = $"تم حذف رد {request.ResponseId} بواسطة {_currentUserService.Username} (ID={_currentUserService.UserId})";
+            await _auditService.LogAuditAsync(
+                entityType: nameof(Core.Entities.ReviewResponse),
+                entityId: request.ResponseId,
+                action: YemenBooking.Core.Entities.AuditAction.DELETE,
+                oldValues: System.Text.Json.JsonSerializer.Serialize(new { request.ResponseId }),
+                newValues: null,
+                performedBy: _currentUserService.UserId,
+                notes: notes,
+                cancellationToken: cancellationToken);
 
             return ResultDto<bool>.Ok(true, "تم حذف الرد بنجاح");
         }

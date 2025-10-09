@@ -8,6 +8,7 @@ using YemenBooking.Application.DTOs;
 using YemenBooking.Core.Interfaces.Repositories;
 using YemenBooking.Application.Interfaces.Services;
 using YemenBooking.Core.Interfaces;
+using YemenBooking.Core.Entities;
 
 namespace YemenBooking.Application.Handlers.Commands.PropertyTypes
 {
@@ -63,15 +64,17 @@ namespace YemenBooking.Application.Handlers.Commands.PropertyTypes
             if (!success)
                 return ResultDto<bool>.Failed("فشل حذف نوع الكيان");
 
-            // تسجيل التدقيق
-            await _auditService.LogBusinessOperationAsync(
-                "DeletePropertyType",
-                $"تم حذف نوع الكيان {request.PropertyTypeId}",
-                request.PropertyTypeId,
-                "PropertyType",
-                _currentUserService.UserId,
-                null,
-                cancellationToken);
+            // تسجيل التدقيق (يدوي) مع ذكر اسم المستخدم والمعرف
+            var notes = $"تم حذف نوع الكيان {request.PropertyTypeId} بواسطة {_currentUserService.Username} (ID={_currentUserService.UserId})";
+            await _auditService.LogAuditAsync(
+                entityType: "PropertyType",
+                entityId: request.PropertyTypeId,
+                action: AuditAction.DELETE,
+                oldValues: System.Text.Json.JsonSerializer.Serialize(new { request.PropertyTypeId }),
+                newValues: null,
+                performedBy: _currentUserService.UserId,
+                notes: notes,
+                cancellationToken: cancellationToken);
 
             _logger.LogInformation("اكتمل حذف نوع الكيان: Id={PropertyTypeId}", request.PropertyTypeId);
             return ResultDto<bool>.Succeeded(true, "تم حذف نوع الكيان بنجاح");

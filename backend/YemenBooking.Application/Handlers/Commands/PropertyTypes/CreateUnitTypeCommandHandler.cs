@@ -79,15 +79,17 @@ namespace YemenBooking.Application.Handlers.Commands.PropertyTypes
             };
             var created = await _repository.CreateUnitTypeAsync(unitType, cancellationToken);
 
-            // تسجيل التدقيق
-            await _auditService.LogBusinessOperationAsync(
-                "CreateUnitType",
-                $"تم إنشاء نوع وحدة جديد {created.Id} باسم {created.Name}",
-                created.Id,
-                "UnitType",
-                _currentUserService.UserId,
-                null,
-                cancellationToken);
+            // تسجيل التدقيق (يدوي) مع ذكر اسم المستخدم والمعرف
+            var notes = $"تم إنشاء نوع وحدة جديد {created.Id} باسم {created.Name} بواسطة {_currentUserService.Username} (ID={_currentUserService.UserId})";
+            await _auditService.LogAuditAsync(
+                entityType: "UnitType",
+                entityId: created.Id,
+                action: AuditAction.CREATE,
+                oldValues: null,
+                newValues: System.Text.Json.JsonSerializer.Serialize(new { created.Id, created.Name }),
+                performedBy: _currentUserService.UserId,
+                notes: notes,
+                cancellationToken: cancellationToken);
 
             _logger.LogInformation("اكتمل إنشاء نوع الوحدة: UnitTypeId={UnitTypeId}", created.Id);
             return ResultDto<Guid>.Succeeded(created.Id, "تم إنشاء نوع الوحدة بنجاح");

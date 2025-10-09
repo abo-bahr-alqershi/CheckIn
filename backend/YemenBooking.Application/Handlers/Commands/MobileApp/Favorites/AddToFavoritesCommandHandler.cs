@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using YemenBooking.Application.Features.Favorites.Commands;
 using YemenBooking.Core.Interfaces.Repositories;
 using YemenBooking.Application.Interfaces.Services;
+using System.Text.Json;
 
 namespace YemenBooking.Application.Handlers.Commands.MobileApp.Favorites;
 
@@ -13,15 +14,18 @@ public class AddToFavoritesCommandHandler : IRequestHandler<AddToFavoritesComman
 {
     private readonly IUserRepository _userRepository;
     private readonly IAuditService _auditService;
+    private readonly ICurrentUserService _currentUserService;
     private readonly ILogger<AddToFavoritesCommandHandler> _logger;
 
     public AddToFavoritesCommandHandler(
         IUserRepository userRepository,
         IAuditService auditService,
+        ICurrentUserService currentUserService,
         ILogger<AddToFavoritesCommandHandler> logger)
     {
         _userRepository = userRepository;
         _auditService = auditService;
+        _currentUserService = currentUserService;
         _logger = logger;
     }
 
@@ -44,14 +48,19 @@ public class AddToFavoritesCommandHandler : IRequestHandler<AddToFavoritesComman
         var json = System.Text.Json.JsonSerializer.Serialize(favorites);
         await _userRepository.UpdateUserFavoritesAsync(user.Id, json, cancellationToken);
 
-        await _auditService.LogBusinessOperationAsync(
-            "AddFavorite",
-            $"أُضيف العقار {request.PropertyId} إلى مفضلة المستخدم {user.Id}",
-            user.Id,
-            "User",
-            user.Id,
-            null,
-            cancellationToken);
+        // تدقيق يدوي مع ذكر اسم ومعرف المنفذ
+        var performerName = _currentUserService.Username;
+        var performerId = _currentUserService.UserId;
+        var notes = $"تمت إضافة العقار {request.PropertyId} إلى المفضلة بواسطة {performerName} (ID={performerId})";
+        await _auditService.LogAuditAsync(
+            entityType: "User",
+            entityId: user.Id,
+            action: YemenBooking.Core.Entities.AuditAction.UPDATE,
+            oldValues: null,
+            newValues: JsonSerializer.Serialize(new { FavoriteAdded = request.PropertyId, UserId = user.Id }),
+            performedBy: performerId,
+            notes: notes,
+            cancellationToken: cancellationToken);
 
         return new AddToFavoritesResponse { Success = true, Message = "تمت الإضافة بنجاح" };
     }

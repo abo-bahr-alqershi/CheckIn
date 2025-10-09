@@ -5,6 +5,7 @@ using YemenBooking.Application.DTOs;
 using YemenBooking.Application.DTOs.Auth;
 using YemenBooking.Core.Interfaces.Repositories;
 using YemenBooking.Application.Interfaces.Services;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using System;
 using System.Threading;
@@ -21,7 +22,9 @@ namespace YemenBooking.Application.Handlers.Commands.MobileApp.Auth
         private readonly IUserRepository _userRepository;
         private readonly IEmailService _emailService;
         private readonly IEmailVerificationService _emailVerificationService;
-        private readonly ILogger<ResendEmailVerificationCommandHandler> _logger;
+    private readonly ILogger<ResendEmailVerificationCommandHandler> _logger;
+    private readonly IAuditService _auditService;
+    private readonly ICurrentUserService _currentUserService;
 
         /// <summary>
         /// منشئ معالج أمر إعادة إرسال رمز تأكيد البريد الإلكتروني
@@ -35,12 +38,16 @@ namespace YemenBooking.Application.Handlers.Commands.MobileApp.Auth
         IUserRepository userRepository,
         IEmailService emailService,
         IEmailVerificationService emailVerificationService,
-        ILogger<ResendEmailVerificationCommandHandler> logger)
+        ILogger<ResendEmailVerificationCommandHandler> logger,
+        IAuditService auditService,
+        ICurrentUserService currentUserService)
         {
             _userRepository = userRepository;
             _emailService = emailService;
             _emailVerificationService = emailVerificationService;
-            _logger = logger;
+        _logger = logger;
+        _auditService = auditService;
+        _currentUserService = currentUserService;
         }
 
         /// <summary>
@@ -147,6 +154,20 @@ namespace YemenBooking.Application.Handlers.Commands.MobileApp.Auth
                     SentAt = DateTime.UtcNow,
                     VerificationCode = verificationToken
                 };
+
+                // تدقيق يدوي: إعادة إرسال رمز التحقق
+                var performerName = _currentUserService.Username;
+                var performerId = _currentUserService.UserId;
+                var notes = $"تمت إعادة إرسال رمز التحقق للمستخدم {request.UserId} بواسطة {performerName} (ID={performerId})";
+                await _auditService.LogAuditAsync(
+                    entityType: "User",
+                    entityId: request.UserId,
+                    action: YemenBooking.Core.Entities.AuditAction.UPDATE,
+                    oldValues: null,
+                    newValues: JsonSerializer.Serialize(new { Email = request.Email }),
+                    performedBy: performerId,
+                    notes: notes,
+                    cancellationToken: cancellationToken);
 
                 return ResultDto<ResendEmailVerificationResponse>.Ok(response, "تم إرسال رمز التأكيد بنجاح");
             }

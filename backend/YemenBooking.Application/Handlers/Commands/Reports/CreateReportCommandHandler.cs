@@ -95,15 +95,17 @@ namespace YemenBooking.Application.Handlers.Commands.Reports
             };
             var created = await _reportRepository.CreateReportAsync(report, cancellationToken);
 
-            // تسجيل التدقيق
-            await _auditService.LogBusinessOperationAsync(
-                "CreateReport",
-                $"تم إنشاء بلاغ جديد {created.Id}",
-                created.Id,
-                "Report",
-                _currentUserService.UserId,
-                null,
-                cancellationToken);
+            // تسجيل التدقيق (يدوي) يتضمن اسم ومعرّف المنفذ
+            var notes = $"تم إنشاء بلاغ جديد {created.Id} بواسطة {_currentUserService.Username} (ID={_currentUserService.UserId})";
+            await _auditService.LogAuditAsync(
+                entityType: "Report",
+                entityId: created.Id,
+                action: AuditAction.CREATE,
+                oldValues: null,
+                newValues: System.Text.Json.JsonSerializer.Serialize(new { created.Id, request.ReporterUserId, request.ReportedUserId, request.ReportedPropertyId }),
+                performedBy: _currentUserService.UserId,
+                notes: notes,
+                cancellationToken: cancellationToken);
 
             _logger.LogInformation("اكتمل إنشاء البلاغ بنجاح: ReportId={ReportId}", created.Id);
             return ResultDto<Guid>.Succeeded(created.Id, "تم إنشاء البلاغ بنجاح");

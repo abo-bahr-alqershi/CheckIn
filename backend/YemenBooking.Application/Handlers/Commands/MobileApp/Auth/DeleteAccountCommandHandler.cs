@@ -4,6 +4,7 @@ using YemenBooking.Application.Commands.MobileApp.Auth;
 using YemenBooking.Application.DTOs;
 using YemenBooking.Application.DTOs.Auth;
 using YemenBooking.Application.Interfaces.Services;
+using System.Text.Json;
 using YemenBooking.Core.Interfaces.Repositories;
 using System;
 using System.Threading;
@@ -20,7 +21,9 @@ namespace YemenBooking.Application.Handlers.Commands.MobileApp.Auth
         private readonly IAuthenticationService _authService;
         private readonly IUserRepository _userRepository;
         private readonly IBookingRepository _bookingRepository;
-        private readonly ILogger<DeleteAccountCommandHandler> _logger;
+    private readonly ILogger<DeleteAccountCommandHandler> _logger;
+    private readonly IAuditService _auditService;
+    private readonly ICurrentUserService _currentUserService;
 
         /// <summary>
         /// منشئ معالج أمر حذف حساب المستخدم
@@ -34,12 +37,16 @@ namespace YemenBooking.Application.Handlers.Commands.MobileApp.Auth
             IAuthenticationService authService,
             IUserRepository userRepository,
             IBookingRepository bookingRepository,
-            ILogger<DeleteAccountCommandHandler> logger)
+            ILogger<DeleteAccountCommandHandler> logger,
+            IAuditService auditService,
+            ICurrentUserService currentUserService)
         {
             _authService = authService;
             _userRepository = userRepository;
             _bookingRepository = bookingRepository;
             _logger = logger;
+            _auditService = auditService;
+            _currentUserService = currentUserService;
         }
 
         /// <summary>
@@ -100,6 +107,20 @@ namespace YemenBooking.Application.Handlers.Commands.MobileApp.Auth
                 _logger.LogInformation("تم إلغاء جميع الجلسات للمستخدم: {UserId}", request.UserId);
 
                 _logger.LogInformation("تم حذف حساب المستخدم بنجاح: {UserId}", request.UserId);
+
+                // تدقيق يدوي: حذف الحساب
+                var performerName = _currentUserService.Username;
+                var performerId = _currentUserService.UserId;
+                var notes = $"تم حذف حساب المستخدم {request.UserId} بواسطة {performerName} (ID={performerId})";
+                await _auditService.LogAuditAsync(
+                    entityType: "User",
+                    entityId: request.UserId,
+                    action: YemenBooking.Core.Entities.AuditAction.DELETE,
+                    oldValues: null,
+                    newValues: JsonSerializer.Serialize(new { Success = true, Reason = request.Reason }),
+                    performedBy: performerId,
+                    notes: notes,
+                    cancellationToken: cancellationToken);
 
                 var response = new DeleteAccountResponse
                 {

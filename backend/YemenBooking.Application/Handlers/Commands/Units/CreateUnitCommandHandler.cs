@@ -16,6 +16,7 @@ using YemenBooking.Core.Enums;
 using System.IO;
 using YemenBooking.Core.Events;
 using System.Collections.Generic;
+using System.Text.Json;
 
 namespace YemenBooking.Application.Handlers.Commands.Units
 {
@@ -160,15 +161,30 @@ namespace YemenBooking.Application.Handlers.Commands.Units
                     await _valueRepository.CreateUnitFieldValueAsync(newValue, cancellationToken);
                 }
 
-                // تسجيل التدقيق
-                await _auditService.LogBusinessOperationAsync(
-                    "CreateUnitWithFields",
-                    $"تم إنشاء وحدة جديدة {created.Id} باسم {created.Name} مع قيم الحقول الديناميكية",
+                // تسجيل التدقيق اليدوي مع القيم الجديدة
+                var newValues = new
+                {
                     created.Id,
-                    "Unit",
-                    _currentUserService.UserId,
-                    null,
-                    cancellationToken);
+                    created.PropertyId,
+                    created.UnitTypeId,
+                    created.Name,
+                    created.BasePrice,
+                    created.MaxCapacity,
+                    created.CustomFeatures,
+                    created.PricingMethod,
+                    created.IsAvailable,
+                    created.AllowsCancellation,
+                    created.CancellationWindowDays
+                };
+                await _auditService.LogAuditAsync(
+                    entityType: "Unit",
+                    entityId: created.Id,
+                    action: YemenBooking.Core.Entities.AuditAction.CREATE,
+                    oldValues: null,
+                    newValues: JsonSerializer.Serialize(newValues),
+                    performedBy: _currentUserService.UserId,
+                    notes: $"تم إنشاء وحدة جديدة {created.Id} باسم {created.Name} مع قيم الحقول الديناميكية",
+                    cancellationToken: cancellationToken);
 
                 _logger.LogInformation("اكتمل إنشاء الوحدة بنجاح: UnitId={UnitId}", created.Id);
             });

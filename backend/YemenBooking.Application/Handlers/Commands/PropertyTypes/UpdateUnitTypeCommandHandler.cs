@@ -74,15 +74,17 @@ namespace YemenBooking.Application.Handlers.Commands.PropertyTypes
             unitType.UpdatedAt = DateTime.UtcNow;
             await _repository.UpdateUnitTypeAsync(unitType, cancellationToken);
 
-            // تسجيل التدقيق
-            await _auditService.LogBusinessOperationAsync(
-                "UpdateUnitType",
-                $"تم تحديث نوع الوحدة {request.UnitTypeId}",
-                request.UnitTypeId,
-                "UnitType",
-                _currentUserService.UserId,
-                null,
-                cancellationToken);
+            // تسجيل التدقيق (يدوي) مع ذكر اسم المستخدم والمعرف
+            var notes = $"تم تحديث نوع الوحدة {request.UnitTypeId} بواسطة {_currentUserService.Username} (ID={_currentUserService.UserId})";
+            await _auditService.LogAuditAsync(
+                entityType: "UnitType",
+                entityId: request.UnitTypeId,
+                action: AuditAction.UPDATE,
+                oldValues: null,
+                newValues: System.Text.Json.JsonSerializer.Serialize(new { Updated = true }),
+                performedBy: _currentUserService.UserId,
+                notes: notes,
+                cancellationToken: cancellationToken);
 
             _logger.LogInformation("اكتمل تحديث نوع الوحدة: UnitTypeId={UnitTypeId}", request.UnitTypeId);
             return ResultDto<bool>.Succeeded(true, "تم تحديث نوع الوحدة بنجاح");

@@ -63,15 +63,17 @@ namespace YemenBooking.Application.Handlers.Commands.Reports
 
             await _reportRepository.UpdateReportAsync(report, cancellationToken);
 
-            // تسجيل التدقيق
-            await _auditService.LogBusinessOperationAsync(
-                "UpdateReport",
-                $"تم تحديث البلاغ {request.Id}",
-                request.Id,
-                "Report",
-                _currentUserService.UserId,
-                null,
-                cancellationToken);
+            // تسجيل التدقيق (يدوي) يتضمن اسم ومعرّف المنفذ
+            var notes = $"تم تحديث البلاغ {request.Id} بواسطة {_currentUserService.Username} (ID={_currentUserService.UserId})";
+            await _auditService.LogAuditAsync(
+                entityType: "Report",
+                entityId: request.Id,
+                action: AuditAction.UPDATE,
+                oldValues: null,
+                newValues: System.Text.Json.JsonSerializer.Serialize(new { Updated = true }),
+                performedBy: _currentUserService.UserId,
+                notes: notes,
+                cancellationToken: cancellationToken);
 
             _logger.LogInformation("اكتمل تحديث البلاغ بنجاح: Id={ReportId}", request.Id);
             return ResultDto<bool>.Succeeded(true, "تم تحديث البلاغ بنجاح");

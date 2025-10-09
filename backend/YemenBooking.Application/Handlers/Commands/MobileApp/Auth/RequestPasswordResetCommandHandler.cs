@@ -5,7 +5,9 @@ using YemenBooking.Application.DTOs;
 using YemenBooking.Application.DTOs.Auth;
 using YemenBooking.Core.Interfaces.Repositories;
 using YemenBooking.Application.Interfaces.Services;
+using System.Text.Json;
 using System.Text.RegularExpressions;
+using YemenBooking.Core.Entities;
 
 namespace YemenBooking.Application.Handlers.Commands.MobileApp.Auth;
 
@@ -20,6 +22,8 @@ public class RequestPasswordResetCommandHandler : IRequestHandler<RequestPasswor
     private readonly ISmsService _smsService;
     private readonly IPasswordResetService _passwordResetService;
     private readonly ILogger<RequestPasswordResetCommandHandler> _logger;
+    private readonly IAuditService _auditService;
+    private readonly ICurrentUserService _currentUserService;
 
     /// <summary>
     /// منشئ معالج أمر طلب إعادة تعيين كلمة المرور
@@ -35,13 +39,17 @@ public class RequestPasswordResetCommandHandler : IRequestHandler<RequestPasswor
         IEmailService emailService,
         ISmsService smsService,
         IPasswordResetService passwordResetService,
-        ILogger<RequestPasswordResetCommandHandler> logger)
+        ILogger<RequestPasswordResetCommandHandler> logger,
+        IAuditService auditService,
+        ICurrentUserService currentUserService)
     {
         _userRepository = userRepository;
         _emailService = emailService;
         _smsService = smsService;
         _passwordResetService = passwordResetService;
         _logger = logger;
+        _auditService = auditService;
+        _currentUserService = currentUserService;
     }
 
     /// <summary>
@@ -139,6 +147,20 @@ public class RequestPasswordResetCommandHandler : IRequestHandler<RequestPasswor
                 Success = true,
                 Message = successMessage
             };
+
+            // تدقيق يدوي: طلب إعادة تعيين كلمة المرور
+            var performerName = _currentUserService.Username;
+            var performerId = _currentUserService.UserId;
+            var notes = $"تم طلب إعادة تعيين كلمة المرور للمستخدم {user.Id} بواسطة {performerName} (ID={performerId})";
+            await _auditService.LogAuditAsync(
+                entityType: "User",
+                entityId: user.Id,
+                action: AuditAction.PASSWORD_RESET,
+                oldValues: null,
+                newValues: JsonSerializer.Serialize(new { Success = true }),
+                performedBy: performerId,
+                notes: notes,
+                cancellationToken: cancellationToken);
 
             return ResultDto<RequestPasswordResetResponse>.Ok(response, successMessage);
         }

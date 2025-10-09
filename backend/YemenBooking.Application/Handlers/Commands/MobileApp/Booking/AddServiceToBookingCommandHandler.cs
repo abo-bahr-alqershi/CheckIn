@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using YemenBooking.Application.Commands.MobileApp.Bookings;
 using YemenBooking.Core.Interfaces;
 using YemenBooking.Application.Interfaces.Services;
+using System.Text.Json;
 using YemenBooking.Core.Enums;
 using YemenBooking.Core.ValueObjects;
 using YemenBooking.Application.DTOs;
@@ -17,15 +18,18 @@ public class AddServicesToBookingCommandHandler : IRequestHandler<AddServicesToB
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly IAuditService _auditService;
+    private readonly ICurrentUserService _currentUserService;
     private readonly ILogger<AddServicesToBookingCommandHandler> _logger;
 
     public AddServicesToBookingCommandHandler(
         IUnitOfWork unitOfWork,
         IAuditService auditService,
+        ICurrentUserService currentUserService,
         ILogger<AddServicesToBookingCommandHandler> logger)
     {
         _unitOfWork = unitOfWork;
         _auditService = auditService;
+        _currentUserService = currentUserService;
         _logger = logger;
     }
 
@@ -61,15 +65,19 @@ public class AddServicesToBookingCommandHandler : IRequestHandler<AddServicesToB
         booking.UpdatedAt = DateTime.UtcNow;
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // سجل التدقيق
-        await _auditService.LogBusinessOperationAsync(
-            "AddServiceToBooking",
-            $"تمت إضافة الخدمة {request.ServiceId} إلى الحجز {request.BookingId}",
-            request.BookingId,
-            "Booking",
-            null,
-            null,
-            cancellationToken);
+        // سجل التدقيق (يدوي) مع ذكر اسم ومعرف المنفذ (مستخدم الجوال)
+        var performerName = _currentUserService.Username;
+        var performerId = _currentUserService.UserId;
+        var notes = $"تمت إضافة الخدمة {request.ServiceId} إلى الحجز {request.BookingId} بواسطة {performerName} (ID={performerId})";
+        await _auditService.LogAuditAsync(
+            entityType: "Booking",
+            entityId: request.BookingId,
+            action: YemenBooking.Core.Entities.AuditAction.UPDATE,
+            oldValues: null,
+            newValues: JsonSerializer.Serialize(new { ServiceId = request.ServiceId, Quantity = request.Quantity }),
+            performedBy: performerId,
+            notes: notes,
+            cancellationToken: cancellationToken);
 
         return new ResultDto<AddServicesToBookingResponse>
         {

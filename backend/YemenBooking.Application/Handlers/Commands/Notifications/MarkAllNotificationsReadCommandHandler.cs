@@ -49,15 +49,17 @@ namespace YemenBooking.Application.Handlers.Commands.Notifications
             // التنفيذ: وضع علامة القراءة على جميع الإشعارات
             var success = await _notificationRepository.MarkAllUserNotificationsAsReadAsync(request.RecipientId, cancellationToken);
 
-            // تسجيل العملية في سجل التدقيق
-            await _auditService.LogBusinessOperationAsync(
-                "MarkAllNotificationsRead",
-                $"تم وضع علامة قراءة على جميع الإشعارات للمستخدم {request.RecipientId}",
-                request.RecipientId,
-                "Notification",
-                _currentUserService.UserId,
-                null,
-                cancellationToken);
+            // تسجيل العملية في سجل التدقيق (يدوي) مع ذكر اسم المستخدم والمعرف
+            var notes = $"تم وضع علامة قراءة على جميع الإشعارات للمستخدم {request.RecipientId} بواسطة {_currentUserService.Username} (ID={_currentUserService.UserId})";
+            await _auditService.LogAuditAsync(
+                entityType: "Notification",
+                entityId: request.RecipientId,
+                action: YemenBooking.Core.Entities.AuditAction.UPDATE,
+                oldValues: null,
+                newValues: System.Text.Json.JsonSerializer.Serialize(new { AllMarkedRead = true }),
+                performedBy: _currentUserService.UserId,
+                notes: notes,
+                cancellationToken: cancellationToken);
 
             _logger.LogInformation("اكتمل وضع علامة القراءة على جميع الإشعارات للمستخدم: RecipientId={RecipientId}", request.RecipientId);
             return ResultDto<bool>.Succeeded(success, success ? "تم وضع علامة قراءة على جميع الإشعارات بنجاح" : "لم يكن هناك إشعارات غير مقروءة");

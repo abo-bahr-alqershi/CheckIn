@@ -67,15 +67,17 @@ namespace YemenBooking.Application.Handlers.Commands.Roles
 
             await _roleRepository.UpdateRoleAsync(role, cancellationToken);
 
-            // تسجيل التدقيق
-            await _auditService.LogBusinessOperationAsync(
-                "UpdateRole",
-                $"تم تحديث الدور {request.RoleId}",
-                request.RoleId,
-                "Role",
-                _currentUserService.UserId,
-                null,
-                cancellationToken);
+            // تسجيل التدقيق (يدوي) يتضمن اسم ومعرّف المنفذ
+            var notes = $"تم تحديث الدور {request.RoleId} بواسطة {_currentUserService.Username} (ID={_currentUserService.UserId})";
+            await _auditService.LogAuditAsync(
+                entityType: "Role",
+                entityId: request.RoleId,
+                action: YemenBooking.Core.Entities.AuditAction.UPDATE,
+                oldValues: null,
+                newValues: System.Text.Json.JsonSerializer.Serialize(new { Updated = true }),
+                performedBy: _currentUserService.UserId,
+                notes: notes,
+                cancellationToken: cancellationToken);
 
             _logger.LogInformation("اكتمل تحديث الدور بنجاح: RoleId={RoleId}", request.RoleId);
             return ResultDto<bool>.Succeeded(true, "تم تحديث الدور بنجاح");

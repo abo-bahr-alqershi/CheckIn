@@ -56,15 +56,17 @@ namespace YemenBooking.Application.Handlers.Commands.Notifications
             if (!success)
                 return ResultDto<bool>.Failed("فشل وضع علامة القراءة على الإشعار");
 
-            // تسجيل العملية في سجل التدقيق
-            await _auditService.LogBusinessOperationAsync(
-                "MarkNotificationAsRead",
-                $"تم وضع علامة قراءة على الإشعار {request.NotificationId}",
-                request.NotificationId,
-                "Notification",
-                _currentUserService.UserId,
-                null,
-                cancellationToken);
+            // تسجيل العملية في سجل التدقيق (يدوي) مع ذكر اسم المستخدم والمعرف
+            var notes = $"تم وضع علامة قراءة على الإشعار {request.NotificationId} بواسطة {_currentUserService.Username} (ID={_currentUserService.UserId})";
+            await _auditService.LogAuditAsync(
+                entityType: "Notification",
+                entityId: request.NotificationId,
+                action: YemenBooking.Core.Entities.AuditAction.UPDATE,
+                oldValues: null,
+                newValues: System.Text.Json.JsonSerializer.Serialize(new { IsRead = true }),
+                performedBy: _currentUserService.UserId,
+                notes: notes,
+                cancellationToken: cancellationToken);
 
             _logger.LogInformation("تم وضع علامة القراءة بنجاح على الإشعار: NotificationId={NotificationId}", request.NotificationId);
             return ResultDto<bool>.Succeeded(true, "تم وضع علامة القراءة بنجاح");

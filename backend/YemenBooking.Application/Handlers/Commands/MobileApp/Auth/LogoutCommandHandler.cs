@@ -4,10 +4,12 @@ using YemenBooking.Application.Commands.MobileApp.Auth;
 using YemenBooking.Application.DTOs;
 using YemenBooking.Application.DTOs.Auth;
 using YemenBooking.Application.Interfaces.Services;
+using System.Text.Json;
 using YemenBooking.Core.Interfaces.Repositories;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using YemenBooking.Core.Entities;
 
 namespace YemenBooking.Application.Handlers.Commands.MobileApp.Auth;
 
@@ -20,6 +22,8 @@ public class LogoutCommandHandler : IRequestHandler<LogoutCommand, ResultDto<Log
     private readonly IAuthenticationService _authService;
     private readonly IUserRepository _userRepository;
     private readonly ILogger<LogoutCommandHandler> _logger;
+    private readonly IAuditService _auditService;
+    private readonly ICurrentUserService _currentUserService;
 
     /// <summary>
     /// منشئ معالج أمر تسجيل خروج المستخدم
@@ -31,11 +35,15 @@ public class LogoutCommandHandler : IRequestHandler<LogoutCommand, ResultDto<Log
     public LogoutCommandHandler(
         IAuthenticationService authService,
         IUserRepository userRepository,
-        ILogger<LogoutCommandHandler> logger)
+        ILogger<LogoutCommandHandler> logger,
+        IAuditService auditService,
+        ICurrentUserService currentUserService)
     {
         _authService = authService;
         _userRepository = userRepository;
         _logger = logger;
+        _auditService = auditService;
+        _currentUserService = currentUserService;
     }
 
     /// <summary>
@@ -76,6 +84,20 @@ public class LogoutCommandHandler : IRequestHandler<LogoutCommand, ResultDto<Log
 
                 _logger.LogInformation("تم تسجيل خروج المستخدم من جميع الأجهزة بنجاح: {UserId}", request.UserId);
 
+                // سجل تدقيق: تسجيل الخروج من جميع الأجهزة
+                var performerNameAll = _currentUserService.Username;
+                var performerIdAll = _currentUserService.UserId;
+                var notesAll = $"تم تسجيل الخروج من جميع الأجهزة للمستخدم {request.UserId} بواسطة {performerNameAll} (ID={performerIdAll})";
+                await _auditService.LogAuditAsync(
+                    entityType: "Auth",
+                    entityId: request.UserId,
+                    action: AuditAction.LOGOUT,
+                    oldValues: null,
+                    newValues: JsonSerializer.Serialize(new { AllDevices = true }),
+                    performedBy: performerIdAll,
+                    notes: notesAll,
+                    cancellationToken: cancellationToken);
+
                 var response = new LogoutResponse
                 {
                     Success = true,
@@ -93,6 +115,20 @@ public class LogoutCommandHandler : IRequestHandler<LogoutCommand, ResultDto<Log
                 _logger.LogInformation("تم تسجيل خروج المستخدم بنجاح: {UserId}", request.UserId);
 
                 _logger.LogInformation("تم تسجيل خروج المستخدم من الجهاز الحالي بنجاح: {UserId}", request.UserId);
+
+                // سجل تدقيق: تسجيل الخروج من الجهاز الحالي
+                var performerName = _currentUserService.Username;
+                var performerId = _currentUserService.UserId;
+                var notes = $"تم تسجيل الخروج من الجهاز الحالي للمستخدم {request.UserId} بواسطة {performerName} (ID={performerId})";
+                await _auditService.LogAuditAsync(
+                    entityType: "Auth",
+                    entityId: request.UserId,
+                    action: AuditAction.LOGOUT,
+                    oldValues: null,
+                    newValues: JsonSerializer.Serialize(new { AllDevices = false }),
+                    performedBy: performerId,
+                    notes: notes,
+                    cancellationToken: cancellationToken);
 
                 var response = new LogoutResponse
                 {

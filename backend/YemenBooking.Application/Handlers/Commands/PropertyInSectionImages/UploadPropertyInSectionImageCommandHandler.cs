@@ -47,19 +47,15 @@ namespace YemenBooking.Application.Handlers.Commands.PropertyInSectionImages
             if (!upload.IsSuccess || string.IsNullOrWhiteSpace(upload.FileUrl))
                 return ResultDto<ImageDto>.Failed("فشل رفع الملف");
 
-            await _auditService.LogBusinessOperationAsync(
-                operationType: "UploadPropertyInSectionImage",
-                operationDescription: "رفع صورة عنصر قسم",
-                entityId: request.PropertyInSectionId ?? Guid.Empty,
+            var notes = $"تم رفع صورة عنصر قسم بواسطة {_currentUserService.Username} (ID={_currentUserService.UserId})";
+            await _auditService.LogAuditAsync(
                 entityType: nameof(PropertyInSectionImage),
+                entityId: request.PropertyInSectionId ?? Guid.Empty,
+                action: AuditAction.CREATE,
+                oldValues: null,
+                newValues: JsonSerializer.Serialize(new { request.Name, Category = request.Category.ToString(), IsPrimary = request.IsPrimary ?? false, Order = request.Order ?? 0 }),
                 performedBy: _currentUserService.UserId,
-                metadata: new System.Collections.Generic.Dictionary<string, object>
-                {
-                    ["Name"] = request.Name,
-                    ["Category"] = request.Category.ToString(),
-                    ["IsPrimary"] = request.IsPrimary ?? false,
-                    ["Order"] = request.Order ?? 0
-                },
+                notes: notes,
                 cancellationToken: cancellationToken);
 
             var thumbnails = new ImageThumbnailsDto { Small = upload.FileUrl!, Medium = upload.FileUrl!, Large = upload.FileUrl!, Hd = upload.FileUrl! };

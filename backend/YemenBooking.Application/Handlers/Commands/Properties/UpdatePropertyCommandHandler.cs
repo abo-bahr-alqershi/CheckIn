@@ -11,6 +11,8 @@ using YemenBooking.Core.Interfaces;
 using System.Linq;
 using YemenBooking.Core.Enums;
 using System.IO;
+using System.Text.Json;
+using YemenBooking.Core.Entities;
 
 namespace YemenBooking.Application.Handlers.Commands.Properties
 {
@@ -100,17 +102,46 @@ namespace YemenBooking.Application.Handlers.Commands.Properties
             property.UpdatedBy = _currentUserService.UserId;
             property.UpdatedAt = DateTime.UtcNow;
 
+            // احتفظ بالقيم القديمة قبل الحفظ
+            var oldValues = new
+            {
+                property.Id,
+                property.Name,
+                property.Address,
+                property.Description,
+                property.City,
+                property.StarRating,
+                property.Currency,
+                property.IsFeatured,
+                property.Latitude,
+                property.Longitude
+            };
+
             await _propertyRepository.UpdatePropertyAsync(property, cancellationToken);
 
-            // تسجيل العملية في سجل التدقيق
-            await _auditService.LogBusinessOperationAsync(
-                "UpdateProperty",
-                $"تم تحديث بيانات الكيان {request.PropertyId}",
-                request.PropertyId,
-                "Property",
-                _currentUserService.UserId,
-                null,
-                cancellationToken);
+            // تسجيل العملية في سجل التدقيق (يدوي مع JSON للقيم القديمة والجديدة)
+            var newValues = new
+            {
+                property.Id,
+                property.Name,
+                property.Address,
+                property.Description,
+                property.City,
+                property.StarRating,
+                property.Currency,
+                property.IsFeatured,
+                property.Latitude,
+                property.Longitude
+            };
+            await _auditService.LogAuditAsync(
+                entityType: "Property",
+                entityId: request.PropertyId,
+                action: AuditAction.UPDATE,
+                oldValues: JsonSerializer.Serialize(oldValues),
+                newValues: JsonSerializer.Serialize(newValues),
+                performedBy: _currentUserService.UserId,
+                notes: $"تم تحديث بيانات الكيان {request.PropertyId}",
+                cancellationToken: cancellationToken);
 
             _logger.LogInformation("اكتمل تحديث بيانات الكيان: PropertyId={PropertyId}", request.PropertyId);
             // نقل الصور المؤقتة المحددة في الكوماند للكيان

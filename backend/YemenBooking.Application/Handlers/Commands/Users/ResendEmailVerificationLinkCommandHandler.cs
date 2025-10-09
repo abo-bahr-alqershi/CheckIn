@@ -8,6 +8,7 @@ using YemenBooking.Application.DTOs;
 using YemenBooking.Application.Interfaces.Services;
 using YemenBooking.Core.Interfaces.Repositories;
 using YemenBooking.Core.Interfaces;
+using System.Text.Json;
 
 namespace YemenBooking.Application.Handlers.Commands.Users
 {
@@ -66,15 +67,16 @@ namespace YemenBooking.Application.Handlers.Commands.Users
             if (!emailSent)
                 return ResultDto<bool>.Failed("فشل في إرسال بريد التحقق");
 
-            // تسجيل التدقيق
-            await _auditService.LogBusinessOperationAsync(
-                "ResendEmailVerification",
-                $"تم إرسال رمز التحقق للمستخدم {user.Id}",
-                user.Id,
-                "User",
-                _currentUserService.UserId,
-                null,
-                cancellationToken);
+            // تسجيل التدقيق (يدوي)
+            await _auditService.LogAuditAsync(
+                entityType: "User",
+                entityId: user.Id,
+                action: YemenBooking.Core.Entities.AuditAction.UPDATE,
+                oldValues: null,
+                newValues: JsonSerializer.Serialize(new { EmailVerificationResent = true }),
+                performedBy: _currentUserService.UserId,
+                notes: $"تم إرسال رمز التحقق للمستخدم {user.Id}",
+                cancellationToken: cancellationToken);
 
             _logger.LogInformation("اكتمل إرسال رمز التحقق بنجاح: Email={Email}", user.Email);
             return ResultDto<bool>.Succeeded(true, "تم إرسال رمز التحقق إلى البريد الإلكتروني");

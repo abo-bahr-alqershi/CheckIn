@@ -16,6 +16,7 @@ using YemenBooking.Core.Enums;
 using System.IO;
 using YemenBooking.Core.Events;
 using System.Collections.Generic;
+using System.Text.Json;
 
 namespace YemenBooking.Application.Handlers.Commands.Units
 {
@@ -190,15 +191,36 @@ namespace YemenBooking.Application.Handlers.Commands.Units
                         await _valueRepository.DeleteUnitFieldValueAsync(kv.Value.Id, cancellationToken);
                 }
 
-                // تسجيل التدقيق
-                await _auditService.LogBusinessOperationAsync(
-                    "UpdateUnitWithFields",
-                    $"تم تحديث بيانات الوحدة {request.UnitId} مع قيم الحقول الديناميكية",
-                    request.UnitId,
-                    "Unit",
-                    _currentUserService.UserId,
-                    null,
-                    cancellationToken);
+                // تسجيل التدقيق اليدوي بالقيم القديمة والجديدة
+                var oldValues = new
+                {
+                    unit.Id,
+                    unit.Name,
+                    unit.BasePrice,
+                    unit.CustomFeatures,
+                    unit.PricingMethod,
+                    unit.AllowsCancellation,
+                    unit.CancellationWindowDays
+                };
+                var newValues = new
+                {
+                    unit.Id,
+                    unit.Name,
+                    unit.BasePrice,
+                    unit.CustomFeatures,
+                    unit.PricingMethod,
+                    unit.AllowsCancellation,
+                    unit.CancellationWindowDays
+                };
+                await _auditService.LogAuditAsync(
+                    entityType: "Unit",
+                    entityId: request.UnitId,
+                    action: YemenBooking.Core.Entities.AuditAction.UPDATE,
+                    oldValues: JsonSerializer.Serialize(oldValues),
+                    newValues: JsonSerializer.Serialize(newValues),
+                    performedBy: _currentUserService.UserId,
+                    notes: $"تم تحديث بيانات الوحدة {request.UnitId} مع قيم الحقول الديناميكية",
+                    cancellationToken: cancellationToken);
 
                 _logger.LogInformation("اكتمل تحديث بيانات الوحدة بنجاح: UnitId={UnitId}", request.UnitId);
                 success = true;

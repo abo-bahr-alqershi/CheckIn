@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using YemenBooking.Application.Features.Notifications.Commands;
 using YemenBooking.Core.Interfaces.Repositories;
 using YemenBooking.Application.Interfaces.Services;
+using System.Text.Json;
 
 namespace YemenBooking.Application.Handlers.Commands.MobileApp.Notifications;
 
@@ -13,12 +14,14 @@ public class MarkAllNotificationsAsReadCommandHandler : IRequestHandler<MarkAllN
 {
     private readonly INotificationRepository _notificationRepository;
     private readonly IAuditService _auditService;
+    private readonly ICurrentUserService _currentUserService;
     private readonly ILogger<MarkAllNotificationsAsReadCommandHandler> _logger;
 
-    public MarkAllNotificationsAsReadCommandHandler(INotificationRepository notificationRepository, IAuditService auditService, ILogger<MarkAllNotificationsAsReadCommandHandler> logger)
+    public MarkAllNotificationsAsReadCommandHandler(INotificationRepository notificationRepository, IAuditService auditService, ICurrentUserService currentUserService, ILogger<MarkAllNotificationsAsReadCommandHandler> logger)
     {
         _notificationRepository = notificationRepository;
         _auditService = auditService;
+        _currentUserService = currentUserService;
         _logger = logger;
     }
 
@@ -41,7 +44,19 @@ public class MarkAllNotificationsAsReadCommandHandler : IRequestHandler<MarkAllN
             updatedCount++;
         }
 
-        await _auditService.LogBusinessOperationAsync("MarkAllNotificationsRead", $"تم تحديد {updatedCount} إشعارات مقروءة", request.UserId, "Notification", request.UserId, null, cancellationToken);
+        // تدقيق يدوي مع ذكر اسم ومعرف المنفذ
+        var performerName = _currentUserService.Username;
+        var performerId = _currentUserService.UserId;
+        var notes = $"تم تحديد {updatedCount} إشعارات كمقروءة بواسطة {performerName} (ID={performerId})";
+        await _auditService.LogAuditAsync(
+            entityType: "Notification",
+            entityId: request.UserId,
+            action: YemenBooking.Core.Entities.AuditAction.UPDATE,
+            oldValues: null,
+            newValues: JsonSerializer.Serialize(new { MarkedAsReadCount = updatedCount }),
+            performedBy: performerId,
+            notes: notes,
+            cancellationToken: cancellationToken);
 
         return new MarkAllNotificationsAsReadResponse { UpdatedCount = updatedCount, Message = "تم التحديث" };
     }

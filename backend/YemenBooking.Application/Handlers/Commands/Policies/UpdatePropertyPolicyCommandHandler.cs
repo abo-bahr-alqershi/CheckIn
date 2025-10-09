@@ -71,15 +71,17 @@ namespace YemenBooking.Application.Handlers.Commands.Policies
             policy.UpdatedAt = DateTime.UtcNow;
             await _policyRepository.UpdatePropertyPolicyAsync(policy, cancellationToken);
 
-            // تسجيل العملية في سجل التدقيق
-            await _auditService.LogBusinessOperationAsync(
-                "UpdatePropertyPolicy",
-                $"تم تحديث السياسة {request.PolicyId}",
-                request.PolicyId,
-                "PropertyPolicy",
-                _currentUserService.UserId,
-                null,
-                cancellationToken);
+            // تسجيل العملية في سجل التدقيق (يدوي) مع ذكر اسم المستخدم والمعرف
+            var notes = $"تم تحديث السياسة {request.PolicyId} بواسطة {_currentUserService.Username} (ID={_currentUserService.UserId})";
+            await _auditService.LogAuditAsync(
+                entityType: "PropertyPolicy",
+                entityId: request.PolicyId,
+                action: YemenBooking.Core.Entities.AuditAction.UPDATE,
+                oldValues: null,
+                newValues: System.Text.Json.JsonSerializer.Serialize(new { Updated = true }),
+                performedBy: _currentUserService.UserId,
+                notes: notes,
+                cancellationToken: cancellationToken);
 
             _logger.LogInformation("اكتمل تحديث السياسة: PolicyId={PolicyId}", request.PolicyId);
             return ResultDto<bool>.Succeeded(true, "تم تحديث السياسة بنجاح");

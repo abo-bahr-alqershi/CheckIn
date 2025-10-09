@@ -4,6 +4,7 @@ using YemenBooking.Application.Commands.MobileApp.Auth;
 using YemenBooking.Application.DTOs;
 using YemenBooking.Core.Interfaces.Repositories;
 using YemenBooking.Application.Interfaces.Services;
+using System.Text.Json;
 
 namespace YemenBooking.Application.Handlers.Commands.MobileApp.Auth
 {
@@ -11,16 +12,22 @@ namespace YemenBooking.Application.Handlers.Commands.MobileApp.Auth
     {
         private readonly IUserRepository _userRepository;
         private readonly IFileUploadService _fileUploadService;
-        private readonly ILogger<UploadUserProfileImageCommandHandler> _logger;
+    private readonly ILogger<UploadUserProfileImageCommandHandler> _logger;
+    private readonly IAuditService _auditService;
+    private readonly ICurrentUserService _currentUserService;
 
         public UploadUserProfileImageCommandHandler(
             IUserRepository userRepository,
             IFileUploadService fileUploadService,
-            ILogger<UploadUserProfileImageCommandHandler> logger)
+            ILogger<UploadUserProfileImageCommandHandler> logger,
+            IAuditService auditService,
+            ICurrentUserService currentUserService)
         {
             _userRepository = userRepository;
             _fileUploadService = fileUploadService;
             _logger = logger;
+            _auditService = auditService;
+            _currentUserService = currentUserService;
         }
 
         public async Task<ResultDto<UploadUserProfileImageResponse>> Handle(UploadUserProfileImageCommand request, CancellationToken cancellationToken)
@@ -65,6 +72,20 @@ namespace YemenBooking.Application.Handlers.Commands.MobileApp.Auth
                     ProfileImageUrl = user.ProfileImageUrl,
                     UpdatedAt = user.UpdatedAt
                 };
+
+                // تدقيق يدوي: تحديث صورة الملف
+                var performerName = _currentUserService.Username;
+                var performerId = _currentUserService.UserId;
+                var notes = $"تم تحديث صورة الملف للمستخدم {user.Id} بواسطة {performerName} (ID={performerId})";
+                await _auditService.LogAuditAsync(
+                    entityType: "User",
+                    entityId: user.Id,
+                    action: YemenBooking.Core.Entities.AuditAction.UPDATE,
+                    oldValues: null,
+                    newValues: JsonSerializer.Serialize(new { ProfileImageUrl = user.ProfileImageUrl }),
+                    performedBy: performerId,
+                    notes: notes,
+                    cancellationToken: cancellationToken);
 
                 return ResultDto<UploadUserProfileImageResponse>.Ok(response, "تم رفع صورة الملف الشخصي بنجاح");
             }

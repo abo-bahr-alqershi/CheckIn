@@ -100,15 +100,17 @@ namespace YemenBooking.Application.Handlers.Commands.Amenities
                 await _unitOfWork.Repository<PropertyAmenity>().AddAsync(propertyAmenity, cancellationToken);
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-                // الآثار الجانبية: تسجيل العملية في السجل
-                await _auditService.LogActivityAsync(
-                    nameof(PropertyAmenity),
-                    propertyAmenity.Id.ToString(),
-                    "CREATE",
-                    "تم ربط المرفق بالكيان بنجاح",
-                    null,
-                    propertyAmenity,
-                    cancellationToken);
+                // الآثار الجانبية: تسجيل العملية في السجل (يدوي) مع اسم المستخدم والمعرف
+                var notes = $"تم ربط المرفق بالكيان بنجاح بواسطة {_currentUserService.Username} (ID={_currentUserService.UserId})";
+                await _auditService.LogAuditAsync(
+                    entityType: nameof(PropertyAmenity),
+                    entityId: propertyAmenity.Id,
+                    action: YemenBooking.Core.Entities.AuditAction.CREATE,
+                    oldValues: null,
+                    newValues: System.Text.Json.JsonSerializer.Serialize(new { propertyAmenity.PropertyId, propertyAmenity.PtaId, propertyAmenity.IsAvailable, propertyAmenity.ExtraCost }),
+                    performedBy: _currentUserService.UserId,
+                    notes: notes,
+                    cancellationToken: cancellationToken);
 
                 // تحديث مباشر للفهرس
                 try

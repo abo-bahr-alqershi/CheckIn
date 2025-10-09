@@ -66,15 +66,17 @@ namespace YemenBooking.Application.Handlers.Commands.Staffs
 
             await _staffRepository.UpdateStaffAsync(staff, cancellationToken);
 
-            // تسجيل التدقيق
-            await _auditService.LogBusinessOperationAsync(
-                "UpdateStaff",
-                $"تم تحديث بيانات الموظف {request.StaffId}",
-                request.StaffId,
-                "Staff",
-                _currentUserService.UserId,
-                null,
-                cancellationToken);
+            // تسجيل التدقيق (يدوي) يتضمن اسم ومعرّف المنفذ
+            var notes = $"تم تحديث بيانات الموظف {request.StaffId} بواسطة {_currentUserService.Username} (ID={_currentUserService.UserId})";
+            await _auditService.LogAuditAsync(
+                entityType: "Staff",
+                entityId: request.StaffId,
+                action: YemenBooking.Core.Entities.AuditAction.UPDATE,
+                oldValues: null,
+                newValues: System.Text.Json.JsonSerializer.Serialize(new { Updated = true }),
+                performedBy: _currentUserService.UserId,
+                notes: notes,
+                cancellationToken: cancellationToken);
 
             _logger.LogInformation("اكتمل تحديث الموظف بنجاح: StaffId={StaffId}", request.StaffId);
             return ResultDto<bool>.Succeeded(true, "تم تحديث بيانات الموظف بنجاح");

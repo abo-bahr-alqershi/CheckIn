@@ -60,15 +60,17 @@ namespace YemenBooking.Application.Handlers.Commands.Roles
             };
             var created = await _roleRepository.CreateRoleAsync(role, cancellationToken);
 
-            // تسجيل التدقيق
-            await _auditService.LogBusinessOperationAsync(
-                "CreateRole",
-                $"تم إنشاء دور جديد {created.Id} باسم {created.Name}",
-                created.Id,
-                "Role",
-                _currentUserService.UserId,
-                null,
-                cancellationToken);
+            // تسجيل التدقيق (يدوي) يتضمن اسم ومعرّف المنفذ
+            var notes = $"تم إنشاء دور جديد {created.Id} باسم {created.Name} بواسطة {_currentUserService.Username} (ID={_currentUserService.UserId})";
+            await _auditService.LogAuditAsync(
+                entityType: "Role",
+                entityId: created.Id,
+                action: YemenBooking.Core.Entities.AuditAction.CREATE,
+                oldValues: null,
+                newValues: System.Text.Json.JsonSerializer.Serialize(new { created.Id, created.Name }),
+                performedBy: _currentUserService.UserId,
+                notes: notes,
+                cancellationToken: cancellationToken);
 
             _logger.LogInformation("اكتمل إنشاء الدور بنجاح: RoleId={RoleId}", created.Id);
             return ResultDto<Guid>.Succeeded(created.Id, "تم إنشاء الدور بنجاح");

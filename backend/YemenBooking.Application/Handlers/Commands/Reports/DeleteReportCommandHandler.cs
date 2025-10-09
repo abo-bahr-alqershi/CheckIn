@@ -56,15 +56,17 @@ namespace YemenBooking.Application.Handlers.Commands.Reports
             if (!deleted)
                 return ResultDto<bool>.Failed("فشل حذف البلاغ");
 
-            // تسجيل التدقيق
-            await _auditService.LogBusinessOperationAsync(
-                "DeleteReport",
-                $"تم حذف البلاغ {request.Id}",
-                request.Id,
-                "Report",
-                _currentUserService.UserId,
-                new Dictionary<string, object> { { "DeletionReason", request.DeletionReason } },
-                cancellationToken);
+            // تسجيل التدقيق (يدوي) يتضمن اسم ومعرّف المنفذ
+            var notes = $"تم حذف البلاغ {request.Id} بواسطة {_currentUserService.Username} (ID={_currentUserService.UserId})";
+            await _auditService.LogAuditAsync(
+                entityType: "Report",
+                entityId: request.Id,
+                action: YemenBooking.Core.Entities.AuditAction.DELETE,
+                oldValues: System.Text.Json.JsonSerializer.Serialize(new { request.Id, request.DeletionReason }),
+                newValues: null,
+                performedBy: _currentUserService.UserId,
+                notes: notes,
+                cancellationToken: cancellationToken);
 
             _logger.LogInformation("اكتمل حذف البلاغ بنجاح: Id={ReportId}", request.Id);
             return ResultDto<bool>.Succeeded(true, "تم حذف البلاغ بنجاح");

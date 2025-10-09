@@ -412,131 +412,20 @@ public class YemenBookingDbContext : DbContext
     }
    
     /// <summary>
-    /// تنفيذ الحفظ المتزامن مع تسجيل تدقيق تلقائي
+    /// تنفيذ الحفظ المتزامن بدون تسجيل تدقيق تلقائي
+    /// Disable automatic audit logging; manual logging is handled explicitly in handlers
     /// </summary>
     public override int SaveChanges()
     {
-        return SaveChangesAsync(false).GetAwaiter().GetResult();
+        return base.SaveChanges();
     }
 
     /// <summary>
-    /// تنفيذ الحفظ غير المتزامن مع تسجيل تدقيق تلقائي لكل عملية CRUD
+    /// تنفيذ الحفظ غير المتزامن بدون تسجيل تدقيق تلقائي
+    /// Disable automatic audit logging; manual logging is handled explicitly in handlers
     /// </summary>
-    public override async Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+    public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
     {
-        // If using InMemory provider, skip audit logging to avoid duplicate seeding errors
-        if (Database.ProviderName?.Contains("InMemory") == true)
-        {
-            return await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
-        }
-        // حصر الكيانات المعدلة (باستثناء سجلات التدقيق)
-        var changeEntries = ChangeTracker.Entries()
-            .Where(e => !(e.Entity is AuditLog) &&
-                        (e.State == EntityState.Added || e.State == EntityState.Modified || e.State == EntityState.Deleted))
-            .ToList();
-
-        // إذا لا توجد تغييرات أساسية، ننفذ الحفظ مباشرة
-        if (!changeEntries.Any())
-            return await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
-
-        // قياس مدة العملية
-        var stopwatch = Stopwatch.StartNew();
-
-        // حفظ التغييرات الأساسية أولاً
-        var result = await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
-
-        stopwatch.Stop();
-        var elapsedMs = stopwatch.ElapsedMilliseconds;
-
-        // بناء سجلات التدقيق
-        var auditEntries = new List<AuditLog>();
-        foreach (var entry in changeEntries)
-        {
-            var type = entry.Entity.GetType();
-            var entityType = type.GetCustomAttribute<DisplayAttribute>()?.Name
-                ?? type.Name;
-            var pk = entry.Properties.FirstOrDefault(p => p.Metadata.IsPrimaryKey());
-            var recordId = (pk != null && pk.CurrentValue is Guid id) ? id : Guid.Empty;
-            AuditAction action;
-            if (entry.State == EntityState.Added)
-            {
-                action = AuditAction.CREATE;
-            }
-            else if (entry.State == EntityState.Deleted)
-            {
-                action = AuditAction.DELETE;
-            }
-            else if (entry.State == EntityState.Modified)
-            {
-                var isSoftDelete = entry.Properties.Any(p => p.Metadata.Name == "IsDeleted"
-                    && p.OriginalValue is bool orig && !orig
-                    && p.CurrentValue is bool curr && curr);
-                action = isSoftDelete ? AuditAction.SOFT_DELETE : AuditAction.UPDATE;
-            }
-            else
-            {
-                action = AuditAction.UPDATE;
-            }
-            Dictionary<string, object>? oldValues = null;
-            if (entry.State == EntityState.Modified)
-            {
-                oldValues = new Dictionary<string, object>();
-                foreach (var p in entry.OriginalValues.Properties)
-                {
-                    var propInfo = type.GetProperty(p.Name);
-                    var propDisplay = propInfo?.GetCustomAttribute<DisplayAttribute>()?.Name;
-                    var propNameForLog = propDisplay
-                        ?? p.Name;
-                    oldValues[propNameForLog] = entry.OriginalValues[p.Name] ?? string.Empty;
-                }
-            }
-            Dictionary<string, object>? newValues = null;
-            if (entry.State != EntityState.Deleted)
-            {
-                newValues = new Dictionary<string, object>();
-                foreach (var p in entry.CurrentValues.Properties)
-                {
-                    var propInfo = type.GetProperty(p.Name);
-                    var propDisplay = propInfo?.GetCustomAttribute<DisplayAttribute>()?.Name;
-                    var propNameForLog = propDisplay
-                        ?? p.Name;
-                    newValues[propNameForLog] = entry.CurrentValues[p.Name] ?? string.Empty;
-                }
-            }
-            // extract current user info from HttpContext
-            Guid? userId = null;
-            string username = string.Empty;
-            var user = _httpContextAccessor?.HttpContext?.User;
-            if (user?.Identity?.IsAuthenticated == true)
-            {
-                var idClaim = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                if (Guid.TryParse(idClaim, out var parsedUserId))
-                    userId = parsedUserId;
-                username = user.Identity?.Name ?? string.Empty;
-            }
-            var ip = _httpContextAccessor?.HttpContext?.Connection.RemoteIpAddress?.ToString();
-            var ua = _httpContextAccessor?.HttpContext?.Request.Headers["User-Agent"].ToString();
-
-            auditEntries.Add(new AuditLog
-            {
-                EntityType = entityType,
-                EntityId = recordId,
-                Action = action,
-                OldValues = oldValues is not null ? JsonSerializer.Serialize(oldValues) : null,
-                NewValues = newValues is not null ? JsonSerializer.Serialize(newValues) : null,
-                PerformedBy = userId,
-                Username = username,
-                IpAddress = ip,
-                UserAgent = ua,
-                IsSuccessful = true,
-                DurationMs = elapsedMs
-            });
-        }
-
-        // إضافة سجلات التدقيق ثم حفظها
-        AuditLogs.AddRange(auditEntries);
-        await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
-
-        return result;
+        return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
     }
 }

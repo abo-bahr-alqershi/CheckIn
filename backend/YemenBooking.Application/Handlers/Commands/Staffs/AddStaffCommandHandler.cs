@@ -77,15 +77,17 @@ namespace YemenBooking.Application.Handlers.Commands.Staffs
             };
             var created = await _staffRepository.AddStaffAsync(staff, cancellationToken);
 
-            // تسجيل التدقيق
-            await _auditService.LogBusinessOperationAsync(
-                "AddStaff",
-                $"تم إضافة موظف جديد {created.Id} للمستخدم {created.UserId} في الكيان {created.PropertyId}",
-                created.Id,
-                "Staff",
-                _currentUserService.UserId,
-                null,
-                cancellationToken);
+            // تسجيل التدقيق (يدوي) يتضمن اسم ومعرّف المنفذ
+            var notes = $"تم إضافة موظف جديد {created.Id} للمستخدم {created.UserId} في الكيان {created.PropertyId} بواسطة {_currentUserService.Username} (ID={_currentUserService.UserId})";
+            await _auditService.LogAuditAsync(
+                entityType: "Staff",
+                entityId: created.Id,
+                action: YemenBooking.Core.Entities.AuditAction.CREATE,
+                oldValues: null,
+                newValues: System.Text.Json.JsonSerializer.Serialize(new { created.Id, created.UserId, created.PropertyId }),
+                performedBy: _currentUserService.UserId,
+                notes: notes,
+                cancellationToken: cancellationToken);
 
             _logger.LogInformation("اكتمل إضافة الموظف بنجاح: StaffId={StaffId}", created.Id);
             return ResultDto<Guid>.Succeeded(created.Id, "تم إضافة الموظف بنجاح");

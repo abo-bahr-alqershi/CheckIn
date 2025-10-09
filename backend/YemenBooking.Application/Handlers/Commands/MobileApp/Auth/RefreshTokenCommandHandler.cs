@@ -4,6 +4,7 @@ using YemenBooking.Application.Commands.MobileApp.Auth;
 using YemenBooking.Application.DTOs;
 using YemenBooking.Application.DTOs.Auth;
 using YemenBooking.Application.Interfaces.Services;
+using System.Text.Json;
 using YemenBooking.Core.Interfaces.Repositories;
 using System;
 using System.Threading;
@@ -20,6 +21,8 @@ public class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCommand, R
     private readonly IAuthenticationService _authService;
     private readonly IUserRepository _userRepository;
     private readonly ILogger<RefreshTokenCommandHandler> _logger;
+    private readonly IAuditService _auditService;
+    private readonly ICurrentUserService _currentUserService;
 
     /// <summary>
     /// منشئ معالج أمر تحديث رمز الوصول
@@ -31,11 +34,15 @@ public class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCommand, R
     public RefreshTokenCommandHandler(
         IAuthenticationService authService,
         IUserRepository userRepository,
-        ILogger<RefreshTokenCommandHandler> logger)
+        ILogger<RefreshTokenCommandHandler> logger,
+        IAuditService auditService,
+        ICurrentUserService currentUserService)
     {
         _authService = authService;
         _userRepository = userRepository;
         _logger = logger;
+        _auditService = auditService;
+        _currentUserService = currentUserService;
     }
 
     /// <summary>
@@ -79,6 +86,21 @@ public class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCommand, R
                 };
 
                 _logger.LogInformation("تم تحديث رمز الوصول بنجاح للمستخدم: {UserId}", newTokens.UserId);
+
+                // تدقيق يدوي: تحديث رمز الوصول
+                var performerName = _currentUserService.Username;
+                var performerId = _currentUserService.UserId;
+                var notes = $"تم تحديث رمز الوصول للمستخدم {newTokens.UserId} بواسطة {performerName} (ID={performerId})";
+                await _auditService.LogAuditAsync(
+                    entityType: "Auth",
+                    entityId: newTokens.UserId,
+                    action: YemenBooking.Core.Entities.AuditAction.UPDATE,
+                    oldValues: null,
+                    newValues: JsonSerializer.Serialize(new { Refreshed = true }),
+                    performedBy: performerId,
+                    notes: notes,
+                    cancellationToken: cancellationToken);
+
                 return ResultDto<RefreshTokenResponse>.Ok(response, "تم تحديث رمز الوصول بنجاح");
             }
             catch (Exception refreshEx)

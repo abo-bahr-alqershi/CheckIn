@@ -140,13 +140,17 @@ namespace YemenBooking.Application.Handlers.Commands.Dashboard
             if (!exportResult.IsSuccess)
                 throw new InvalidOperationException($"خطأ أثناء تصدير التقرير: {exportResult.ErrorMessage}");
 
-            // تسجيل عملية التصدير في السجل
-            await _auditService.LogAsync(
-                "ExportDashboardReport",
-                request.TargetId.ToString(),
-                $"تم تصدير تقرير لوحة التحكم '{request.DashboardType}' بصيغة {request.Format}",
-                _currentUserService.UserId,
-                cancellationToken);
+            // تسجيل عملية التصدير في السجل (يدوي) مع ذكر اسم المستخدم والمعرف
+            var notes = $"تم تصدير تقرير لوحة التحكم '{request.DashboardType}' بصيغة {request.Format} بواسطة {_currentUserService.Username} (ID={_currentUserService.UserId})";
+            await _auditService.LogAuditAsync(
+                entityType: "Dashboard",
+                entityId: request.TargetId,
+                action: YemenBooking.Core.Entities.AuditAction.EXPORT,
+                oldValues: null,
+                newValues: System.Text.Json.JsonSerializer.Serialize(new { Exported = true, request.DashboardType, request.Format }),
+                performedBy: _currentUserService.UserId,
+                notes: notes,
+                cancellationToken: cancellationToken);
 
             // قراءة الملف وإرجاع المحتوى
             var fileBytes = await File.ReadAllBytesAsync(exportResult.FilePath, cancellationToken);

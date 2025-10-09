@@ -8,6 +8,7 @@ using YemenBooking.Application.DTOs;
 using YemenBooking.Core.Interfaces.Repositories;
 using YemenBooking.Core.Interfaces;
 using YemenBooking.Application.Interfaces.Services;
+using System.Text.Json;
 
 namespace YemenBooking.Application.Handlers.Commands.Users
 {
@@ -58,15 +59,16 @@ namespace YemenBooking.Application.Handlers.Commands.Users
             user.UpdatedAt = DateTime.UtcNow;
             await _userRepository.UpdateUserAsync(user, cancellationToken);
 
-            // تسجيل التدقيق
-            await _auditService.LogBusinessOperationAsync(
-                "UpdateUserProfilePicture",
-                $"تم تحديث صورة الملف الشخصي للمستخدم {request.UserId}",
-                request.UserId,
-                "User",
-                _currentUserService.UserId,
-                null,
-                cancellationToken);
+            // تسجيل التدقيق اليدوي مع القيم القديمة والجديدة الملخصة
+            await _auditService.LogAuditAsync(
+                entityType: "User",
+                entityId: request.UserId,
+                action: YemenBooking.Core.Entities.AuditAction.UPDATE,
+                oldValues: JsonSerializer.Serialize(new { ProfileImage = "previous" }),
+                newValues: JsonSerializer.Serialize(new { ProfileImage = user.ProfileImage }),
+                performedBy: _currentUserService.UserId,
+                notes: $"تم تحديث صورة الملف الشخصي للمستخدم {request.UserId}",
+                cancellationToken: cancellationToken);
 
             _logger.LogInformation("اكتمل تحديث صورة الملف الشخصي بنجاح: UserId={UserId}", request.UserId);
             return ResultDto<bool>.Succeeded(true, "تم تحديث صورة الملف الشخصي بنجاح");

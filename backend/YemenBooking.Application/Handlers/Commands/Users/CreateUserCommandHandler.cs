@@ -9,6 +9,7 @@ using YemenBooking.Core.Entities;
 using YemenBooking.Core.Interfaces.Repositories;
 using YemenBooking.Application.Interfaces.Services;
 using YemenBooking.Core.Interfaces;
+using System.Text.Json;
 
 namespace YemenBooking.Application.Handlers.Commands.Users
 {
@@ -81,15 +82,26 @@ namespace YemenBooking.Application.Handlers.Commands.Users
             // إرسال بريد ترحيبي بعد إنشاء الحساب
             await _emailService.SendWelcomeEmailAsync(created.Email, created.Name, cancellationToken);
 
-            // تسجيل التدقيق
-            await _auditService.LogBusinessOperationAsync(
-                "CreateUser",
-                $"تم إنشاء مستخدم جديد {created.Id} ({created.Email})",
+            // تسجيل التدقيق اليدوي مع قيم جديدة
+            var newValues = new
+            {
                 created.Id,
-                "User",
-                _currentUserService.UserId,
-                null,
-                cancellationToken);
+                created.Name,
+                created.Email,
+                created.Phone,
+                created.ProfileImage,
+                created.IsActive,
+                created.EmailConfirmed
+            };
+            await _auditService.LogAuditAsync(
+                entityType: "User",
+                entityId: created.Id,
+                action: YemenBooking.Core.Entities.AuditAction.CREATE,
+                oldValues: null,
+                newValues: JsonSerializer.Serialize(newValues),
+                performedBy: _currentUserService.UserId,
+                notes: $"تم إنشاء مستخدم جديد {created.Id} ({created.Email})",
+                cancellationToken: cancellationToken);
 
             _logger.LogInformation("اكتمل إنشاء المستخدم بنجاح: UserId={UserId}", created.Id);
             return ResultDto<Guid>.Succeeded(created.Id, "تم إنشاء المستخدم بنجاح");

@@ -55,15 +55,17 @@ namespace YemenBooking.Application.Handlers.Commands.Roles
             if (!deleted)
                 return ResultDto<bool>.Failed("فشل حذف الدور");
 
-            // تسجيل التدقيق
-            await _auditService.LogBusinessOperationAsync(
-                "DeleteRole",
-                $"تم حذف الدور {request.RoleId}",
-                request.RoleId,
-                "Role",
-                _currentUserService.UserId,
-                null,
-                cancellationToken);
+            // تسجيل التدقيق (يدوي) يتضمن اسم ومعرّف المنفذ
+            var notes = $"تم حذف الدور {request.RoleId} بواسطة {_currentUserService.Username} (ID={_currentUserService.UserId})";
+            await _auditService.LogAuditAsync(
+                entityType: "Role",
+                entityId: request.RoleId,
+                action: YemenBooking.Core.Entities.AuditAction.DELETE,
+                oldValues: System.Text.Json.JsonSerializer.Serialize(new { request.RoleId }),
+                newValues: null,
+                performedBy: _currentUserService.UserId,
+                notes: notes,
+                cancellationToken: cancellationToken);
 
             _logger.LogInformation("اكتمل حذف الدور بنجاح: RoleId={RoleId}", request.RoleId);
             return ResultDto<bool>.Succeeded(true, "تم حذف الدور بنجاح");

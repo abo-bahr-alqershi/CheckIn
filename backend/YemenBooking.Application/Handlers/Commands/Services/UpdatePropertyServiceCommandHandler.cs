@@ -81,15 +81,17 @@ namespace YemenBooking.Application.Handlers.Commands.Services
 
             await _serviceRepository.UpdatePropertyServiceAsync(service, cancellationToken);
 
-            // تسجيل التدقيق
-            await _auditService.LogBusinessOperationAsync(
-                "UpdatePropertyService",
-                $"تم تحديث الخدمة {request.ServiceId}",
-                request.ServiceId,
-                "PropertyService",
-                _currentUserService.UserId,
-                null,
-                cancellationToken);
+            // تسجيل التدقيق (يدوي) يتضمن اسم ومعرّف المنفذ
+            var notes = $"تم تحديث الخدمة {request.ServiceId} بواسطة {_currentUserService.Username} (ID={_currentUserService.UserId})";
+            await _auditService.LogAuditAsync(
+                entityType: "PropertyService",
+                entityId: request.ServiceId,
+                action: YemenBooking.Core.Entities.AuditAction.UPDATE,
+                oldValues: null,
+                newValues: System.Text.Json.JsonSerializer.Serialize(new { Updated = true }),
+                performedBy: _currentUserService.UserId,
+                notes: notes,
+                cancellationToken: cancellationToken);
 
             _logger.LogInformation("اكتمل تحديث الخدمة بنجاح: ServiceId={ServiceId}", request.ServiceId);
             return ResultDto<bool>.Succeeded(true, "تم تحديث الخدمة بنجاح");
