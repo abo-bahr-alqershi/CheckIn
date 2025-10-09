@@ -30,6 +30,8 @@ class _PaymentsListPageState extends State<PaymentsListPage>
   late Animation<double> _fadeAnimation;
   final ScrollController _scrollController = ScrollController();
   bool _showFilters = false;
+  DateTime? _defaultStart;
+  DateTime? _defaultEnd;
 
   @override
   void initState() {
@@ -44,8 +46,33 @@ class _PaymentsListPageState extends State<PaymentsListPage>
     );
     _animationController.forward();
 
-    // Load payments
-    context.read<PaymentsListBloc>().add(const LoadPaymentsEvent());
+    // Load payments with default last 30 days window for trends
+    final now = DateTime.now();
+    final last30 = now.subtract(const Duration(days: 30));
+    _defaultStart = last30;
+    _defaultEnd = now;
+    context.read<PaymentsListBloc>().add(LoadPaymentsEvent(
+      startDate: last30,
+      endDate: now,
+    ));
+  }
+  Widget _buildTrendNote(PaymentsListLoaded state) {
+    final start = _defaultStart;
+    final end = _defaultEnd;
+    if (start == null || end == null) return const SizedBox.shrink();
+    final days = end.difference(start).inDays;
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Padding(
+        padding: const EdgeInsets.only(top: 8.0),
+        child: Text(
+          'الاتجاهات محسوبة لآخر ${days} يومًا',
+          style: AppTextStyles.caption.copyWith(
+            color: AppTheme.textMuted,
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -237,9 +264,25 @@ class _PaymentsListPageState extends State<PaymentsListPage>
                     padding: const EdgeInsets.symmetric(
                       horizontal: AppDimensions.paddingLarge,
                     ),
-                    child: PaymentStatsCards(
-                      statistics: state.statistics,
+                  child: PaymentStatsCards(
+                    statistics: {
+                      ...state.statistics,
+                      if (state.stats != null) ...state.stats!,
+                    },
+                  ),
+                  ),
+                  if (_defaultStart != null && _defaultEnd != null)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppDimensions.paddingLarge,
+                      ),
+                      child: _buildTrendNote(state),
                     ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppDimensions.paddingLarge,
+                    ),
+                    child: _buildTrendNote(state),
                   ),
                   const SizedBox(height: AppDimensions.spaceMedium),
 
@@ -291,10 +334,22 @@ class _PaymentsListPageState extends State<PaymentsListPage>
                     horizontal: AppDimensions.paddingLarge,
                   ),
                   child: PaymentStatsCards(
-                    statistics: state.statistics,
+                    statistics: {
+                      ...state.statistics,
+                      if (state.stats != null) ...state.stats!,
+                    },
                   ),
                 ),
               ),
+              if (_defaultStart != null && _defaultEnd != null)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppDimensions.paddingLarge,
+                    ),
+                    child: _buildTrendNote(state),
+                  ),
+                ),
 
               const SliverToBoxAdapter(
                 child: SizedBox(height: AppDimensions.spaceMedium),
