@@ -176,15 +176,21 @@ class CitiesRemoteDataSourceImpl implements CitiesRemoteDataSource {
           return Map<String, dynamic>.from(map['data'] as Map);
         }
       }
-      // Fallback to local calculation
+      // Fallback to local calculation including totalImages
       final all = await getCities();
       final total = all.length;
       final active = all.where((c) => c.isActive ?? true).length;
+      final totalImages = all.fold<int>(0, (sum, c) => sum + (c.images.length));
       final byCountry = <String, int>{};
       for (final c in all) {
         byCountry[c.country] = (byCountry[c.country] ?? 0) + 1;
       }
-      return {'totalCities': total, 'activeCities': active, 'byCountry': byCountry};
+      return {
+        'totalCities': total,
+        'activeCities': active,
+        'totalImages': totalImages,
+        'byCountry': byCountry,
+      };
     } on DioException catch (e) {
       throw ApiException.fromDioError(e);
     }
