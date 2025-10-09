@@ -342,6 +342,17 @@ class _UsersListPageState extends State<UsersListPage>
   Widget _buildContentSliver() {
     return BlocBuilder<UsersListBloc, UsersListState>(
       builder: (context, state) {
+        if (state is UsersRefreshing) {
+          return const SliverToBoxAdapter(
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: LoadingWidget(
+                type: LoadingType.futuristic,
+                message: 'جاري تحديث القائمة...',
+              ),
+            ),
+          );
+        }
         if (state is UsersListLoading) {
           return const SliverFillRemaining(
             child: LoadingWidget(

@@ -137,6 +137,16 @@ class BookingsListBloc extends Bloc<BookingsListEvent, BookingsListState> {
       _currentStartDate = DateTime.now().subtract(const Duration(days: 30));
     }
 
+    // Show a lightweight overlay while refreshing to indicate progress
+    if (state is BookingsListLoaded) {
+      final current = state as BookingsListLoaded;
+      emit(BookingOperationInProgress(
+        bookings: current.bookings,
+        selectedBookings: current.selectedBookings,
+        operation: 'refresh',
+      ));
+    }
+
     add(LoadBookingsEvent(
       startDate: _currentStartDate!,
       endDate: _currentEndDate!,

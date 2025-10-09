@@ -740,15 +740,18 @@ class _BookingsListPageState extends State<BookingsListPage>
     return BlocBuilder<BookingsListBloc, BookingsListState>(
       builder: (context, state) {
         if (state is BookingOperationInProgress) {
+          final overlayMessage = state.operation == 'refresh'
+              ? 'جاري تحديث القائمة...'
+              : 'جاري تنفيذ العملية...';
           return Positioned.fill(
             child: BackdropFilter(
               filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
               child: Container(
                 color: AppTheme.darkBackground.withOpacity(0.4),
                 alignment: Alignment.center,
-                child: const LoadingWidget(
+                child: LoadingWidget(
                   type: LoadingType.futuristic,
-                  message: 'جاري تنفيذ العملية...'
+                  message: overlayMessage,
                 ),
               ),
             ),

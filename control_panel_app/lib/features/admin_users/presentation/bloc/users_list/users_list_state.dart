@@ -55,6 +55,16 @@ class UsersListError extends UsersListState {
   List<Object> get props => [message];
 }
 
+class UsersRefreshing extends UsersListState {
+  final List<User> users;
+  final int totalCount;
+
+  const UsersRefreshing({required this.users, required this.totalCount});
+
+  @override
+  List<Object?> get props => [users, totalCount];
+}
+
 class UserOperationSuccess extends UsersListState {
   final String message;
   final List<User> users;
