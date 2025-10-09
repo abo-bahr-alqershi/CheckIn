@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using YemenBooking.Application.Features.Favorites.Commands;
 using YemenBooking.Core.Interfaces.Repositories;
 using YemenBooking.Application.Interfaces.Services;
+using System.Text.Json;
 
 namespace YemenBooking.Application.Handlers.Commands.MobileApp.Favorites;
 
@@ -13,15 +14,18 @@ public class RemoveFromFavoritesCommandHandler : IRequestHandler<RemoveFromFavor
 {
     private readonly IUserRepository _userRepository;
     private readonly IAuditService _auditService;
+    private readonly ICurrentUserService _currentUserService;
     private readonly ILogger<RemoveFromFavoritesCommandHandler> _logger;
 
     public RemoveFromFavoritesCommandHandler(
         IUserRepository userRepository,
         IAuditService auditService,
+        ICurrentUserService currentUserService,
         ILogger<RemoveFromFavoritesCommandHandler> logger)
     {
         _userRepository = userRepository;
         _auditService = auditService;
+        _currentUserService = currentUserService;
         _logger = logger;
     }
 
@@ -41,14 +45,16 @@ public class RemoveFromFavoritesCommandHandler : IRequestHandler<RemoveFromFavor
         await _userRepository.UpdateUserFavoritesAsync(user.Id, json, cancellationToken);
 
         // تدقيق يدوي مع ذكر اسم ومعرف المنفذ
-        var notes = $"أُزيل العقار {request.PropertyId} من مفضلة المستخدم {user.Id}";
+        var performerName = _currentUserService.Username;
+        var performerId = _currentUserService.UserId;
+        var notes = $"تمت إزالة العقار {request.PropertyId} من المفضلة بواسطة {performerName} (ID={performerId})";
         await _auditService.LogAuditAsync(
             entityType: "User",
             entityId: user.Id,
             action: YemenBooking.Core.Enums.AuditAction.UPDATE,
             oldValues: null,
-            newValues: System.Text.Json.JsonSerializer.Serialize(new { FavoriteRemoved = request.PropertyId }),
-            performedBy: user.Id,
+            newValues: JsonSerializer.Serialize(new { FavoriteRemoved = request.PropertyId, UserId = user.Id }),
+            performedBy: performerId,
             notes: notes,
             cancellationToken: cancellationToken);
 
