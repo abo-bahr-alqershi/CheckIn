@@ -73,5 +73,11 @@ namespace YemenBooking.Application.Queries.Reviews
         /// حجم الصفحة (اختياري) - Pagination page size
         /// </summary>
         public int? PageSize { get; set; }
+
+        /// <summary>
+        /// Include aggregate statistics in result.Metadata regardless of page number
+        /// Defaults to null -> include only on first page for performance
+        /// </summary>
+        public bool? IncludeStats { get; set; }
     }
 } 
