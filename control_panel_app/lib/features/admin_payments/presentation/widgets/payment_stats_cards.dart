@@ -82,6 +82,18 @@ class _PaymentStatsCardsState extends State<PaymentStatsCards>
 
   @override
   Widget build(BuildContext context) {
+    double? _pct(Object? v) {
+      if (v == null) return null;
+      if (v is num) return v.toDouble();
+      if (v is String) return double.tryParse(v);
+      return null;
+    }
+
+    final totalTrend = _pct(widget.statistics['totalPaymentsTrendPct']);
+    final amountTrend = _pct(widget.statistics['totalAmountTrendPct']);
+    final successTrend = _pct(widget.statistics['successfulPaymentsTrendPct']);
+    final refundedTrend = _pct(widget.statistics['refundedPaymentsTrendPct']);
+
     return SizedBox(
       height: 180,
       child: ListView(
@@ -100,7 +112,7 @@ class _PaymentStatsCardsState extends State<PaymentStatsCards>
               ],
             ),
             suffix: 'معاملة',
-            trend: 12.5,
+            trend: totalTrend,
           ),
           _buildStatCard(
             index: 1,
@@ -114,7 +126,7 @@ class _PaymentStatsCardsState extends State<PaymentStatsCards>
               ],
             ),
             isCurrency: true,
-            trend: 8.3,
+            trend: amountTrend,
           ),
           _buildStatCard(
             index: 2,
@@ -128,7 +140,7 @@ class _PaymentStatsCardsState extends State<PaymentStatsCards>
               ],
             ),
             suffix: 'معاملة',
-            trend: 5.2,
+            trend: successTrend,
           ),
           _buildStatCard(
             index: 3,
@@ -142,7 +154,7 @@ class _PaymentStatsCardsState extends State<PaymentStatsCards>
               ],
             ),
             suffix: 'معاملة',
-            trend: -2.1,
+            trend: refundedTrend,
           ),
         ],
       ),
