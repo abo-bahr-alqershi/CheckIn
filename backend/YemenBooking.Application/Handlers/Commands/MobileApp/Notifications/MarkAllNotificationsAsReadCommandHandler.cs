@@ -41,7 +41,17 @@ public class MarkAllNotificationsAsReadCommandHandler : IRequestHandler<MarkAllN
             updatedCount++;
         }
 
-        await _auditService.LogBusinessOperationAsync("MarkAllNotificationsRead", $"تم تحديد {updatedCount} إشعارات مقروءة", request.UserId, "Notification", request.UserId, null, cancellationToken);
+        // تدقيق يدوي مع ذكر اسم ومعرف المنفذ
+        var notes = $"تم تحديد {updatedCount} إشعارات كمقروءة بواسطة المستخدم {request.UserId}";
+        await _auditService.LogAuditAsync(
+            entityType: "Notification",
+            entityId: request.UserId,
+            action: YemenBooking.Core.Enums.AuditAction.UPDATE,
+            oldValues: null,
+            newValues: System.Text.Json.JsonSerializer.Serialize(new { MarkedAsReadCount = updatedCount }),
+            performedBy: request.UserId,
+            notes: notes,
+            cancellationToken: cancellationToken);
 
         return new MarkAllNotificationsAsReadResponse { UpdatedCount = updatedCount, Message = "تم التحديث" };
     }

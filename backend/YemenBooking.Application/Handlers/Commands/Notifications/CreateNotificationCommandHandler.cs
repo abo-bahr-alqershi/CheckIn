@@ -102,19 +102,17 @@ namespace YemenBooking.Application.Handlers.Commands.Notifications
                 _logger.LogWarning("نوع الإشعار غير معروف، تم الإرسال بنوع System: {Type}", request.Type);
             }
 
-            // تسجيل العملية في سجل التدقيق
-            await _auditService.LogBusinessOperationAsync(
-                "CreateNotification",
-                $"تم إنشاء إشعار جديد للمستخدم {request.RecipientId} من النوع {request.Type}",
-                newId,
-                "Notification",
-                _currentUserService.UserId,
-                new System.Collections.Generic.Dictionary<string, object>
-                {
-                    { "NotificationId", newId },
-                    { "Type", request.Type }
-                },
-                cancellationToken);
+            // تسجيل العملية في سجل التدقيق (يدوي) مع ذكر اسم المستخدم والمعرف
+            var notes = $"تم إنشاء إشعار جديد للمستخدم {request.RecipientId} من النوع {request.Type} بواسطة {_currentUserService.Username} (ID={_currentUserService.UserId})";
+            await _auditService.LogAuditAsync(
+                entityType: "Notification",
+                entityId: newId,
+                action: YemenBooking.Core.Enums.AuditAction.CREATE,
+                oldValues: null,
+                newValues: System.Text.Json.JsonSerializer.Serialize(new { NotificationId = newId, request.Type, request.Title }),
+                performedBy: _currentUserService.UserId,
+                notes: notes,
+                cancellationToken: cancellationToken);
 
             _logger.LogInformation("تم إنشاء الإشعار بنجاح: Id={NotificationId}", newId);
             return ResultDto<Guid>.Succeeded(newId, "تم إنشاء الإشعار بنجاح");

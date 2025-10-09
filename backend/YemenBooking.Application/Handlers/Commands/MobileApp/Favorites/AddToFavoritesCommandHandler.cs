@@ -44,14 +44,17 @@ public class AddToFavoritesCommandHandler : IRequestHandler<AddToFavoritesComman
         var json = System.Text.Json.JsonSerializer.Serialize(favorites);
         await _userRepository.UpdateUserFavoritesAsync(user.Id, json, cancellationToken);
 
-        await _auditService.LogBusinessOperationAsync(
-            "AddFavorite",
-            $"أُضيف العقار {request.PropertyId} إلى مفضلة المستخدم {user.Id}",
-            user.Id,
-            "User",
-            user.Id,
-            null,
-            cancellationToken);
+        // تدقيق يدوي مع ذكر اسم ومعرف المنفذ
+        var notes = $"أُضيف العقار {request.PropertyId} إلى مفضلة المستخدم {user.Id}";
+        await _auditService.LogAuditAsync(
+            entityType: "User",
+            entityId: user.Id,
+            action: YemenBooking.Core.Enums.AuditAction.UPDATE,
+            oldValues: null,
+            newValues: System.Text.Json.JsonSerializer.Serialize(new { FavoriteAdded = request.PropertyId }),
+            performedBy: user.Id,
+            notes: notes,
+            cancellationToken: cancellationToken);
 
         return new AddToFavoritesResponse { Success = true, Message = "تمت الإضافة بنجاح" };
     }

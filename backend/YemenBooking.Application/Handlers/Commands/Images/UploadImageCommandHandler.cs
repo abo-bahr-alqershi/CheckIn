@@ -215,18 +215,17 @@ namespace YemenBooking.Application.Handlers.Commands.Images
                 if (!uploadResult.IsSuccess || uploadResult.FileUrl == null)
                     return ResultDto<ImageDto>.Failed("حدث خطأ أثناء رفع الصورة");
 
-                // تسجيل عملية الرفع في السجل
-                await _auditService.LogBusinessOperationAsync(
-                    "UploadImage",
-                    $"تم رفع الصورة {fileName} من قبل المستخدم {_currentUserService.UserId}",
-                    null,
-                    "Image",
-                    _currentUserService.UserId,
-                    new System.Collections.Generic.Dictionary<string, object>
-                    {
-                        { "Path", uploadResult.FilePath }
-                    },
-                    cancellationToken);
+                // تسجيل عملية الرفع في السجل (يدوي) مع ذكر اسم المستخدم والمعرف
+                var notes = $"تم رفع الصورة {fileName} بواسطة {_currentUserService.Username} (ID={_currentUserService.UserId})";
+                await _auditService.LogAuditAsync(
+                    entityType: "Image",
+                    entityId: imageDto.Id,
+                    action: AuditAction.CREATE,
+                    oldValues: null,
+                    newValues: JsonSerializer.Serialize(new { Path = uploadResult.FilePath, Url = uploadResult.FileUrl }),
+                    performedBy: _currentUserService.UserId,
+                    notes: notes,
+                    cancellationToken: cancellationToken);
 
                 _logger.LogInformation("اكتمل رفع الصورة بنجاح: Url={Url}", uploadResult.FileUrl);
                 // معالجة الفيديو (مدة فقط) + قبول مصغرة من العميل إن وردت

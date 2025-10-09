@@ -36,7 +36,17 @@ public class MarkNotificationAsReadCommandHandler : IRequestHandler<MarkNotifica
         notification.IsRead = true;
         await _notificationRepository.UpdateAsync(notification, cancellationToken);
 
-        await _auditService.LogBusinessOperationAsync("MarkNotificationRead", $"تم وضع علامة مقروء على الإشعار {notification.Id}", notification.Id, "Notification", request.UserId, null, cancellationToken);
+        // تدقيق يدوي مع ذكر اسم ومعرف المنفذ
+        var notes = $"تم وضع علامة مقروء على الإشعار {notification.Id} بواسطة المستخدم {request.UserId}";
+        await _auditService.LogAuditAsync(
+            entityType: "Notification",
+            entityId: notification.Id,
+            action: YemenBooking.Core.Enums.AuditAction.UPDATE,
+            oldValues: null,
+            newValues: System.Text.Json.JsonSerializer.Serialize(new { IsRead = true }),
+            performedBy: request.UserId,
+            notes: notes,
+            cancellationToken: cancellationToken);
 
         return new MarkNotificationAsReadResponse { Success = true, Message = "تم التحديث بنجاح" };
     }
