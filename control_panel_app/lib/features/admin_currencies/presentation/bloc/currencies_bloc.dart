@@ -46,13 +46,14 @@ class CurrenciesBloc extends Bloc<CurrenciesEvent, CurrenciesState> {
 
     result.fold(
       (failure) => emit(CurrenciesError(message: failure.message)),
-      (currencies) {
+      (currencies) async {
         _allCurrencies = currencies;
         // Try fetch backend stats for last 30 days
         Map<String, dynamic>? stats;
         final now = DateTime.now();
         final last30 = now.subtract(const Duration(days: 30));
-        final statsResult = await repository.getCurrencyStats(startDate: last30, endDate: now);
+        final statsResult =
+            await repository.getCurrencyStats(startDate: last30, endDate: now);
         stats = statsResult.fold((_) => null, (data) => data);
         emit(CurrenciesLoaded(
           currencies: currencies,
@@ -70,8 +71,7 @@ class CurrenciesBloc extends Bloc<CurrenciesEvent, CurrenciesState> {
     if (state is CurrenciesLoaded) {
       final currentState = state as CurrenciesLoaded;
       // Validation: prevent multiple default currencies on add
-      if (event.currency.isDefault &&
-          _allCurrencies.any((c) => c.isDefault)) {
+      if (event.currency.isDefault && _allCurrencies.any((c) => c.isDefault)) {
         emit(const CurrenciesError(
             message:
                 'لا يمكن تعيين هذه العملة كافتراضية لوجود عملة افتراضية مسبقاً'));
@@ -93,7 +93,8 @@ class CurrenciesBloc extends Bloc<CurrenciesEvent, CurrenciesState> {
         (_) {
           _allCurrencies = updatedCurrencies;
           // Emit success first for snackbar, then return to Loaded to keep UI content visible
-          emit(const CurrencyOperationSuccess(message: 'تمت إضافة العملة بنجاح'));
+          emit(const CurrencyOperationSuccess(
+              message: 'تمت إضافة العملة بنجاح'));
           emit(CurrenciesLoaded(
             currencies: updatedCurrencies,
             filteredCurrencies: _filterCurrencies(
@@ -142,7 +143,8 @@ class CurrenciesBloc extends Bloc<CurrenciesEvent, CurrenciesState> {
         (failure) => emit(CurrenciesError(message: failure.message)),
         (_) {
           _allCurrencies = updatedCurrencies;
-          emit(const CurrencyOperationSuccess(message: 'تم تحديث العملة بنجاح'));
+          emit(
+              const CurrencyOperationSuccess(message: 'تم تحديث العملة بنجاح'));
           emit(CurrenciesLoaded(
             currencies: updatedCurrencies,
             filteredCurrencies: _filterCurrencies(
@@ -171,7 +173,8 @@ class CurrenciesBloc extends Bloc<CurrenciesEvent, CurrenciesState> {
       result.fold(
         (failure) => emit(CurrenciesError(message: failure.message)),
         (_) {
-          _allCurrencies = _allCurrencies.where((c) => c.code != event.code).toList();
+          _allCurrencies =
+              _allCurrencies.where((c) => c.code != event.code).toList();
           emit(const CurrencyOperationSuccess(message: 'تم حذف العملة بنجاح'));
           emit(CurrenciesLoaded(
             currencies: _allCurrencies,
@@ -204,8 +207,9 @@ class CurrenciesBloc extends Bloc<CurrenciesEvent, CurrenciesState> {
           _allCurrencies = _allCurrencies.map((c) {
             return c.copyWith(isDefault: c.code == event.code);
           }).toList();
-          
-          emit(const CurrencyOperationSuccess(message: 'تم تعيين العملة الافتراضية'));
+
+          emit(const CurrencyOperationSuccess(
+              message: 'تم تعيين العملة الافتراضية'));
           emit(CurrenciesLoaded(
             currencies: _allCurrencies,
             filteredCurrencies: _filterCurrencies(
@@ -237,7 +241,7 @@ class CurrenciesBloc extends Bloc<CurrenciesEvent, CurrenciesState> {
       }).toList();
 
       _allCurrencies = updatedCurrencies;
-      
+
       emit(CurrenciesLoaded(
         currencies: updatedCurrencies,
         filteredCurrencies: _filterCurrencies(
@@ -255,7 +259,7 @@ class CurrenciesBloc extends Bloc<CurrenciesEvent, CurrenciesState> {
   ) {
     if (state is CurrenciesLoaded) {
       final currentState = state as CurrenciesLoaded;
-      
+
       emit(CurrenciesLoaded(
         currencies: _allCurrencies,
         filteredCurrencies: _filterCurrencies(_allCurrencies, event.query),

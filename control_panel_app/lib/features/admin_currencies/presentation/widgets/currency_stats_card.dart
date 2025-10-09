@@ -9,7 +9,8 @@ import '../../domain/entities/currency.dart';
 
 class CurrencyStatsCard extends StatelessWidget {
   final List<Currency> currencies;
-  final Map<String, dynamic>? stats; // backend-provided stats, similar to reviews
+  final Map<String, dynamic>?
+      stats; // backend-provided stats, similar to reviews
   final DateTime? startDate;
   final DateTime? endDate;
 
@@ -24,13 +25,17 @@ class CurrencyStatsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final computed = _calculateStats();
-    final total = _asInt(this.stats?['totalCurrencies']) ?? computed['total'] as int;
-    final defCode = (this.stats?['defaultCurrencyCode'] as String?) ?? (computed['default'] as String);
-    final withRate = _asInt(this.stats?['currenciesWithExchangeRate']) ?? (computed['withRate'] as int);
-    final avgRate = _asDouble(this.stats?['averageExchangeRate']) ?? double.parse(computed['avgRate'] as String);
-    final lastUpdateStr = computed['lastUpdate'] as String; // keep nice formatting
-    final updatesCount = _asInt(this.stats?['updatesCount']);
-    final updatesTrend = _asDouble(this.stats?['updatesTrendPct']);
+    final total = _asInt(stats?['totalCurrencies']) ?? computed['total'] as int;
+    final defCode = (stats?['defaultCurrencyCode'] as String?) ??
+        (computed['default'] as String);
+    final withRate = _asInt(stats?['currenciesWithExchangeRate']) ??
+        (computed['withRate'] as int);
+    final avgRate = _asDouble(stats?['averageExchangeRate']) ??
+        double.parse(computed['avgRate'] as String);
+    final lastUpdateStr =
+        computed['lastUpdate'] as String; // keep nice formatting
+    final updatesCount = _asInt(stats?['updatesCount']);
+    final updatesTrend = _asDouble(stats?['updatesTrendPct']);
 
     return SizedBox(
       height: 120,
@@ -65,7 +70,7 @@ class CurrencyStatsCard extends StatelessWidget {
           // Only show trends if backend provided and window present
           if (updatesCount != null || updatesTrend != null)
             _buildTrendCard(
-              icon: CupertinoIcons.chart_line_uptrend_xyaxis,
+              icon: CupertinoIcons.chart_bar_fill,
               label: 'تحديثات آخر 30 يوم',
               value: (updatesCount ?? 0).toString(),
               trendPct: updatesTrend,
@@ -243,7 +248,8 @@ class CurrencyStatsCard extends StatelessWidget {
                       ),
                       if (trendPct != null)
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
                             color: trendColor.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(12),
@@ -307,7 +313,8 @@ class CurrencyStatsCard extends StatelessWidget {
     Currency? defaultCurrency;
     if (currencies.isNotEmpty) {
       final maybeDefault = currencies.where((c) => c.isDefault);
-      defaultCurrency = maybeDefault.isNotEmpty ? maybeDefault.first : currencies.first;
+      defaultCurrency =
+          maybeDefault.isNotEmpty ? maybeDefault.first : currencies.first;
     } else {
       defaultCurrency = null;
     }
