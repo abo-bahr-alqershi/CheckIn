@@ -29,7 +29,7 @@ namespace YemenBooking.Application.Handlers.Commands.UnitInSectionImages
             {
                 await _auditService.LogAuditAsync(
                     entityType: nameof(UnitInSectionImage),
-                    entityId: request.UnitInSectionId ?? System.Guid.Empty,
+                    entityId: System.Guid.Empty,
                     action: YemenBooking.Core.Entities.AuditAction.UPDATE,
                     oldValues: null,
                     newValues: System.Text.Json.JsonSerializer.Serialize(new { Reordered = true, Count = tuples.Count }),

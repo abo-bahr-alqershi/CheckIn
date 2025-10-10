@@ -89,7 +89,6 @@ class _EditPropertyPageContentState extends State<_EditPropertyPageContent>
   final _latitudeController = TextEditingController();
   final _longitudeController = TextEditingController();
   final _shortDescriptionController = TextEditingController();
-  
 
   // State
   String? _selectedPropertyTypeId;
@@ -196,7 +195,7 @@ class _EditPropertyPageContentState extends State<_EditPropertyPageContent>
         _descriptionController.text = property.description;
         _latitudeController.text = property.latitude?.toString() ?? '';
         _longitudeController.text = property.longitude?.toString() ?? '';
-        
+
         _selectedPropertyTypeId = property.typeId;
         _starRating = property.starRating;
         _isFeatured = property.isFeatured;
@@ -223,7 +222,7 @@ class _EditPropertyPageContentState extends State<_EditPropertyPageContent>
     _latitudeController.dispose();
     _longitudeController.dispose();
     _shortDescriptionController.dispose();
-    
+
     super.dispose();
   }
 
@@ -280,72 +279,73 @@ class _EditPropertyPageContentState extends State<_EditPropertyPageContent>
           }
         },
         child: Scaffold(
-        backgroundColor: AppTheme.darkBackground,
-        body: Stack(
-          children: [
-            _buildAnimatedBackground(),
-            SafeArea(
-              child: Column(
-                children: [
-                  _buildHeader(),
-                  _buildProgressIndicator(),
-                  Expanded(
-                    child: BlocConsumer<PropertiesBloc, PropertiesState>(
-                      listenWhen: (previous, current) {
-                        return !_isNavigating;
-                      },
-                      listener: (context, state) {
-                        if (state is PropertyDetailsLoaded) {
-                          _loadPropertyDataToForm(state.property);
-                        } else if (state is PropertyDetailsError) {
-                          _showSnackBar(
-                              'خطأ في تحميل البيانات: ${state.message}',
-                              isError: true);
-                        } else if (state is PropertyUpdated) {
-                          _showSnackBar('تم حفظ التغييرات بنجاح');
-                          _navigateBack();
-                        } else if (state is PropertyDeleted) {
-                          _showSnackBar('تم حذف العقار بنجاح');
-                          _navigateBack();
-                        } else if (state is PropertiesError) {
-                          _showSnackBar('خطأ: ${state.message}', isError: true);
-                        }
-                      },
+          backgroundColor: AppTheme.darkBackground,
+          body: Stack(
+            children: [
+              _buildAnimatedBackground(),
+              SafeArea(
+                child: Column(
+                  children: [
+                    _buildHeader(),
+                    _buildProgressIndicator(),
+                    Expanded(
+                      child: BlocConsumer<PropertiesBloc, PropertiesState>(
+                        listenWhen: (previous, current) {
+                          return !_isNavigating;
+                        },
+                        listener: (context, state) {
+                          if (state is PropertyDetailsLoaded) {
+                            _loadPropertyDataToForm(state.property);
+                          } else if (state is PropertyDetailsError) {
+                            _showSnackBar(
+                                'خطأ في تحميل البيانات: ${state.message}',
+                                isError: true);
+                          } else if (state is PropertyUpdated) {
+                            _showSnackBar('تم حفظ التغييرات بنجاح');
+                            _navigateBack();
+                          } else if (state is PropertyDeleted) {
+                            _showSnackBar('تم حذف العقار بنجاح');
+                            _navigateBack();
+                          } else if (state is PropertiesError) {
+                            _showSnackBar('خطأ: ${state.message}',
+                                isError: true);
+                          }
+                        },
+                        builder: (context, state) {
+                          if (state is PropertyDetailsLoading) {
+                            return _buildLoadingState();
+                          } else if (state is PropertyDetailsError) {
+                            return _buildErrorState(state.message);
+                          } else if (state is PropertyDetailsLoaded) {
+                            return FadeTransition(
+                              opacity: _fadeAnimation,
+                              child: SlideTransition(
+                                position: _slideAnimation,
+                                child: _buildFormContent(),
+                              ),
+                            );
+                          } else if (state is PropertyUpdating) {
+                            return _buildUpdatingState();
+                          } else {
+                            return _buildLoadingState();
+                          }
+                        },
+                      ),
+                    ),
+                    BlocBuilder<PropertiesBloc, PropertiesState>(
                       builder: (context, state) {
-                        if (state is PropertyDetailsLoading) {
-                          return _buildLoadingState();
-                        } else if (state is PropertyDetailsError) {
-                          return _buildErrorState(state.message);
-                        } else if (state is PropertyDetailsLoaded) {
-                return FadeTransition(
-                            opacity: _fadeAnimation,
-                            child: SlideTransition(
-                              position: _slideAnimation,
-                    child: _buildFormContent(),
-                            ),
-                          );
-                        } else if (state is PropertyUpdating) {
-                          return _buildUpdatingState();
-                        } else {
-                          return _buildLoadingState();
+                        if (state is PropertyDetailsLoaded ||
+                            state is PropertyUpdating) {
+                          return _buildActionButtons(state is PropertyUpdating);
                         }
+                        return const SizedBox.shrink();
                       },
                     ),
-                  ),
-                  BlocBuilder<PropertiesBloc, PropertiesState>(
-                    builder: (context, state) {
-                      if (state is PropertyDetailsLoaded ||
-                          state is PropertyUpdating) {
-                        return _buildActionButtons(state is PropertyUpdating);
-                      }
-                      return const SizedBox.shrink();
-                    },
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          ],
-        ),
+            ],
+          ),
         ),
       ),
     );
@@ -755,7 +755,6 @@ class _EditPropertyPageContentState extends State<_EditPropertyPageContent>
               {'label': 'عدد المرافق', 'value': '${_selectedAmenities.length}'},
             ],
           ),
-
           const SizedBox(height: 20),
           if (_hasChanges) ...[
             Text(
@@ -1485,7 +1484,9 @@ class _EditPropertyPageContentState extends State<_EditPropertyPageContent>
                       : Text(
                           _currentStep < 3
                               ? 'التالي'
-                              : (_hasChanges ? 'حفظ التغييرات' : 'لا توجد تغييرات'),
+                              : (_hasChanges
+                                  ? 'حفظ التغييرات'
+                                  : 'لا توجد تغييرات'),
                           style: AppTextStyles.buttonMedium.copyWith(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
@@ -1649,9 +1650,11 @@ class _EditPropertyPageContentState extends State<_EditPropertyPageContent>
             AppTheme.darkCard.withOpacity(0.3),
           ]),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppTheme.darkBorder.withOpacity(0.3), width: 1),
+          border:
+              Border.all(color: AppTheme.darkBorder.withOpacity(0.3), width: 1),
         ),
-        child: Text('لا توجد تغييرات', style: AppTextStyles.bodySmall.copyWith(color: AppTheme.textMuted)),
+        child: Text('لا توجد تغييرات',
+            style: AppTextStyles.bodySmall.copyWith(color: AppTheme.textMuted)),
       );
     }
 
@@ -1663,14 +1666,16 @@ class _EditPropertyPageContentState extends State<_EditPropertyPageContent>
           AppTheme.darkCard.withOpacity(0.3),
         ]),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.primaryBlue.withOpacity(0.3), width: 1),
+        border:
+            Border.all(color: AppTheme.primaryBlue.withOpacity(0.3), width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.track_changes_rounded, color: AppTheme.primaryBlue, size: 18),
+              Icon(Icons.track_changes_rounded,
+                  color: AppTheme.primaryBlue, size: 18),
               const SizedBox(width: 8),
               Text('ملخص التغييرات (${changes.length})',
                   style: AppTextStyles.bodyMedium.copyWith(
@@ -1686,21 +1691,25 @@ class _EditPropertyPageContentState extends State<_EditPropertyPageContent>
                   children: [
                     Expanded(
                       child: Text(c['label']!,
-                          style: AppTextStyles.bodySmall.copyWith(color: AppTheme.textMuted)),
+                          style: AppTextStyles.bodySmall
+                              .copyWith(color: AppTheme.textMuted)),
                     ),
                     Expanded(
                       child: Text(c['old']!,
                           textAlign: TextAlign.end,
-                          style: AppTextStyles.caption.copyWith(color: AppTheme.textMuted)),
+                          style: AppTextStyles.caption
+                              .copyWith(color: AppTheme.textMuted)),
                     ),
                     const SizedBox(width: 8),
-                    Icon(Icons.arrow_forward_rounded, size: 14, color: AppTheme.textMuted),
+                    Icon(Icons.arrow_forward_rounded,
+                        size: 14, color: AppTheme.textMuted),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(c['new']!,
                           textAlign: TextAlign.end,
                           style: AppTextStyles.bodySmall.copyWith(
-                              color: AppTheme.textWhite, fontWeight: FontWeight.w600)),
+                              color: AppTheme.textWhite,
+                              fontWeight: FontWeight.w600)),
                     ),
                   ],
                 ),
@@ -1717,23 +1726,41 @@ class _EditPropertyPageContentState extends State<_EditPropertyPageContent>
     if (_nameController.text != p.name) {
       list.add({'label': 'الاسم', 'old': p.name, 'new': _nameController.text});
     }
-    if (_selectedPropertyTypeId != null && _selectedPropertyTypeId != p.typeId) {
-      list.add({'label': 'نوع العقار', 'old': p.typeName, 'new': _selectedPropertyTypeId!});
+    if (_selectedPropertyTypeId != null &&
+        _selectedPropertyTypeId != p.typeId) {
+      list.add({
+        'label': 'نوع العقار',
+        'old': p.typeName,
+        'new': _selectedPropertyTypeId!
+      });
     }
     if (_currency != p.currency) {
       list.add({'label': 'العملة', 'old': p.currency, 'new': _currency});
     }
     if (_addressController.text != p.address) {
-      list.add({'label': 'العنوان', 'old': p.address, 'new': _addressController.text});
+      list.add({
+        'label': 'العنوان',
+        'old': p.address,
+        'new': _addressController.text
+      });
     }
     if (_cityController.text != p.city) {
-      list.add({'label': 'المدينة', 'old': p.city, 'new': _cityController.text});
+      list.add(
+          {'label': 'المدينة', 'old': p.city, 'new': _cityController.text});
     }
     if (_starRating != p.starRating) {
-      list.add({'label': 'التقييم', 'old': '${p.starRating}', 'new': '$(_starRating)'});
+      list.add({
+        'label': 'التقييم',
+        'old': '${p.starRating}',
+        'new': '$_starRating'
+      });
     }
     if (_descriptionController.text != p.description) {
-      list.add({'label': 'الوصف', 'old': p.description, 'new': _descriptionController.text});
+      list.add({
+        'label': 'الوصف',
+        'old': p.description,
+        'new': _descriptionController.text
+      });
     }
     final currentUrls = _selectedImages.map((e) => e.url).toList();
     if (!_listEquals(currentUrls, _originalImageUrls)) {
