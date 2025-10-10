@@ -32,7 +32,7 @@ class ReviewModel extends Review {
     super.bookingStatus,
     super.bookingSource,
   });
-  
+
   factory ReviewModel.fromJson(Map<String, dynamic> json) {
     return ReviewModel(
       id: json['id'] as String,
@@ -47,8 +47,9 @@ class ReviewModel extends Review {
       comment: json['comment'] as String,
       createdAt: DateTime.parse(json['createdAt'] as String),
       images: (json['images'] as List<dynamic>?)
-          ?.map((e) => ReviewImageModel.fromJson(e as Map<String, dynamic>))
-          .toList() ?? [],
+              ?.map((e) => ReviewImageModel.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          [],
       isApproved: json['isApproved'] as bool? ?? false,
       isPending: json['isPending'] as bool? ?? true,
       responseText: json['responseText'] as String?,
@@ -71,7 +72,7 @@ class ReviewModel extends Review {
       bookingSource: json['bookingSource'] as String?,
     );
   }
-  
+
   Map<String, dynamic> toJson() {
     return {
       'id': id,

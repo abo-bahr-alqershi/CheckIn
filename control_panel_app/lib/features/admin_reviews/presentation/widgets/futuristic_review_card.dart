@@ -362,7 +362,8 @@ class _FuturisticReviewCardState extends State<FuturisticReviewCard>
                                     children: [
                                       if (widget.review.isPending)
                                         (widget.isApproving
-                                            ? _buildLoadingPill(color: AppTheme.success)
+                                            ? _buildLoadingPill(
+                                                color: AppTheme.success)
                                             : _buildActionButton(
                                                 icon: Icons.check,
                                                 color: AppTheme.success,
