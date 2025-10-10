@@ -152,6 +152,8 @@ class PropertiesBloc extends Bloc<PropertiesEvent, PropertiesState> {
         shortDescription: event.shortDescription,
         currency: event.currency,
         isFeatured: event.isFeatured,
+        ownerId: event.ownerId,
+        amenityIds: event.amenityIds,
       ),
     );
 

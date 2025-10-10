@@ -178,7 +178,8 @@ class _EditPropertyViewState extends State<_EditPropertyView>
 
       // Set property details
       _selectedPropertyTypeId = property.typeId;
-      _selectedOwner = property.owner;
+      // No owner object exists on Property entity; keep null until user selects
+      _selectedOwner = null;
       _starRating = property.starRating;
       _isFeatured = property.isFeatured;
       _currency = property.currency;
@@ -1116,9 +1117,10 @@ class _EditPropertyViewState extends State<_EditPropertyView>
               {
                 'label': 'المالك',
                 'value': _selectedOwner?.name ??
-                    _originalProperty?.owner?.name ??
-                    'غير محدد',
-                'changed': _selectedOwner?.id != _originalProperty?.owner?.id
+                    (_originalProperty?.ownerName ?? 'غير محدد'),
+                'changed': _selectedOwner != null &&
+                    _originalProperty?.ownerId != null &&
+                    _selectedOwner!.id != _originalProperty!.ownerId
               },
               {
                 'label': 'التقييم',
@@ -1498,7 +1500,9 @@ class _EditPropertyViewState extends State<_EditPropertyView>
   }
 
   Widget _buildOwnerSelector() {
-    final hasChanged = _selectedOwner?.id != _originalProperty?.owner?.id;
+    final hasChanged = _selectedOwner != null &&
+        _originalProperty?.ownerId != null &&
+        _selectedOwner!.id != _originalProperty!.ownerId;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1558,20 +1562,20 @@ class _EditPropertyViewState extends State<_EditPropertyView>
                     children: [
                       Text(
                         _selectedOwner?.name ??
-                            _originalProperty?.owner?.name ??
-                            'اختر مالك العقار',
+                            (_originalProperty?.ownerName ?? 'اختر مالك العقار'),
                         style: AppTextStyles.bodyMedium.copyWith(
                           color: (_selectedOwner == null &&
-                                  _originalProperty?.owner == null)
+                                  (_originalProperty?.ownerName == null ||
+                                      _originalProperty!.ownerName.isEmpty))
                               ? AppTheme.textMuted.withOpacity(0.5)
                               : AppTheme.textWhite,
                         ),
                         overflow: TextOverflow.ellipsis,
                       ),
-                      if (hasChanged && _originalProperty?.owner != null) ...[
+                      if (hasChanged) ...[
                         const SizedBox(height: 4),
                         Text(
-                          'الأصل: ${_originalProperty!.owner!.name}',
+                          'الأصل: ${_originalProperty!.ownerName}',
                           style: AppTextStyles.caption.copyWith(
                             color: AppTheme.textMuted,
                           ),
@@ -2123,7 +2127,8 @@ class _EditPropertyViewState extends State<_EditPropertyView>
             _starRating != _originalProperty!.starRating ||
             _isFeatured != _originalProperty!.isFeatured ||
             _currency != _originalProperty!.currency ||
-            _selectedOwner?.id != _originalProperty!.owner?.id;
+        (_selectedOwner != null &&
+            _selectedOwner!.id != _originalProperty!.ownerId);
 
     // التحقق من تغييرات الصور
     final imagesChanged = _imagesChanged ||
@@ -2149,7 +2154,8 @@ class _EditPropertyViewState extends State<_EditPropertyView>
             _starRating != _originalProperty!.starRating ||
             _isFeatured != _originalProperty!.isFeatured ||
             _currency != _originalProperty!.currency ||
-            _selectedOwner?.id != _originalProperty!.owner?.id;
+            (_selectedOwner != null &&
+                _selectedOwner!.id != _originalProperty!.ownerId);
       case 1: // Location
         return _addressController.text != _originalProperty!.address ||
             _cityController.text != _originalProperty!.city ||
@@ -2177,11 +2183,14 @@ class _EditPropertyViewState extends State<_EditPropertyView>
       });
     }
 
-    if (_selectedOwner?.id != _originalProperty!.owner?.id) {
+    if (_selectedOwner != null &&
+        _selectedOwner!.id != _originalProperty!.ownerId) {
       changes.add({
         'field': 'المالك',
-        'oldValue': _originalProperty!.owner?.name ?? 'غير محدد',
-        'newValue': _selectedOwner?.name ?? 'غير محدد',
+        'oldValue': _originalProperty!.ownerName.isEmpty
+            ? 'غير محدد'
+            : _originalProperty!.ownerName,
+        'newValue': _selectedOwner!.name,
       });
     }
 
@@ -2313,7 +2322,8 @@ class _EditPropertyViewState extends State<_EditPropertyView>
             _longitudeController.text =
                 _originalProperty!.longitude?.toString() ?? '';
             _selectedPropertyTypeId = _originalProperty!.typeId;
-            _selectedOwner = _originalProperty!.owner;
+            // Reset selection; original owner shown from property fields
+            _selectedOwner = null;
             _starRating = _originalProperty!.starRating;
             _isFeatured = _originalProperty!.isFeatured;
             _currency = _originalProperty!.currency;
