@@ -33,6 +33,7 @@ using Microsoft.Extensions.Caching.Memory;
 using Microsoft.AspNetCore.Hosting;
 using System.IO;
 using YemenBooking.Infrastructure.Services;
+using Microsoft.Data.SqlClient;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -254,6 +255,67 @@ using (var scope = app.Services.CreateScope())
     {
         logger.LogError(ex, "Failed to migrate and seed database on startup");
         // لا نرمي الاستثناء لكي لا يمنع تشغيل التطبيق في بيئات التطوير
+    }
+}
+
+// Hardening: enforce NVARCHAR for Arabic text columns at startup (idempotent)
+using (var scope = app.Services.CreateScope())
+{
+    try
+    {
+        var configuration = scope.ServiceProvider.GetRequiredService<IConfiguration>();
+        var connStr = configuration.GetConnectionString("DefaultConnection");
+        using var sql = new SqlConnection(connStr);
+        await sql.OpenAsync();
+
+        var alterSql = @"
+IF EXISTS (SELECT 1 FROM sys.columns WHERE Name = 'Comment' AND Object_ID = OBJECT_ID('dbo.Reviews'))
+BEGIN
+    IF EXISTS (SELECT 1 FROM sys.types t JOIN sys.columns c ON c.user_type_id = t.user_type_id WHERE c.object_id = OBJECT_ID('dbo.Reviews') AND c.name = 'Comment' AND t.name <> 'nvarchar')
+    BEGIN
+        ALTER TABLE dbo.Reviews ALTER COLUMN Comment NVARCHAR(MAX) NULL;
+    END
+END
+
+IF EXISTS (SELECT 1 FROM sys.columns WHERE Name = 'Text' AND Object_ID = OBJECT_ID('dbo.ReviewResponses'))
+BEGIN
+    IF EXISTS (SELECT 1 FROM sys.types t JOIN sys.columns c ON c.user_type_id = t.user_type_id WHERE c.object_id = OBJECT_ID('dbo.ReviewResponses') AND c.name = 'Text' AND t.name <> 'nvarchar')
+    BEGIN
+        ALTER TABLE dbo.ReviewResponses ALTER COLUMN [Text] NVARCHAR(MAX) NOT NULL;
+    END
+END
+
+IF EXISTS (SELECT 1 FROM sys.columns WHERE Name = 'Notes' AND Object_ID = OBJECT_ID('dbo.AuditLogs'))
+BEGIN
+    IF EXISTS (SELECT 1 FROM sys.types t JOIN sys.columns c ON c.user_type_id = t.user_type_id WHERE c.object_id = OBJECT_ID('dbo.AuditLogs') AND c.name = 'Notes' AND t.name <> 'nvarchar')
+    BEGIN
+        ALTER TABLE dbo.AuditLogs ALTER COLUMN Notes NVARCHAR(MAX) NULL;
+    END
+END
+
+IF EXISTS (SELECT 1 FROM sys.columns WHERE Name = 'OldValues' AND Object_ID = OBJECT_ID('dbo.AuditLogs'))
+BEGIN
+    IF EXISTS (SELECT 1 FROM sys.types t JOIN sys.columns c ON c.user_type_id = t.user_type_id WHERE c.object_id = OBJECT_ID('dbo.AuditLogs') AND c.name = 'OldValues' AND t.name <> 'nvarchar')
+    BEGIN
+        ALTER TABLE dbo.AuditLogs ALTER COLUMN OldValues NVARCHAR(MAX) NULL;
+    END
+END
+
+IF EXISTS (SELECT 1 FROM sys.columns WHERE Name = 'NewValues' AND Object_ID = OBJECT_ID('dbo.AuditLogs'))
+BEGIN
+    IF EXISTS (SELECT 1 FROM sys.types t JOIN sys.columns c ON c.user_type_id = t.user_type_id WHERE c.object_id = OBJECT_ID('dbo.AuditLogs') AND c.name = 'NewValues' AND t.name <> 'nvarchar')
+    BEGIN
+        ALTER TABLE dbo.AuditLogs ALTER COLUMN NewValues NVARCHAR(MAX) NULL;
+    END
+END
+";
+
+        using var cmd = new SqlCommand(alterSql, sql);
+        await cmd.ExecuteNonQueryAsync();
+    }
+    catch (Exception ex)
+    {
+        app.Logger.LogError(ex, "Failed to enforce NVARCHAR columns at startup. Columns may already be correct.");
     }
 }
 
