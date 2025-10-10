@@ -42,6 +42,12 @@ class _ReviewDetailsPageState extends State<ReviewDetailsPage>
   bool _showFloatingHeader = false;
   bool _isApproving = false;
 
+  TextDirection _getTextDirection(String? text) {
+    if (text == null || text.trim().isEmpty) return TextDirection.ltr;
+    final arabicRegex = RegExp(r'[\u0600-\u06FF]');
+    return arabicRegex.hasMatch(text) ? TextDirection.rtl : TextDirection.ltr;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -602,11 +608,13 @@ class _ReviewDetailsPageState extends State<ReviewDetailsPage>
             ],
           ),
           const SizedBox(height: 16),
-          Text(
+          SelectableText(
             review.comment,
+            textDirection: _getTextDirection(review.comment),
             style: AppTextStyles.bodyMedium.copyWith(
               height: 1.6,
               color: AppTheme.textLight,
+              fontFamilyFallback: const ['Amiri','Noto Naskh Arabic','Roboto'],
             ),
           ),
         ],
