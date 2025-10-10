@@ -4,7 +4,7 @@ import 'app_colors.dart';
 
 class AppTextStyles {
   AppTextStyles._();
-  
+
   // 🚀 Display Styles (للعناوين الكبيرة)
   static const TextStyle displayLarge = TextStyle(
     fontSize: 48,
@@ -13,7 +13,7 @@ class AppTextStyles {
     letterSpacing: -1.5,
     fontFamily: 'SF Pro Display',
   );
-  
+
   static const TextStyle displayMedium = TextStyle(
     fontSize: 36,
     fontWeight: FontWeight.w700,
@@ -21,7 +21,7 @@ class AppTextStyles {
     letterSpacing: -1.0,
     fontFamily: 'SF Pro Display',
   );
-  
+
   static const TextStyle displaySmall = TextStyle(
     fontSize: 28,
     fontWeight: FontWeight.w600,
@@ -29,7 +29,7 @@ class AppTextStyles {
     letterSpacing: -0.5,
     fontFamily: 'SF Pro Display',
   );
-  
+
   // 📝 Heading Styles
   static const TextStyle heading1 = TextStyle(
     fontSize: 24,
@@ -38,7 +38,7 @@ class AppTextStyles {
     letterSpacing: -0.3,
     fontFamily: 'SF Pro Display',
   );
-  
+
   static const TextStyle heading2 = TextStyle(
     fontSize: 20,
     fontWeight: FontWeight.w600,
@@ -46,7 +46,7 @@ class AppTextStyles {
     letterSpacing: -0.2,
     fontFamily: 'SF Pro Display',
   );
-  
+
   static const TextStyle heading3 = TextStyle(
     fontSize: 18,
     fontWeight: FontWeight.w600,
@@ -54,7 +54,7 @@ class AppTextStyles {
     letterSpacing: 0,
     fontFamily: 'SF Pro Text',
   );
-  
+
   // 📖 Body Styles
   static const TextStyle bodyLarge = TextStyle(
     fontSize: 16,
@@ -63,7 +63,7 @@ class AppTextStyles {
     letterSpacing: 0.15,
     fontFamily: 'SF Pro Text',
   );
-  
+
   static const TextStyle bodyMedium = TextStyle(
     fontSize: 14,
     fontWeight: FontWeight.w400,
@@ -71,7 +71,7 @@ class AppTextStyles {
     letterSpacing: 0.1,
     fontFamily: 'SF Pro Text',
   );
-  
+
   static const TextStyle bodySmall = TextStyle(
     fontSize: 12,
     fontWeight: FontWeight.w400,
@@ -79,7 +79,7 @@ class AppTextStyles {
     letterSpacing: 0.1,
     fontFamily: 'SF Pro Text',
   );
-  
+
   // 🔘 Button & Label Styles
   static const TextStyle buttonLarge = TextStyle(
     fontSize: 16,
@@ -88,7 +88,7 @@ class AppTextStyles {
     letterSpacing: 0.5,
     fontFamily: 'SF Pro Text',
   );
-  
+
   static const TextStyle buttonMedium = TextStyle(
     fontSize: 14,
     fontWeight: FontWeight.w600,
@@ -96,7 +96,7 @@ class AppTextStyles {
     letterSpacing: 0.4,
     fontFamily: 'SF Pro Text',
   );
-  
+
   static const TextStyle buttonSmall = TextStyle(
     fontSize: 12,
     fontWeight: FontWeight.w600,
@@ -104,7 +104,7 @@ class AppTextStyles {
     letterSpacing: 0.3,
     fontFamily: 'SF Pro Text',
   );
-  
+
   // 🏷️ Caption & Helper Styles
   static const TextStyle caption = TextStyle(
     fontSize: 11,
@@ -113,7 +113,7 @@ class AppTextStyles {
     letterSpacing: 0.2,
     fontFamily: 'SF Pro Text',
   );
-  
+
   static const TextStyle overline = TextStyle(
     fontSize: 10,
     fontWeight: FontWeight.w600,
@@ -121,7 +121,7 @@ class AppTextStyles {
     letterSpacing: 1.0,
     fontFamily: 'SF Pro Text',
   );
-  
+
   // ⭐ Rating text style used in rating badges
   static const TextStyle rating = TextStyle(
     fontSize: 12,
@@ -130,7 +130,7 @@ class AppTextStyles {
     letterSpacing: 0.3,
     fontFamily: 'SF Pro Text',
   );
-  
+
   // ✨ Special Gradient Text Style Helper
   static TextStyle gradientText({
     required double fontSize,
@@ -147,7 +147,7 @@ class AppTextStyles {
         ),
     );
   }
-  
+
   // 💫 Neon Text Style Helper
   static TextStyle neonText({
     required double fontSize,
@@ -176,7 +176,7 @@ class AppTextStyles {
       ],
     );
   }
-  
+
   // 🌟 Glass Text Style Helper
   static TextStyle glassText({
     required double fontSize,

@@ -194,6 +194,14 @@ class _AuditLogDetailsDialogState extends State<AuditLogDetailsDialog>
     );
   }
 
+  TextDirection _getTextDirection(String? text) {
+    if (text == null || text.trim().isEmpty) {
+      return TextDirection.ltr;
+    }
+    final arabicRegex = RegExp(r'[\u0600-\u06FF]');
+    return arabicRegex.hasMatch(text) ? TextDirection.rtl : TextDirection.ltr;
+  }
+
   Widget _buildHeader(bool isCompact) {
     return Container(
       padding: EdgeInsets.all(isCompact ? 16 : 20),
@@ -380,9 +388,15 @@ class _AuditLogDetailsDialogState extends State<AuditLogDetailsDialog>
             ),
             child: SelectableText(
               widget.auditLog.changes,
+              textDirection: _getTextDirection(widget.auditLog.changes),
               style: AppTextStyles.bodyMedium.copyWith(
                 color: AppTheme.textLight,
-                fontFamily: 'monospace',
+                fontFamilyFallback: const [
+                  'Amiri',
+                  'Noto Naskh Arabic',
+                  'Roboto'
+                ],
+                fontFeatures: const [],
                 fontSize: isCompact ? 12 : 14,
               ),
             ),
@@ -513,9 +527,14 @@ class _AuditLogDetailsDialogState extends State<AuditLogDetailsDialog>
                 flex: 2,
                 child: Text(
                   '${entry.key}:',
+                  textDirection: _getTextDirection(entry.key),
                   style: AppTextStyles.caption.copyWith(
                     color: AppTheme.primaryPurple,
-                    fontFamily: 'monospace',
+                    fontFamilyFallback: const [
+                      'Amiri',
+                      'Noto Naskh Arabic',
+                      'Roboto'
+                    ],
                     fontSize: isCompact ? 11 : 12,
                   ),
                 ),
@@ -525,9 +544,14 @@ class _AuditLogDetailsDialogState extends State<AuditLogDetailsDialog>
                 flex: 3,
                 child: SelectableText(
                   entry.value?.toString() ?? 'null',
+                  textDirection: _getTextDirection(entry.value?.toString()),
                   style: AppTextStyles.caption.copyWith(
                     color: AppTheme.textLight,
-                    fontFamily: 'monospace',
+                    fontFamilyFallback: const [
+                      'Amiri',
+                      'Noto Naskh Arabic',
+                      'Roboto'
+                    ],
                     fontSize: isCompact ? 11 : 12,
                   ),
                 ),
@@ -569,9 +593,15 @@ class _AuditLogDetailsDialogState extends State<AuditLogDetailsDialog>
               Expanded(
                 child: SelectableText(
                   value,
+                  textDirection: _getTextDirection(value),
                   style: AppTextStyles.bodyMedium.copyWith(
                     color: AppTheme.textWhite,
                     fontWeight: FontWeight.w500,
+                    fontFamilyFallback: const [
+                      'Amiri',
+                      'Noto Naskh Arabic',
+                      'Roboto'
+                    ],
                     fontSize: isCompact ? 12 : 14,
                   ),
                 ),
