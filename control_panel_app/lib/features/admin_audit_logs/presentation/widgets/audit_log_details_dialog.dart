@@ -422,8 +422,14 @@ class _AuditLogDetailsDialogState extends State<AuditLogDetailsDialog>
             const SizedBox(height: 6),
             Text(
               widget.auditLog.notes,
+              textDirection: _getTextDirection(widget.auditLog.notes),
               style: AppTextStyles.bodyMedium.copyWith(
                 color: AppTheme.textLight,
+                fontFamilyFallback: const [
+                  'Amiri',
+                  'Noto Naskh Arabic',
+                  'Roboto'
+                ],
               ),
             ),
           ],

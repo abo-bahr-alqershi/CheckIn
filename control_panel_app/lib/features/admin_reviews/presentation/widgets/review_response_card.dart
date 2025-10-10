@@ -243,9 +243,11 @@ class _ReviewResponseCardState extends State<ReviewResponseCard>
                         // معاينة نص الرد
                         Text(
                           widget.response.responseText,
+                          textDirection: _getTextDirection(widget.response.responseText),
                           style: AppTextStyles.bodySmall.copyWith(
                             height: 1.5,
                             color: AppTheme.textLight,
+                            fontFamilyFallback: const ['Amiri', 'Noto Naskh Arabic', 'Roboto'],
                           ),
                           maxLines: _isExpanded ? null : 2,
                           overflow: _isExpanded
@@ -524,5 +526,11 @@ class _ReviewResponseCardState extends State<ReviewResponseCard>
     final minute = date.minute.toString().padLeft(2, '0');
 
     return '${date.day} ${months[date.month - 1]}، ${date.year} الساعة $hour:$minute';
+  }
+
+  TextDirection _getTextDirection(String? text) {
+    if (text == null || text.trim().isEmpty) return TextDirection.ltr;
+    final arabicRegex = RegExp(r'[\u0600-\u06FF]');
+    return arabicRegex.hasMatch(text) ? TextDirection.rtl : TextDirection.ltr;
   }
 }

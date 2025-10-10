@@ -179,6 +179,12 @@ class _ReviewDetailsPageState extends State<ReviewDetailsPage>
     );
   }
 
+  TextDirection _getTextDirection(String? text) {
+    if (text == null || text.trim().isEmpty) return TextDirection.ltr;
+    final arabicRegex = RegExp(r'[\u0600-\u06FF]');
+    return arabicRegex.hasMatch(text) ? TextDirection.rtl : TextDirection.ltr;
+  }
+
   Widget _buildAnimatedBackground() {
     return Stack(
       children: [
@@ -604,9 +610,11 @@ class _ReviewDetailsPageState extends State<ReviewDetailsPage>
           const SizedBox(height: 16),
           Text(
             review.comment,
+            textDirection: _getTextDirection(review.comment),
             style: AppTextStyles.bodyMedium.copyWith(
               height: 1.6,
               color: AppTheme.textLight,
+              fontFamilyFallback: const ['Amiri', 'Noto Naskh Arabic', 'Roboto'],
             ),
           ),
         ],

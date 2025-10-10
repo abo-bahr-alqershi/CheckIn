@@ -130,6 +130,14 @@ flutter:
     - assets/fonts/Amiri-Regular.ttf
     - assets/fonts/Amiri-Bold.ttf
 
+  fonts:
+    - family: Amiri
+      fonts:
+        - asset: assets/fonts/Amiri-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Amiri-Bold.ttf
+          weight: 700
+
   # أضف الصور الافتراضية في مجلد assets/images/:
   # - default_property.jpg
   # - default_avatar.png

@@ -239,9 +239,11 @@ class _FuturisticReviewCardState extends State<FuturisticReviewCard>
                               // عرض كامل للتعليق
                               Text(
                                 widget.review.comment,
+                                textDirection: _getTextDirection(widget.review.comment),
                                 style: AppTextStyles.bodySmall.copyWith(
                                   height: 1.5,
                                   color: AppTheme.textLight,
+                                  fontFamilyFallback: const ['Amiri', 'Noto Naskh Arabic', 'Roboto'],
                                 ),
                                 softWrap: true,
                               ),
@@ -482,5 +484,11 @@ class _FuturisticReviewCardState extends State<FuturisticReviewCard>
     } else {
       return '${date.day}/${date.month}/${date.year}';
     }
+  }
+
+  TextDirection _getTextDirection(String? text) {
+    if (text == null || text.trim().isEmpty) return TextDirection.ltr;
+    final arabicRegex = RegExp(r'[\u0600-\u06FF]');
+    return arabicRegex.hasMatch(text) ? TextDirection.rtl : TextDirection.ltr;
   }
 }
