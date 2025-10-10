@@ -513,6 +513,7 @@ class _EditPropertyPageContentState extends State<_EditPropertyPageContent>
               }
               return null;
             },
+            onChanged: (_) => setState(() => _hasChanges = _checkForChanges()),
           ),
           const SizedBox(height: 20),
           _buildPropertyTypeDropdown(),
@@ -534,6 +535,7 @@ class _EditPropertyPageContentState extends State<_EditPropertyPageContent>
             controller: _shortDescriptionController,
             label: 'وصف مختصر',
             icon: Icons.short_text_rounded,
+            onChanged: (_) => setState(() => _hasChanges = _checkForChanges()),
           ),
           const SizedBox(height: 20),
           _buildInputField(
@@ -547,6 +549,7 @@ class _EditPropertyPageContentState extends State<_EditPropertyPageContent>
               }
               return null;
             },
+            onChanged: (_) => setState(() => _hasChanges = _checkForChanges()),
           ),
         ],
       ),
@@ -897,6 +900,7 @@ class _EditPropertyPageContentState extends State<_EditPropertyPageContent>
     TextInputType keyboardType = TextInputType.text,
     int maxLines = 1,
     String? Function(String?)? validator,
+    Function(String)? onChanged,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -945,6 +949,7 @@ class _EditPropertyPageContentState extends State<_EditPropertyPageContent>
                 color: AppTheme.error,
               ),
             ),
+            onChanged: onChanged,
           ),
         ),
       ],
