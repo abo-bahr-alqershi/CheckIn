@@ -27,23 +27,23 @@ public class AuditLogConfiguration : IEntityTypeConfiguration<AuditLog>
         builder.Property(a => a.DeletedAt).HasColumnType("datetime");
 
         // Properties
-        builder.Property(a => a.EntityType).IsRequired().HasMaxLength(100);
+        builder.Property(a => a.EntityType).IsRequired().IsUnicode(true).HasMaxLength(100);
         builder.Property(a => a.EntityId);
         builder.Property(a => a.Action).IsRequired();
-        builder.Property(a => a.OldValues).HasColumnType("NVARCHAR(MAX)");
-        builder.Property(a => a.NewValues).HasColumnType("NVARCHAR(MAX)");
+        builder.Property(a => a.OldValues).IsUnicode(true).HasColumnType("NVARCHAR(MAX)");
+        builder.Property(a => a.NewValues).IsUnicode(true).HasColumnType("NVARCHAR(MAX)");
         builder.Property(a => a.PerformedBy);
-        builder.Property(a => a.Username).HasMaxLength(100);
-        builder.Property(a => a.IpAddress).HasMaxLength(50);
-        builder.Property(a => a.UserAgent).HasMaxLength(255);
-        builder.Property(a => a.Notes).HasColumnType("NVARCHAR(MAX)");
-        builder.Property(a => a.Metadata).HasColumnType("NVARCHAR(MAX)");
+        builder.Property(a => a.Username).IsUnicode(true).HasMaxLength(100);
+        builder.Property(a => a.IpAddress).IsUnicode(true).HasMaxLength(50);
+        builder.Property(a => a.UserAgent).IsUnicode(true).HasMaxLength(255);
+        builder.Property(a => a.Notes).IsUnicode(true).HasColumnType("NVARCHAR(MAX)");
+        builder.Property(a => a.Metadata).IsUnicode(true).HasColumnType("NVARCHAR(MAX)");
         builder.Property(a => a.IsSuccessful).HasDefaultValue(true);
         builder.Property(a => a.ErrorMessage).HasMaxLength(500);
         builder.Property(a => a.DurationMs);
-        builder.Property(a => a.SessionId).HasMaxLength(100);
-        builder.Property(a => a.RequestId).HasMaxLength(100);
-        builder.Property(a => a.Source).HasMaxLength(100);
+        builder.Property(a => a.SessionId).IsUnicode(true).HasMaxLength(100);
+        builder.Property(a => a.RequestId).IsUnicode(true).HasMaxLength(100);
+        builder.Property(a => a.Source).IsUnicode(true).HasMaxLength(100);
 
         // Relationships
         builder.HasOne(a => a.PerformedByUser)

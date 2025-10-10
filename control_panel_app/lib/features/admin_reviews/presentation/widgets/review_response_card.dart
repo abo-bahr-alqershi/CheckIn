@@ -28,6 +28,12 @@ class _ReviewResponseCardState extends State<ReviewResponseCard>
   bool _isExpanded = false;
   bool _isHovered = false;
 
+  TextDirection _getTextDirection(String? text) {
+    if (text == null || text.trim().isEmpty) return TextDirection.ltr;
+    final arabicRegex = RegExp(r'[\u0600-\u06FF]');
+    return arabicRegex.hasMatch(text) ? TextDirection.rtl : TextDirection.ltr;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -241,16 +247,16 @@ class _ReviewResponseCardState extends State<ReviewResponseCard>
                         const SizedBox(height: 12),
 
                         // معاينة نص الرد
-                        Text(
+                        SelectableText(
                           widget.response.responseText,
+                          textDirection: _getTextDirection(widget.response.responseText),
                           style: AppTextStyles.bodySmall.copyWith(
                             height: 1.5,
                             color: AppTheme.textLight,
+                            fontFamilyFallback: const ['Amiri','Noto Naskh Arabic','Roboto'],
                           ),
                           maxLines: _isExpanded ? null : 2,
-                          overflow: _isExpanded
-                              ? TextOverflow.visible
-                              : TextOverflow.ellipsis,
+                          onTap: () {},
                         ),
                       ],
                     ),

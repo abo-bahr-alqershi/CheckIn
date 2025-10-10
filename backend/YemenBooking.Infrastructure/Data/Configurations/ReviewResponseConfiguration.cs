@@ -18,6 +18,7 @@ public class ReviewResponseConfiguration : IEntityTypeConfiguration<ReviewRespon
 
         builder.Property(r => r.Text)
             .IsRequired()
+            .IsUnicode(true)
             .HasColumnType("NVARCHAR(MAX)")
             .HasComment("نص الرد على التقييم");
 
