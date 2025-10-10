@@ -268,6 +268,7 @@ class _CreatePropertyViewState extends State<_CreatePropertyView>
   String _currency = 'YER';
   String? _selectedCity;
   final _shortDescriptionController = TextEditingController();
+  bool _hasChanges = false;
   
   // Track if widget is mounted
   bool _isDisposed = false;
@@ -635,6 +636,7 @@ class _CreatePropertyViewState extends State<_CreatePropertyView>
               }
               return null;
             },
+            onChanged: (_) => _safeSetState(() => _hasChanges = true),
           ),
           
           const SizedBox(height: 20),
@@ -673,6 +675,7 @@ class _CreatePropertyViewState extends State<_CreatePropertyView>
               }
               return null;
             },
+            onChanged: (_) => _safeSetState(() => _hasChanges = true),
           ),
           
           const SizedBox(height: 20),
@@ -707,6 +710,7 @@ class _CreatePropertyViewState extends State<_CreatePropertyView>
               }
               return null;
             },
+            onChanged: (_) => _safeSetState(() => _hasChanges = true),
           ),
           const SizedBox(height: 20),
           _buildInputField(
@@ -714,6 +718,7 @@ class _CreatePropertyViewState extends State<_CreatePropertyView>
             label: 'وصف مختصر',
             hint: 'نص مختصر يظهر في القوائم',
             icon: Icons.short_text_rounded,
+            onChanged: (_) => _safeSetState(() => _hasChanges = true),
           ),
         ],
       ),
@@ -1452,7 +1457,7 @@ class _CreatePropertyViewState extends State<_CreatePropertyView>
                         );
                       }
                       return Text(
-                        _currentStep < 3 ? 'التالي' : 'إضافة العقار',
+                        _currentStep < 3 ? 'التالي' : (_hasChanges ? 'إضافة العقار' : 'لا توجد تغييرات'),
                         style: AppTextStyles.buttonMedium.copyWith(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
