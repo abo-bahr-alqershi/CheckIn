@@ -406,7 +406,7 @@ class _AuditLogDetailsDialogState extends State<AuditLogDetailsDialog>
               ],
             ),
             const SizedBox(height: 6),
-            Text(
+            SelectableText(
               widget.auditLog.notes,
               style: AppTextStyles.bodyMedium.copyWith(
                 color: AppTheme.textLight,
