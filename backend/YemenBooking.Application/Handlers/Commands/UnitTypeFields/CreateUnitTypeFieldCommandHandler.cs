@@ -166,7 +166,7 @@ public class CreateUnitTypeFieldCommandHandler : IRequestHandler<CreateUnitTypeF
                     createdField.Category
                 }),
                 performedBy: _currentUserService.UserId,
-                notes: $"تم إنشاء حقل جديد: {createdField.FieldName} لنوع الوحدة: {createdField.UnitTypeId}",
+                notes: $"تم إنشاء حقل جديد: {createdField.FieldName} لنوع الوحدة: {createdField.UnitTypeId} بواسطة {_currentUserService.Username} (ID={_currentUserService.UserId})",
                 cancellationToken: cancellationToken);
 
             // الخطوة 8: نشر الحدث

@@ -67,14 +67,15 @@ namespace YemenBooking.Application.Handlers.Commands.Properties
                 return ResultDto<bool>.Failed("فشل رفض الكيان");
 
             // تسجيل العملية في سجل التدقيق
-            await _auditService.LogBusinessOperationAsync(
-                "RejectProperty",
-                $"تم رفض الكيان {request.PropertyId} لسبب: {request.Reason}",
-                request.PropertyId,
-                "Property",
-                _currentUserService.UserId,
-                new Dictionary<string, object> { { "Reason", request.Reason } },
-                cancellationToken);
+            await _auditService.LogAuditAsync(
+                entityType: "Property",
+                entityId: request.PropertyId,
+                action: YemenBooking.Core.Entities.AuditAction.REJECT,
+                oldValues: null,
+                newValues: System.Text.Json.JsonSerializer.Serialize(new { Rejected = true, Reason = request.Reason }),
+                performedBy: _currentUserService.UserId,
+                notes: $"تم رفض الكيان {request.PropertyId} لسبب: {request.Reason} بواسطة {_currentUserService.Username} (ID={_currentUserService.UserId})",
+                cancellationToken: cancellationToken);
 
             // إرسال إشعار للمالك
             await _notificationService.SendAsync(new NotificationRequest

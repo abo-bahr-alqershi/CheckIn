@@ -219,7 +219,7 @@ namespace YemenBooking.Application.Handlers.Commands.Units
                     oldValues: JsonSerializer.Serialize(oldValues),
                     newValues: JsonSerializer.Serialize(newValues),
                     performedBy: _currentUserService.UserId,
-                    notes: $"تم تحديث بيانات الوحدة {request.UnitId} مع قيم الحقول الديناميكية",
+                    notes: $"تم تحديث بيانات الوحدة {request.UnitId} مع قيم الحقول الديناميكية بواسطة {_currentUserService.Username} (ID={_currentUserService.UserId})",
                     cancellationToken: cancellationToken);
 
                 _logger.LogInformation("اكتمل تحديث بيانات الوحدة بنجاح: UnitId={UnitId}", request.UnitId);

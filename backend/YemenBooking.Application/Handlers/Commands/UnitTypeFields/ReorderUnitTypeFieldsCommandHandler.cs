@@ -76,14 +76,15 @@ namespace YemenBooking.Application.Handlers.Commands.UnitTypeFields
                     await _fieldRepository.UpdateUnitTypeFieldAsync(field, cancellationToken);
                 }
 
-                await _auditService.LogActivityAsync(
-                    "UnitTypeField",
-                    unitTypeId.ToString(),
-                    "ReorderFields",
-                    $"تم إعادة ترتيب حقول نوع الوحدة {unitTypeId}",
-                    null,
-                    null,
-                    cancellationToken);
+                await _auditService.LogAuditAsync(
+                    entityType: "UnitTypeField",
+                    entityId: unitTypeId,
+                    action: YemenBooking.Core.Entities.AuditAction.UPDATE,
+                    oldValues: null,
+                    newValues: null,
+                    performedBy: _currentUserService.UserId,
+                    notes: $"تم إعادة ترتيب حقول نوع الوحدة {unitTypeId} بواسطة {_currentUserService.Username} (ID={_currentUserService.UserId})",
+                    cancellationToken: cancellationToken);
 
                 // await _eventPublisher.PublishEventAsync(new UnitTypeFieldsReorderedEvent
                 // {

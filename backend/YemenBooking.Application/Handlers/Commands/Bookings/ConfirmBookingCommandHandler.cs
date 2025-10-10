@@ -108,12 +108,15 @@ public class ConfirmBookingCommandHandler : IRequestHandler<ConfirmBookingComman
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             // تسجيل العملية في سجل التدقيق
-            await _auditService.LogAsync(
-                "ConfirmBooking",
-                booking.Id.ToString(),
-                "تم تأكيد الحجز",
-                _currentUserService.UserId,
-                cancellationToken);
+            await _auditService.LogAuditAsync(
+                entityType: nameof(Booking),
+                entityId: booking.Id,
+                action: YemenBooking.Core.Entities.AuditAction.APPROVE,
+                oldValues: null,
+                newValues: System.Text.Json.JsonSerializer.Serialize(new { Status = booking.Status.ToString() }),
+                performedBy: _currentUserService.UserId,
+                notes: $"تم تأكيد الحجز بواسطة {_currentUserService.Username} (ID={_currentUserService.UserId})",
+                cancellationToken: cancellationToken);
 
             // إرسال حدث تأكيد الحجز
             await _eventPublisher.PublishAsync(new BookingConfirmedEvent

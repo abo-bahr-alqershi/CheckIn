@@ -183,7 +183,7 @@ namespace YemenBooking.Application.Handlers.Commands.Units
                     oldValues: null,
                     newValues: JsonSerializer.Serialize(newValues),
                     performedBy: _currentUserService.UserId,
-                    notes: $"تم إنشاء وحدة جديدة {created.Id} باسم {created.Name} مع قيم الحقول الديناميكية",
+                    notes: $"تم إنشاء وحدة جديدة {created.Id} باسم {created.Name} مع قيم الحقول الديناميكية بواسطة {_currentUserService.Username} (ID={_currentUserService.UserId})",
                     cancellationToken: cancellationToken);
 
                 _logger.LogInformation("اكتمل إنشاء الوحدة بنجاح: UnitId={UnitId}", created.Id);
