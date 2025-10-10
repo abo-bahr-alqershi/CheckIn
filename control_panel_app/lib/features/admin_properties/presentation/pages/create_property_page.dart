@@ -12,7 +12,6 @@ import 'dart:ui';
 import 'dart:math' as math;
 import 'package:bookn_cp_app/core/theme/app_colors.dart';
 import 'package:bookn_cp_app/core/theme/app_text_styles.dart';
-import 'package:bookn_cp_app/core/theme/app_dimensions.dart';
 import '../bloc/properties/properties_bloc.dart';
 import '../bloc/property_types/property_types_bloc.dart';
 import '../bloc/amenities/amenities_bloc.dart';
@@ -29,211 +28,6 @@ import 'package:bookn_cp_app/features/admin_currencies/domain/usecases/get_curre
 import 'package:bookn_cp_app/features/admin_cities/domain/usecases/get_cities_usecase.dart'
     as ci_uc;
 
-class _CurrencyDropdown extends StatefulWidget {
-  final String value;
-  final ValueChanged<String> onChanged;
-  const _CurrencyDropdown({required this.value, required this.onChanged});
-
-  @override
-  State<_CurrencyDropdown> createState() => _CurrencyDropdownState();
-}
-
-class _CurrencyDropdownState extends State<_CurrencyDropdown> {
-  List<String> _codes = const [];
-  bool _loading = true;
-  String? _error;
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    final usecase = di.sl<GetCurrenciesUseCase>();
-    final result = await usecase(NoParams());
-    result.fold(
-      (f) => setState(() {
-        _error = f.message;
-        _loading = false;
-      }),
-      (list) => setState(() {
-        _codes = list.map((c) => c.code).toList();
-        _loading = false;
-        if (_codes.isNotEmpty && !_codes.contains(widget.value)) {
-          widget.onChanged(_codes.first);
-        }
-      }),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final decoration = InputDecoration(
-      labelText: 'العملة',
-      labelStyle: AppTextStyles.bodySmall.copyWith(color: AppTheme.textMuted),
-      filled: true,
-      fillColor: AppTheme.darkSurface.withOpacity(0.3),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide.none,
-      ),
-    );
-    if (_loading) {
-      return InputDecorator(
-        decoration: decoration,
-        child: Row(children: [
-          const SizedBox(width: 4, height: 4),
-          SizedBox(
-            width: 18,
-            height: 18,
-            child: CircularProgressIndicator(
-                strokeWidth: 2, color: AppTheme.textMuted),
-          ),
-          const SizedBox(width: 8),
-          Text('جاري تحميل العملات...',
-              style: AppTextStyles.caption.copyWith(color: AppTheme.textMuted)),
-        ]),
-      );
-    }
-    if (_error != null) {
-      return DropdownButtonFormField<String>(
-        initialValue: _codes.contains(widget.value) ? widget.value : null,
-        decoration: decoration.copyWith(errorText: _error),
-        items: _codes
-            .map((c) => DropdownMenuItem(value: c, child: Text(c)))
-            .toList(),
-        onChanged: (v) {
-          if (v != null) widget.onChanged(v);
-        },
-      );
-    }
-    return DropdownButtonFormField<String>(
-      initialValue: _codes.contains(widget.value) ? widget.value : null,
-      decoration: decoration,
-      dropdownColor: AppTheme.darkCard,
-      style: AppTextStyles.bodyMedium.copyWith(color: AppTheme.textWhite),
-      items: _codes
-          .map((c) => DropdownMenuItem(value: c, child: Text(c)))
-          .toList(),
-      onChanged: (v) {
-        if (v != null) widget.onChanged(v);
-      },
-    );
-  }
-}
-
-class _CityDropdown extends StatefulWidget {
-  final String? value;
-  final ValueChanged<String?> onChanged;
-  final bool requiredField;
-  const _CityDropdown(
-      {required this.value,
-      required this.onChanged,
-      this.requiredField = false});
-
-  @override
-  State<_CityDropdown> createState() => _CityDropdownState();
-}
-
-class _CityDropdownState extends State<_CityDropdown> {
-  List<String> _cities = const [];
-  bool _loading = true;
-  String? _error;
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    try {
-      final usecase = di.sl<ci_uc.GetCitiesUseCase>();
-      final result = await usecase(const ci_uc.GetCitiesParams());
-      result.fold(
-        (f) => setState(() {
-          _error = f.message;
-          _loading = false;
-        }),
-        (list) => setState(() {
-          _cities = list.map((c) => c.name).toList();
-          _loading = false;
-          if (_cities.isNotEmpty &&
-              (widget.value == null || !_cities.contains(widget.value))) {
-            // Do not auto-select when required; keep null so validator can trigger
-          }
-        }),
-      );
-    } catch (e) {
-      setState(() {
-        _error = e.toString();
-        _loading = false;
-      });
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final decoration = InputDecoration(
-      labelText:
-          widget.requiredField ? 'المدينة (إجباري)' : 'المدينة (اختياري)',
-      labelStyle: AppTextStyles.bodySmall.copyWith(color: AppTheme.textMuted),
-      filled: true,
-      fillColor: AppTheme.darkSurface.withOpacity(0.3),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide.none,
-      ),
-    );
-
-    if (_loading) {
-      return InputDecorator(
-        decoration: decoration,
-        child: Row(children: [
-          const SizedBox(width: 4, height: 4),
-          SizedBox(
-            width: 18,
-            height: 18,
-            child: CircularProgressIndicator(
-                strokeWidth: 2, color: AppTheme.textMuted),
-          ),
-          const SizedBox(width: 8),
-          Text('جاري تحميل المدن...',
-              style: AppTextStyles.caption.copyWith(color: AppTheme.textMuted)),
-        ]),
-      );
-    }
-
-    final items =
-        _cities.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList();
-
-    if (_error != null) {
-      return DropdownButtonFormField<String?>(
-        initialValue: _cities.contains(widget.value) ? widget.value : null,
-        decoration: decoration.copyWith(errorText: _error),
-        items: items,
-        onChanged: (v) => widget.onChanged(v),
-        validator: widget.requiredField
-            ? (v) => (v == null || (v).isEmpty) ? 'المدينة مطلوبة' : null
-            : null,
-      );
-    }
-
-    return DropdownButtonFormField<String?>(
-      initialValue: _cities.contains(widget.value) ? widget.value : null,
-      decoration: decoration,
-      dropdownColor: AppTheme.darkCard,
-      style: AppTextStyles.bodyMedium.copyWith(color: AppTheme.textWhite),
-      items: items,
-      onChanged: (v) => widget.onChanged(v),
-      validator: widget.requiredField
-          ? (v) => (v == null || (v).isEmpty) ? 'المدينة مطلوبة' : null
-          : null,
-    );
-  }
-}
-
 class CreatePropertyPage extends StatelessWidget {
   const CreatePropertyPage({super.key});
 
@@ -246,15 +40,12 @@ class CreatePropertyPage extends StatelessWidget {
         ),
         BlocProvider<PropertyTypesBloc>(
           create: (context) => GetIt.instance<PropertyTypesBloc>()
-            ..add(
-                const LoadPropertyTypesEvent(pageSize: 100)), // جلب كل الأنواع
+            ..add(const LoadPropertyTypesEvent(pageSize: 100)),
         ),
         BlocProvider<AmenitiesBloc>(
           create: (context) => GetIt.instance<AmenitiesBloc>()
-            ..add(const LoadAmenitiesEvent(
-                pageSize: 100)), // سيتم تصفية حسب النوع لاحقاً
+            ..add(const LoadAmenitiesEvent(pageSize: 100)),
         ),
-        // لإدارة رفع الصور بعد إنشاء العقار
         BlocProvider(
           create: (context) => GetIt.instance<PropertyImagesBloc>(),
         ),
@@ -288,6 +79,7 @@ class _CreatePropertyViewState extends State<_CreatePropertyView>
   final _descriptionController = TextEditingController();
   final _latitudeController = TextEditingController();
   final _longitudeController = TextEditingController();
+  final _shortDescriptionController = TextEditingController();
 
   // State
   String? _selectedPropertyTypeId;
@@ -300,17 +92,13 @@ class _CreatePropertyViewState extends State<_CreatePropertyView>
   String? _tempKey;
   String _currency = 'YER';
   String? _selectedCity;
-  final _shortDescriptionController = TextEditingController();
-  bool _hasChanges = false;
-
-  // Track if widget is mounted
-  bool _isDisposed = false;
+  bool _isFeatured = false;
 
   @override
   void initState() {
     super.initState();
     _initializeAnimations();
-    // Generate a temp key (timestamp-based) for pre-save uploads
+    // Generate a temp key for pre-save uploads
     _tempKey = DateTime.now().millisecondsSinceEpoch.toString();
   }
 
@@ -343,7 +131,7 @@ class _CreatePropertyViewState extends State<_CreatePropertyView>
 
     // Start animation after build
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!_isDisposed) {
+      if (mounted) {
         _animationController.forward();
       }
     });
@@ -351,14 +139,13 @@ class _CreatePropertyViewState extends State<_CreatePropertyView>
 
   @override
   void dispose() {
-    // If user leaves without saving, purge temp images
+    // Purge temp images if user leaves without saving
     if (_tempKey != null) {
       try {
         GetIt.instance<ApiClient>().delete('/api/images/purge-temp',
             queryParameters: {'tempKey': _tempKey});
       } catch (_) {}
     }
-    _isDisposed = true;
     _animationController.dispose();
     _glowController.dispose();
     _nameController.dispose();
@@ -371,35 +158,21 @@ class _CreatePropertyViewState extends State<_CreatePropertyView>
     super.dispose();
   }
 
-  // Safe setState
-  void _safeSetState(VoidCallback fn) {
-    if (mounted && !_isDisposed) {
-      setState(fn);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return BlocListener<PropertiesBloc, PropertiesState>(
       listener: (context, state) {
-        if (!mounted) return;
-
         if (state is PropertyCreated) {
-          // إن وُجدت صور محلية، قم برفعها للعقار الذي تم إنشاؤه
+          // Upload local images if exist
+          final propertyId = state.propertyId;
           if (_selectedLocalImages.isNotEmpty) {
             try {
-              final imagesBloc = context.read<PropertyImagesBloc>();
-              imagesBloc.add(UploadMultipleImagesEvent(
-                propertyId: state.propertyId,
-                filePaths: List<String>.from(_selectedLocalImages),
-              ));
+              _galleryKey.currentState?.uploadLocalImages(propertyId);
             } catch (_) {}
           }
-          // clear tempKey since entity is saved
+          // Clear tempKey since entity is saved
           _tempKey = null;
-
           _showSuccessMessage('تم إنشاء العقار بنجاح');
-          // الرجوع بعد مهلة قصيرة
           Future.delayed(const Duration(milliseconds: 500), () {
             if (mounted) {
               context.pop();
@@ -641,21 +414,25 @@ class _CreatePropertyViewState extends State<_CreatePropertyView>
   }
 
   Widget _buildFormContent() {
-    return Form(
-      key: _formKey,
-      child: IndexedStack(
-        index: _currentStep,
-        children: [
-          _buildBasicInfoStep(),
-          _buildLocationStep(),
-          _buildImagesAmenitiesStep(),
-          _buildReviewStep(),
-        ],
-      ),
+    return BlocBuilder<PropertiesBloc, PropertiesState>(
+      builder: (context, state) {
+        return Form(
+          key: _formKey,
+          child: IndexedStack(
+            index: _currentStep,
+            children: [
+              _buildBasicInfoStep(state),
+              _buildLocationStep(state),
+              _buildImagesAmenitiesStep(state),
+              _buildReviewStep(state),
+            ],
+          ),
+        );
+      },
     );
   }
 
-  Widget _buildBasicInfoStep() {
+  Widget _buildBasicInfoStep(PropertiesState state) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(
@@ -673,7 +450,6 @@ class _CreatePropertyViewState extends State<_CreatePropertyView>
               }
               return null;
             },
-            onChanged: (_) => _safeSetState(() => _hasChanges = true),
           ),
 
           const SizedBox(height: 20),
@@ -687,44 +463,17 @@ class _CreatePropertyViewState extends State<_CreatePropertyView>
           _buildOwnerSelector(),
 
           const SizedBox(height: 20),
+
+          // Currency
           Row(
             children: [
               Expanded(
                 child: _CurrencyDropdown(
                   value: _currency,
-                  onChanged: (v) => _safeSetState(() => _currency = v),
+                  onChanged: (v) => setState(() => _currency = v),
                 ),
               ),
             ],
-          ),
-
-          const SizedBox(height: 20),
-
-          // Address
-          _buildInputField(
-            controller: _addressController,
-            label: 'العنوان',
-            hint: 'أدخل العنوان الكامل',
-            icon: Icons.location_on_rounded,
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return 'الرجاء إدخال العنوان';
-              }
-              return null;
-            },
-            onChanged: (_) => _safeSetState(() => _hasChanges = true),
-          ),
-
-          const SizedBox(height: 20),
-
-          // City
-          _CityDropdown(
-            value: _selectedCity,
-            onChanged: (v) => _safeSetState(() {
-              _selectedCity = v;
-              _cityController.text = v ?? '';
-            }),
-            requiredField: true,
           ),
 
           const SizedBox(height: 20),
@@ -734,10 +483,25 @@ class _CreatePropertyViewState extends State<_CreatePropertyView>
 
           const SizedBox(height: 20),
 
+          // Featured Switch
+          _buildFeaturedSwitch(),
+
+          const SizedBox(height: 20),
+
+          // Short Description
+          _buildInputField(
+            controller: _shortDescriptionController,
+            label: 'وصف مختصر',
+            hint: 'نص مختصر يظهر في القوائم',
+            icon: Icons.short_text_rounded,
+          ),
+
+          const SizedBox(height: 20),
+
           // Description
           _buildInputField(
             controller: _descriptionController,
-            label: 'الوصف',
+            label: 'الوصف التفصيلي',
             hint: 'أدخل وصف تفصيلي للعقار',
             icon: Icons.description_rounded,
             maxLines: 5,
@@ -747,27 +511,28 @@ class _CreatePropertyViewState extends State<_CreatePropertyView>
               }
               return null;
             },
-            onChanged: (_) => _safeSetState(() => _hasChanges = true),
-          ),
-          const SizedBox(height: 20),
-          _buildInputField(
-            controller: _shortDescriptionController,
-            label: 'وصف مختصر',
-            hint: 'نص مختصر يظهر في القوائم',
-            icon: Icons.short_text_rounded,
-            onChanged: (_) => _safeSetState(() => _hasChanges = true),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildLocationStep() {
+  Widget _buildLocationStep(PropertiesState state) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Section Title
+          Text(
+            'تحديد موقع العقار',
+            style: AppTextStyles.heading3.copyWith(
+              color: AppTheme.textWhite,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 16),
+
           // Map View
           Container(
             height: 300,
@@ -788,7 +553,7 @@ class _CreatePropertyViewState extends State<_CreatePropertyView>
               borderRadius: BorderRadius.circular(16),
               child: PropertyMapView(
                 onLocationSelected: (latLng) {
-                  _safeSetState(() {
+                  setState(() {
                     _latitudeController.text = latLng.latitude.toString();
                     _longitudeController.text = latLng.longitude.toString();
                   });
@@ -797,22 +562,87 @@ class _CreatePropertyViewState extends State<_CreatePropertyView>
             ),
           ),
 
-          const SizedBox(height: 20),
+          const SizedBox(height: 30),
 
-          // Latitude
+          // Coordinates Section
+          Text(
+            'الإحداثيات',
+            style: AppTextStyles.heading3.copyWith(
+              color: AppTheme.textWhite,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          Row(
+            children: [
+              // Latitude
+              Expanded(
+                child: _buildInputField(
+                  controller: _latitudeController,
+                  label: 'خط العرض',
+                  hint: 'أدخل خط العرض',
+                  icon: Icons.my_location_rounded,
+                  keyboardType: TextInputType.number,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'الرجاء إدخال خط العرض';
+                    }
+                    final lat = double.tryParse(value);
+                    if (lat == null || lat < -90 || lat > 90) {
+                      return 'خط العرض غير صحيح';
+                    }
+                    return null;
+                  },
+                ),
+              ),
+
+              const SizedBox(width: 16),
+
+              // Longitude
+              Expanded(
+                child: _buildInputField(
+                  controller: _longitudeController,
+                  label: 'خط الطول',
+                  hint: 'أدخل خط الطول',
+                  icon: Icons.my_location_rounded,
+                  keyboardType: TextInputType.number,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'الرجاء إدخال خط الطول';
+                    }
+                    final lng = double.tryParse(value);
+                    if (lng == null || lng < -180 || lng > 180) {
+                      return 'خط الطول غير صحيح';
+                    }
+                    return null;
+                  },
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 30),
+
+          // Address Section
+          Text(
+            'العنوان',
+            style: AppTextStyles.heading3.copyWith(
+              color: AppTheme.textWhite,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Address
           _buildInputField(
-            controller: _latitudeController,
-            label: 'خط العرض',
-            hint: 'أدخل خط العرض',
-            icon: Icons.my_location_rounded,
-            keyboardType: TextInputType.number,
+            controller: _addressController,
+            label: 'العنوان الكامل',
+            hint: 'أدخل العنوان التفصيلي',
+            icon: Icons.location_on_rounded,
             validator: (value) {
               if (value == null || value.isEmpty) {
-                return 'الرجاء إدخال خط العرض';
-              }
-              final lat = double.tryParse(value);
-              if (lat == null || lat < -90 || lat > 90) {
-                return 'خط العرض غير صحيح';
+                return 'الرجاء إدخال العنوان';
               }
               return null;
             },
@@ -820,36 +650,29 @@ class _CreatePropertyViewState extends State<_CreatePropertyView>
 
           const SizedBox(height: 20),
 
-          // Longitude
-          _buildInputField(
-            controller: _longitudeController,
-            label: 'خط الطول',
-            hint: 'أدخل خط الطول',
-            icon: Icons.my_location_rounded,
-            keyboardType: TextInputType.number,
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return 'الرجاء إدخال خط الطول';
-              }
-              final lng = double.tryParse(value);
-              if (lng == null || lng < -180 || lng > 180) {
-                return 'خط الطول غير صحيح';
-              }
-              return null;
+          // City
+          _CityDropdown(
+            value: _selectedCity,
+            onChanged: (v) {
+              setState(() {
+                _selectedCity = v;
+                _cityController.text = v ?? '';
+              });
             },
+            requiredField: true,
           ),
         ],
       ),
     );
   }
 
-  Widget _buildImagesAmenitiesStep() {
+  Widget _buildImagesAmenitiesStep(PropertiesState state) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Images Gallery
+          // Images Section
           Text(
             'صور العقار',
             style: AppTextStyles.heading3.copyWith(
@@ -858,24 +681,9 @@ class _CreatePropertyViewState extends State<_CreatePropertyView>
             ),
           ),
           const SizedBox(height: 12),
-          // PropertyImageGallery(
-          //     initialImages: _selectedImages, // تمرير الصور الحالية (للشبكة لاحقاً)
-          //     // initialLocalImages: _selectedLocalImages, // تمرير الصور المحلية
-          //     onImagesChanged: (images) {
-          //       setState(() {
-          //         _selectedImages = images; // تحديث قائمة الصور (إن وجدت كائنات من الخادم)
-          //       });
-          //     },
-          //     // onLocalImagesChanged: (paths) {
-          //     //   setState(() {
-          //     //     _selectedLocalImages = paths; // تحديث مسارات الصور المحلية
-          //     //   });
-          //     // },
-          //     maxImages: 10,
-          //   ),
           PropertyImageGallery(
             key: _galleryKey,
-            propertyId: null, // لا يوجد معرف بعد
+            propertyId: null,
             tempKey: _tempKey,
             maxImages: 10,
             onImagesChanged: (images) {
@@ -889,9 +697,10 @@ class _CreatePropertyViewState extends State<_CreatePropertyView>
               });
             },
           ),
+
           const SizedBox(height: 30),
 
-          // Amenities Selector
+          // Amenities Section
           Text(
             'المرافق المتاحة',
             style: AppTextStyles.heading3.copyWith(
@@ -904,9 +713,7 @@ class _CreatePropertyViewState extends State<_CreatePropertyView>
           BlocBuilder<AmenitiesBloc, AmenitiesState>(
             builder: (context, state) {
               if (state is AmenitiesLoading) {
-                return const Center(
-                  child: CircularProgressIndicator(),
-                );
+                return _buildAmenitiesLoadingState();
               } else if (state is AmenitiesError) {
                 return _buildErrorWidget(
                   state.message,
@@ -920,7 +727,7 @@ class _CreatePropertyViewState extends State<_CreatePropertyView>
                 return AmenitySelectorWidget(
                   selectedAmenities: _selectedAmenities,
                   onAmenitiesChanged: (amenities) {
-                    _safeSetState(() {
+                    setState(() {
                       _selectedAmenities = amenities;
                     });
                   },
@@ -935,7 +742,7 @@ class _CreatePropertyViewState extends State<_CreatePropertyView>
     );
   }
 
-  Widget _buildReviewStep() {
+  Widget _buildReviewStep(PropertiesState state) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(
@@ -950,24 +757,31 @@ class _CreatePropertyViewState extends State<_CreatePropertyView>
           ),
           const SizedBox(height: 20),
 
-          // Review Cards
+          // Basic Info Review
           _buildReviewCard(
             title: 'المعلومات الأساسية',
+            icon: Icons.info_rounded,
+            iconColor: AppTheme.primaryBlue,
             items: [
               {'label': 'الاسم', 'value': _nameController.text},
               {'label': 'النوع', 'value': _getPropertyTypeName()},
               {'label': 'المالك', 'value': _selectedOwner?.name ?? 'غير محدد'},
-              {'label': 'العنوان', 'value': _addressController.text},
-              {'label': 'المدينة', 'value': _cityController.text},
               {'label': 'التقييم', 'value': '$_starRating نجوم'},
+              {'label': 'العملة', 'value': _currency},
+              {'label': 'عقار مميز', 'value': _isFeatured ? 'نعم' : 'لا'},
             ],
           ),
 
           const SizedBox(height: 16),
 
+          // Location Review
           _buildReviewCard(
             title: 'الموقع',
+            icon: Icons.location_on_rounded,
+            iconColor: AppTheme.success,
             items: [
+              {'label': 'العنوان', 'value': _addressController.text},
+              {'label': 'المدينة', 'value': _cityController.text},
               {'label': 'خط العرض', 'value': _latitudeController.text},
               {'label': 'خط الطول', 'value': _longitudeController.text},
             ],
@@ -975,8 +789,11 @@ class _CreatePropertyViewState extends State<_CreatePropertyView>
 
           const SizedBox(height: 16),
 
+          // Images & Amenities Review
           _buildReviewCard(
             title: 'الصور والمرافق',
+            icon: Icons.image_rounded,
+            iconColor: AppTheme.info,
             items: [
               {
                 'label': 'عدد الصور',
@@ -989,12 +806,33 @@ class _CreatePropertyViewState extends State<_CreatePropertyView>
 
           const SizedBox(height: 16),
 
+          // Description Review
           _buildReviewCard(
             title: 'الوصف',
+            icon: Icons.description_rounded,
+            iconColor: AppTheme.warning,
             items: [
-              {'label': 'الوصف', 'value': _descriptionController.text},
+              {
+                'label': 'الوصف المختصر',
+                'value': _shortDescriptionController.text.isEmpty
+                    ? 'لا يوجد'
+                    : _shortDescriptionController.text
+              },
+              {'label': 'الوصف التفصيلي', 'value': _descriptionController.text},
             ],
           ),
+
+          // Images Preview
+          if (_selectedLocalImages.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            _buildImagesPreviewCard(),
+          ],
+
+          // Selected Amenities
+          if (_selectedAmenities.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            _buildSelectedAmenitiesCard(),
+          ],
         ],
       ),
     );
@@ -1120,11 +958,22 @@ class _CreatePropertyViewState extends State<_CreatePropertyView>
                     items: state.propertyTypes.map((type) {
                       return DropdownMenuItem(
                         value: type.id,
-                        child: Text(type.name),
+                        child: Row(
+                          children: [
+                            if (type.icon.isNotEmpty)
+                              Icon(
+                                _getIconFromString(type.icon),
+                                size: 18,
+                                color: AppTheme.primaryBlue.withOpacity(0.7),
+                              ),
+                            if (type.icon.isNotEmpty) const SizedBox(width: 8),
+                            Text(type.name),
+                          ],
+                        ),
                       );
                     }).toList(),
                     onChanged: (value) {
-                      _safeSetState(() {
+                      setState(() {
                         _selectedPropertyTypeId = value;
                       });
                       if (value != null && value.isNotEmpty) {
@@ -1163,7 +1012,7 @@ class _CreatePropertyViewState extends State<_CreatePropertyView>
           onTap: () async {
             final user = await SearchNavigationHelper.searchSingleUser(context);
             if (user != null) {
-              _safeSetState(() {
+              setState(() {
                 _selectedOwner = user;
               });
             }
@@ -1214,59 +1063,6 @@ class _CreatePropertyViewState extends State<_CreatePropertyView>
     );
   }
 
-  Widget _buildLoadingDropdown() {
-    return Container(
-      height: 56,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            AppTheme.darkCard.withOpacity(0.5),
-            AppTheme.darkCard.withOpacity(0.3),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: AppTheme.darkBorder.withOpacity(0.3),
-          width: 1,
-        ),
-      ),
-      child: const Center(
-        child: SizedBox(
-          width: 20,
-          height: 20,
-          child: CircularProgressIndicator(strokeWidth: 2),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildErrorDropdown(String message) {
-    return Container(
-      height: 56,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            AppTheme.darkCard.withOpacity(0.5),
-            AppTheme.darkCard.withOpacity(0.3),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: AppTheme.error.withOpacity(0.3),
-          width: 1,
-        ),
-      ),
-      child: Center(
-        child: Text(
-          'خطأ في تحميل الأنواع',
-          style: AppTextStyles.bodySmall.copyWith(
-            color: AppTheme.error,
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildStarRatingSelector() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1284,7 +1080,7 @@ class _CreatePropertyViewState extends State<_CreatePropertyView>
             final isSelected = index < _starRating;
             return GestureDetector(
               onTap: () {
-                _safeSetState(() {
+                setState(() {
                   _starRating = index + 1;
                 });
                 HapticFeedback.lightImpact();
@@ -1312,8 +1108,213 @@ class _CreatePropertyViewState extends State<_CreatePropertyView>
     );
   }
 
+  Widget _buildFeaturedSwitch() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppTheme.darkCard.withOpacity(0.3),
+            AppTheme.darkCard.withOpacity(0.2),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: _isFeatured
+              ? AppTheme.warning.withOpacity(0.3)
+              : AppTheme.darkBorder.withOpacity(0.3),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.star_rounded,
+                color: _isFeatured ? AppTheme.warning : AppTheme.textMuted,
+                size: 24,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'عقار مميز',
+                style: AppTextStyles.bodyMedium.copyWith(
+                  color: AppTheme.textWhite,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: _isFeatured
+                      ? AppTheme.warning.withOpacity(0.2)
+                      : AppTheme.darkSurface.withOpacity(0.5),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: _isFeatured
+                        ? AppTheme.warning.withOpacity(0.5)
+                        : AppTheme.darkBorder.withOpacity(0.3),
+                    width: 1,
+                  ),
+                ),
+                child: Text(
+                  _isFeatured ? 'مفعل' : 'غير مفعل',
+                  style: AppTextStyles.caption.copyWith(
+                    color: _isFeatured ? AppTheme.warning : AppTheme.textMuted,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          Switch(
+            value: _isFeatured,
+            onChanged: (value) {
+              setState(() {
+                _isFeatured = value;
+              });
+              HapticFeedback.lightImpact();
+            },
+            activeTrackColor: AppTheme.warning.withOpacity(0.5),
+            activeThumbColor: AppTheme.warning,
+            inactiveThumbColor: AppTheme.textMuted,
+            inactiveTrackColor: AppTheme.darkBorder.withOpacity(0.3),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLoadingDropdown() {
+    return Container(
+      height: 56,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppTheme.darkCard.withOpacity(0.5),
+            AppTheme.darkCard.withOpacity(0.3),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppTheme.darkBorder.withOpacity(0.3),
+          width: 1,
+        ),
+      ),
+      child: Center(
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  AppTheme.primaryBlue.withOpacity(0.7),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              'جاري تحميل الأنواع...',
+              style: AppTextStyles.bodyMedium.copyWith(
+                color: AppTheme.textMuted,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorDropdown(String message) {
+    return Container(
+      height: 56,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppTheme.darkCard.withOpacity(0.5),
+            AppTheme.darkCard.withOpacity(0.3),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppTheme.error.withOpacity(0.3),
+          width: 1,
+        ),
+      ),
+      child: Center(
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.error_outline_rounded,
+              color: AppTheme.error,
+              size: 20,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'خطأ في تحميل الأنواع',
+              style: AppTextStyles.bodySmall.copyWith(
+                color: AppTheme.error,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAmenitiesLoadingState() {
+    return Container(
+      height: 100,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppTheme.darkCard.withOpacity(0.5),
+            AppTheme.darkCard.withOpacity(0.3),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppTheme.darkBorder.withOpacity(0.3),
+          width: 1,
+        ),
+      ),
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            SizedBox(
+              width: 30,
+              height: 30,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  AppTheme.primaryBlue.withOpacity(0.7),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'جاري تحميل المرافق...',
+              style: AppTextStyles.bodySmall.copyWith(
+                color: AppTheme.textMuted,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildReviewCard({
     required String title,
+    required IconData icon,
+    required Color iconColor,
     required List<Map<String, String>> items,
   }) {
     return Container(
@@ -1334,24 +1335,54 @@ class _CreatePropertyViewState extends State<_CreatePropertyView>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: AppTextStyles.bodyMedium.copyWith(
-              color: AppTheme.primaryBlue,
-              fontWeight: FontWeight.bold,
-            ),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [iconColor, iconColor.withOpacity(0.7)],
+                  ),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Icon(
+                  icon,
+                  size: 14,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                title,
+                style: AppTextStyles.bodyMedium.copyWith(
+                  color: iconColor,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 12),
           ...items.map((item) => Padding(
                 padding: const EdgeInsets.only(bottom: 8),
                 child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      item['label']!,
-                      style: AppTextStyles.bodySmall.copyWith(
-                        color: AppTheme.textMuted,
-                      ),
+                    Row(
+                      children: [
+                        Icon(
+                          _getItemIcon(item['label']!),
+                          size: 14,
+                          color: AppTheme.textMuted.withOpacity(0.7),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          item['label']!,
+                          style: AppTextStyles.bodySmall.copyWith(
+                            color: AppTheme.textMuted,
+                          ),
+                        ),
+                      ],
                     ),
                     Expanded(
                       child: Text(
@@ -1368,6 +1399,149 @@ class _CreatePropertyViewState extends State<_CreatePropertyView>
                   ],
                 ),
               )),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildImagesPreviewCard() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppTheme.info.withOpacity(0.1),
+            AppTheme.info.withOpacity(0.05),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppTheme.info.withOpacity(0.3),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [AppTheme.info, AppTheme.info.withOpacity(0.7)],
+                  ),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: const Icon(
+                  Icons.photo_library_rounded,
+                  size: 14,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'الصور المحددة',
+                style: AppTextStyles.bodyMedium.copyWith(
+                  color: AppTheme.info,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const Spacer(),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppTheme.info.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '${_selectedLocalImages.length} صورة',
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: AppTheme.info,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'سيتم رفع الصور بعد إنشاء العقار',
+            style: AppTextStyles.caption.copyWith(
+              color: AppTheme.textMuted,
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSelectedAmenitiesCard() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppTheme.success.withOpacity(0.1),
+            AppTheme.success.withOpacity(0.05),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppTheme.success.withOpacity(0.3),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      AppTheme.success,
+                      AppTheme.success.withOpacity(0.7)
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: const Icon(
+                  Icons.check_circle_rounded,
+                  size: 14,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'المرافق المحددة',
+                style: AppTextStyles.bodyMedium.copyWith(
+                  color: AppTheme.success,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const Spacer(),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppTheme.success.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '${_selectedAmenities.length} مرفق',
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: AppTheme.success,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -1490,9 +1664,7 @@ class _CreatePropertyViewState extends State<_CreatePropertyView>
                 child: Center(
                   child: BlocBuilder<PropertiesBloc, PropertiesState>(
                     builder: (context, state) {
-                      final bool isSubmitting = state is PropertyCreating ||
-                          state is PropertyUpdating;
-                      if (isSubmitting) {
+                      if (state is PropertyCreating) {
                         return const SizedBox(
                           width: 20,
                           height: 20,
@@ -1503,11 +1675,7 @@ class _CreatePropertyViewState extends State<_CreatePropertyView>
                         );
                       }
                       return Text(
-                        _currentStep < 3
-                            ? 'التالي'
-                            : (_hasChanges
-                                ? 'إضافة العقار'
-                                : 'لا توجد تغييرات'),
+                        _currentStep < 3 ? 'التالي' : 'إضافة العقار',
                         style: AppTextStyles.buttonMedium.copyWith(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
@@ -1524,11 +1692,10 @@ class _CreatePropertyViewState extends State<_CreatePropertyView>
     );
   }
 
+  // Helper Methods
   void _handleBack() {
-    if (!mounted) return;
-
     if (_currentStep > 0) {
-      _safeSetState(() {
+      setState(() {
         _currentStep--;
       });
     } else {
@@ -1538,7 +1705,7 @@ class _CreatePropertyViewState extends State<_CreatePropertyView>
 
   void _previousStep() {
     if (_currentStep > 0) {
-      _safeSetState(() {
+      setState(() {
         _currentStep--;
       });
     }
@@ -1558,7 +1725,7 @@ class _CreatePropertyViewState extends State<_CreatePropertyView>
       }
 
       if (isValid) {
-        _safeSetState(() {
+        setState(() {
           _currentStep++;
         });
       }
@@ -1569,7 +1736,6 @@ class _CreatePropertyViewState extends State<_CreatePropertyView>
     if (_nameController.text.isEmpty ||
         _selectedPropertyTypeId == null ||
         _selectedOwner == null ||
-        _addressController.text.isEmpty ||
         _descriptionController.text.isEmpty) {
       _showErrorMessage('الرجاء ملء جميع الحقول المطلوبة');
       return false;
@@ -1578,8 +1744,11 @@ class _CreatePropertyViewState extends State<_CreatePropertyView>
   }
 
   bool _validateLocation() {
-    if (_latitudeController.text.isEmpty || _longitudeController.text.isEmpty) {
-      _showErrorMessage('الرجاء تحديد موقع العقار');
+    if (_addressController.text.isEmpty ||
+        _cityController.text.isEmpty ||
+        _latitudeController.text.isEmpty ||
+        _longitudeController.text.isEmpty) {
+      _showErrorMessage('الرجاء ملء جميع الحقول المطلوبة');
       return false;
     }
 
@@ -1600,7 +1769,7 @@ class _CreatePropertyViewState extends State<_CreatePropertyView>
   }
 
   bool _validateImagesAndAmenities() {
-    // اعتبر الصور المحلية أثناء الإنشاء
+    // Consider local images during creation
     final bool hasAnyImage =
         _selectedLocalImages.isNotEmpty || _selectedImages.isNotEmpty;
     if (!hasAnyImage) {
@@ -1610,66 +1779,22 @@ class _CreatePropertyViewState extends State<_CreatePropertyView>
     return true;
   }
 
-  // void _submitForm() {
-  //   if (!mounted) return;
-
-  //   if (_formKey.currentState!.validate()) {
-  //     // Get current user ID (you might need to get this from auth state)
-  //     const ownerId = 'current_user_id'; // TODO: Get from auth
-
-  //     // Submit the form
-  //     context.read<PropertiesBloc>().add(
-  //       CreatePropertyEvent(
-  //         name: _nameController.text,
-  //         address: _addressController.text,
-  //         propertyTypeId: _selectedPropertyTypeId!,
-  //         ownerId: ownerId,
-  //         description: _descriptionController.text,
-  //         latitude: double.parse(_latitudeController.text),
-  //         longitude: double.parse(_longitudeController.text),
-  //         city: _cityController.text,
-  //         starRating: _starRating,
-  //         images: _selectedImages,
-  //         // amenityIds: _selectedAmenities,
-  //       ),
-  //     );
-  //   }
-  // }
   void _submitForm() {
-    if (!mounted) return;
-
     if (_formKey.currentState!.validate()) {
-      // التحقق من البيانات
+      // Validate required fields
       if (_selectedPropertyTypeId == null) {
         _showErrorMessage('الرجاء اختيار نوع العقار');
         return;
       }
 
-      // الحصول على معرف المالك من الاختيار
+      // Get owner ID from selection
       final ownerId = _selectedOwner?.id;
       if (ownerId == null || ownerId.isEmpty) {
         _showErrorMessage('الرجاء اختيار مالك العقار');
         return;
       }
 
-      // تحويل PropertyImage إلى URLs
-      // final List<String> imageUrls = _selectedImages
-      //     .where((img) => img.url.isNotEmpty)
-      //     .map((img) => img.url)
-      //     .toList();
-
-      // طباعة للتأكد من البيانات (للتطوير فقط)
-      debugPrint('=== Creating Property ===');
-      debugPrint('Name: ${_nameController.text}');
-      debugPrint('Type ID: $_selectedPropertyTypeId');
-      debugPrint('City: ${_cityController.text}');
-      debugPrint('Owner: ${_selectedOwner?.name} (${_selectedOwner?.id})');
-      debugPrint('Rating: $_starRating');
-      debugPrint('Images Count: ${_selectedLocalImages.length}');
-      debugPrint('Selected Amenities: $_selectedAmenities');
-      debugPrint('========================');
-
-      // إرسال البيانات
+      // Submit the form
       context.read<PropertiesBloc>().add(
             CreatePropertyEvent(
               name: _nameController.text.trim(),
@@ -1690,15 +1815,13 @@ class _CreatePropertyViewState extends State<_CreatePropertyView>
                       : _descriptionController.text)
                   .trim(),
               currency: _currency,
-              isFeatured: false,
+              isFeatured: _isFeatured,
             ),
           );
     }
   }
 
   String _getPropertyTypeName() {
-    if (!mounted) return 'غير محدد';
-
     final state = context.read<PropertyTypesBloc>().state;
     if (state is PropertyTypesLoaded && _selectedPropertyTypeId != null) {
       try {
@@ -1713,9 +1836,59 @@ class _CreatePropertyViewState extends State<_CreatePropertyView>
     return 'غير محدد';
   }
 
-  void _showSuccessMessage(String message) {
-    if (!mounted) return;
+  IconData _getIconFromString(String iconName) {
+    // Map common icon names to IconData
+    switch (iconName) {
+      case 'home':
+        return Icons.home_rounded;
+      case 'apartment':
+        return Icons.apartment_rounded;
+      case 'villa':
+        return Icons.villa_rounded;
+      case 'store':
+        return Icons.store_rounded;
+      case 'business':
+        return Icons.business_rounded;
+      default:
+        return Icons.category_rounded;
+    }
+  }
 
+  IconData _getItemIcon(String label) {
+    switch (label) {
+      case 'الاسم':
+        return Icons.text_fields_rounded;
+      case 'النوع':
+        return Icons.category_rounded;
+      case 'المالك':
+        return Icons.person_rounded;
+      case 'التقييم':
+        return Icons.star_rounded;
+      case 'العملة':
+        return Icons.attach_money_rounded;
+      case 'عقار مميز':
+        return Icons.workspace_premium_rounded;
+      case 'العنوان':
+        return Icons.location_on_rounded;
+      case 'المدينة':
+        return Icons.location_city_rounded;
+      case 'خط العرض':
+      case 'خط الطول':
+        return Icons.my_location_rounded;
+      case 'عدد الصور':
+        return Icons.photo_library_rounded;
+      case 'عدد المرافق':
+        return Icons.checklist_rounded;
+      case 'الوصف المختصر':
+        return Icons.short_text_rounded;
+      case 'الوصف التفصيلي':
+        return Icons.description_rounded;
+      default:
+        return Icons.info_rounded;
+    }
+  }
+
+  void _showSuccessMessage(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
@@ -1740,8 +1913,6 @@ class _CreatePropertyViewState extends State<_CreatePropertyView>
   }
 
   void _showErrorMessage(String message) {
-    if (!mounted) return;
-
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
@@ -1766,6 +1937,214 @@ class _CreatePropertyViewState extends State<_CreatePropertyView>
   }
 }
 
+// Currency Dropdown Widget
+class _CurrencyDropdown extends StatefulWidget {
+  final String value;
+  final ValueChanged<String> onChanged;
+  const _CurrencyDropdown({required this.value, required this.onChanged});
+
+  @override
+  State<_CurrencyDropdown> createState() => _CurrencyDropdownState();
+}
+
+class _CurrencyDropdownState extends State<_CurrencyDropdown> {
+  List<String> _codes = const [];
+  bool _loading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final usecase = di.sl<GetCurrenciesUseCase>();
+    final result = await usecase(NoParams());
+    result.fold(
+      (f) => setState(() {
+        _error = f.message;
+        _loading = false;
+      }),
+      (list) => setState(() {
+        _codes = list.map((c) => c.code).toList();
+        _loading = false;
+        if (_codes.isNotEmpty && !_codes.contains(widget.value)) {
+          widget.onChanged(_codes.first);
+        }
+      }),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final decoration = InputDecoration(
+      labelText: 'العملة',
+      labelStyle: AppTextStyles.bodySmall.copyWith(color: AppTheme.textMuted),
+      filled: true,
+      fillColor: AppTheme.darkSurface.withOpacity(0.3),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide.none,
+      ),
+    );
+    if (_loading) {
+      return InputDecorator(
+        decoration: decoration,
+        child: Row(children: [
+          const SizedBox(width: 4, height: 4),
+          SizedBox(
+            width: 18,
+            height: 18,
+            child: CircularProgressIndicator(
+                strokeWidth: 2, color: AppTheme.textMuted),
+          ),
+          const SizedBox(width: 8),
+          Text('جاري تحميل العملات...',
+              style: AppTextStyles.caption.copyWith(color: AppTheme.textMuted)),
+        ]),
+      );
+    }
+    if (_error != null) {
+      return DropdownButtonFormField<String>(
+        initialValue: _codes.contains(widget.value) ? widget.value : null,
+        decoration: decoration.copyWith(errorText: _error),
+        items: _codes
+            .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+            .toList(),
+        onChanged: (v) {
+          if (v != null) widget.onChanged(v);
+        },
+      );
+    }
+    return DropdownButtonFormField<String>(
+      initialValue: _codes.contains(widget.value) ? widget.value : null,
+      decoration: decoration,
+      dropdownColor: AppTheme.darkCard,
+      style: AppTextStyles.bodyMedium.copyWith(color: AppTheme.textWhite),
+      items: _codes
+          .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+          .toList(),
+      onChanged: (v) {
+        if (v != null) widget.onChanged(v);
+      },
+    );
+  }
+}
+
+// City Dropdown Widget
+class _CityDropdown extends StatefulWidget {
+  final String? value;
+  final ValueChanged<String?> onChanged;
+  final bool requiredField;
+  const _CityDropdown(
+      {required this.value,
+      required this.onChanged,
+      this.requiredField = false});
+
+  @override
+  State<_CityDropdown> createState() => _CityDropdownState();
+}
+
+class _CityDropdownState extends State<_CityDropdown> {
+  List<String> _cities = const [];
+  bool _loading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final usecase = di.sl<ci_uc.GetCitiesUseCase>();
+      final result = await usecase(const ci_uc.GetCitiesParams());
+      result.fold(
+        (f) => setState(() {
+          _error = f.message;
+          _loading = false;
+        }),
+        (list) => setState(() {
+          _cities = list.map((c) => c.name).toList();
+          _loading = false;
+          if (_cities.isNotEmpty &&
+              (widget.value == null || !_cities.contains(widget.value))) {
+            // Do not auto-select when required; keep null so validator can trigger
+          }
+        }),
+      );
+    } catch (e) {
+      setState(() {
+        _error = e.toString();
+        _loading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final decoration = InputDecoration(
+      labelText:
+          widget.requiredField ? 'المدينة (إجباري)' : 'المدينة (اختياري)',
+      labelStyle: AppTextStyles.bodySmall.copyWith(color: AppTheme.textMuted),
+      filled: true,
+      fillColor: AppTheme.darkSurface.withOpacity(0.3),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide.none,
+      ),
+    );
+
+    if (_loading) {
+      return InputDecorator(
+        decoration: decoration,
+        child: Row(children: [
+          const SizedBox(width: 4, height: 4),
+          SizedBox(
+            width: 18,
+            height: 18,
+            child: CircularProgressIndicator(
+                strokeWidth: 2, color: AppTheme.textMuted),
+          ),
+          const SizedBox(width: 8),
+          Text('جاري تحميل المدن...',
+              style: AppTextStyles.caption.copyWith(color: AppTheme.textMuted)),
+        ]),
+      );
+    }
+
+    final items =
+        _cities.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList();
+
+    if (_error != null) {
+      return DropdownButtonFormField<String?>(
+        initialValue: _cities.contains(widget.value) ? widget.value : null,
+        decoration: decoration.copyWith(errorText: _error),
+        items: items,
+        onChanged: (v) => widget.onChanged(v),
+        validator: widget.requiredField
+            ? (v) => (v == null || (v).isEmpty) ? 'المدينة مطلوبة' : null
+            : null,
+      );
+    }
+
+    return DropdownButtonFormField<String?>(
+      initialValue: _cities.contains(widget.value) ? widget.value : null,
+      decoration: decoration,
+      dropdownColor: AppTheme.darkCard,
+      style: AppTextStyles.bodyMedium.copyWith(color: AppTheme.textWhite),
+      items: items,
+      onChanged: (v) => widget.onChanged(v),
+      validator: widget.requiredField
+          ? (v) => (v == null || (v).isEmpty) ? 'المدينة مطلوبة' : null
+          : null,
+    );
+  }
+}
+
+// Background Painter
 class _CreatePropertyBackgroundPainter extends CustomPainter {
   final double glowIntensity;
 
