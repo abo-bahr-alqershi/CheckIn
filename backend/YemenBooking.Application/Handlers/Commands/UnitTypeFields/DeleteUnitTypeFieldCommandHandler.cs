@@ -86,7 +86,7 @@ namespace YemenBooking.Application.Handlers.Commands.UnitTypeFields
                     }),
                     newValues: null,
                     performedBy: _currentUserService.UserId,
-                    notes: $"تم حذف حقل الديناميكي: {existingField.FieldName} من نوع الوحدة {existingField.UnitTypeId}",
+                    notes: $"تم حذف حقل الديناميكي: {existingField.FieldName} من نوع الوحدة {existingField.UnitTypeId} بواسطة {_currentUserService.Username} (ID={_currentUserService.UserId})",
                     cancellationToken: cancellationToken);
 
                 // نشر الحدث

@@ -155,21 +155,27 @@ public class UpdateBookingCommandHandler : IRequestHandler<UpdateBookingCommand,
             // حفظ تغييرات الإتاحة المرتبطة بالحجز
             await _unitOfWork.SaveChangesAsync(cancellationToken);
             // تسجيل تحديث كتلة الإتاحة في سجل التدقيق
-            await _auditService.LogAsync(
-                "UpdateAvailability",
-                booking.Id.ToString(),
-                $"تم تحديث فترة الإتاحة للحجز {booking.Id} إلى {booking.CheckIn:yyyy-MM-dd} - {booking.CheckOut:yyyy-MM-dd}",
-                _currentUserService.UserId,
-                cancellationToken);
+            await _auditService.LogAuditAsync(
+                entityType: nameof(UnitAvailability),
+                entityId: booking.Id,
+                action: YemenBooking.Core.Entities.AuditAction.UPDATE,
+                oldValues: null,
+                newValues: System.Text.Json.JsonSerializer.Serialize(new { booking.CheckIn, booking.CheckOut }),
+                performedBy: _currentUserService.UserId,
+                notes: $"تم تحديث فترة الإتاحة للحجز {booking.Id} إلى {booking.CheckIn:yyyy-MM-dd} - {booking.CheckOut:yyyy-MM-dd} بواسطة {_currentUserService.Username} (ID={_currentUserService.UserId})",
+                cancellationToken: cancellationToken);
 
             // تسجيل العملية في سجل التدقيق
             var changes = BuildChangesList(originalCheckIn, originalCheckOut, originalGuestsCount, originalTotalPrice, booking);
-            await _auditService.LogAsync(
-                "UpdateBooking",
-                booking.Id.ToString(),
-                $"تم تحديث الحجز: {string.Join(", ", changes)}",
-                _currentUserService.UserId,
-                cancellationToken);
+            await _auditService.LogAuditAsync(
+                entityType: nameof(Booking),
+                entityId: booking.Id,
+                action: YemenBooking.Core.Entities.AuditAction.UPDATE,
+                oldValues: null,
+                newValues: System.Text.Json.JsonSerializer.Serialize(new { Changes = changes }),
+                performedBy: _currentUserService.UserId,
+                notes: $"تم تحديث الحجز: {string.Join(", ", changes)} بواسطة {_currentUserService.Username} (ID={_currentUserService.UserId})",
+                cancellationToken: cancellationToken);
 
             // إرسال حدث تحديث الحجز
             await _eventPublisher.PublishAsync(new BookingUpdatedEvent

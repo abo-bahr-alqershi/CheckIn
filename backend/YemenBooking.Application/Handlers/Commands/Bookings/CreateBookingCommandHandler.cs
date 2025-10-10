@@ -162,12 +162,15 @@ public class CreateBookingCommandHandler : IRequestHandler<CreateBookingCommand,
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             // تسجيل تنفيذ كتلة الإتاحة في سجل التدقيق
-            await _auditService.LogAsync(
-                "BlockAvailability",
-                availability.Id.ToString(),
-                $"تم حجز الوحدة {booking.UnitId} للحجز {booking.Id}",
-                _currentUserService.UserId,
-                cancellationToken);
+            await _auditService.LogAuditAsync(
+                entityType: nameof(UnitAvailability),
+                entityId: availability.Id,
+                action: YemenBooking.Core.Entities.AuditAction.CREATE,
+                oldValues: null,
+                newValues: System.Text.Json.JsonSerializer.Serialize(new { booking.UnitId, booking.Id, availability.StartDate, availability.EndDate }),
+                performedBy: _currentUserService.UserId,
+                notes: $"تم حجز الوحدة {booking.UnitId} للحجز {booking.Id} بواسطة {_currentUserService.Username} (ID={_currentUserService.UserId})",
+                cancellationToken: cancellationToken);
 
             // تحديث مباشر لفهرس الإتاحة
             try
@@ -191,12 +194,15 @@ public class CreateBookingCommandHandler : IRequestHandler<CreateBookingCommand,
             }
 
             // تسجيل العملية في سجل التدقيق
-            await _auditService.LogAsync(
-                "CreateBooking",
-                booking.Id.ToString(),
-                $"تم إنشاء حجز جديد للمستخدم {request.UserId}",
-                _currentUserService.UserId,
-                cancellationToken);
+            await _auditService.LogAuditAsync(
+                entityType: nameof(Booking),
+                entityId: booking.Id,
+                action: YemenBooking.Core.Entities.AuditAction.CREATE,
+                oldValues: null,
+                newValues: System.Text.Json.JsonSerializer.Serialize(new { booking.UserId, booking.UnitId, booking.CheckIn, booking.CheckOut, booking.GuestsCount, booking.TotalPrice }),
+                performedBy: _currentUserService.UserId,
+                notes: $"تم إنشاء حجز جديد للمستخدم {request.UserId} بواسطة {_currentUserService.Username} (ID={_currentUserService.UserId})",
+                cancellationToken: cancellationToken);
 
             // إرسال حدث إنشاء الحجز
             await _eventPublisher.PublishAsync(new BookingCreatedEvent

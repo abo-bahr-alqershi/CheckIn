@@ -5,13 +5,22 @@ using YemenBooking.Application.Commands.CP.UnitInSectionImages;
 using YemenBooking.Application.DTOs;
 using YemenBooking.Core.Interfaces.Repositories;
 using System.Text.Json;
+using YemenBooking.Application.Interfaces.Services;
+using YemenBooking.Core.Entities;
 
 namespace YemenBooking.Application.Handlers.Commands.UnitInSectionImages
 {
     public class UpdateUnitInSectionImageCommandHandler : IRequestHandler<UpdateUnitInSectionImageCommand, ResultDto<ImageDto>>
     {
         private readonly IUnitInSectionImageRepository _repo;
-        public UpdateUnitInSectionImageCommandHandler(IUnitInSectionImageRepository repo) { _repo = repo; }
+        private readonly IAuditService _auditService;
+        private readonly ICurrentUserService _currentUserService;
+        public UpdateUnitInSectionImageCommandHandler(IUnitInSectionImageRepository repo, IAuditService auditService, ICurrentUserService currentUserService)
+        {
+            _repo = repo;
+            _auditService = auditService;
+            _currentUserService = currentUserService;
+        }
 
         public async Task<ResultDto<ImageDto>> Handle(UpdateUnitInSectionImageCommand request, CancellationToken cancellationToken)
         {
@@ -34,6 +43,17 @@ namespace YemenBooking.Application.Handlers.Commands.UnitInSectionImages
             {
                 await _repo.UpdateAsync(entity, cancellationToken);
             }
+
+            // Audit log
+            await _auditService.LogAuditAsync(
+                entityType: nameof(UnitInSectionImage),
+                entityId: entity.UnitInSectionId ?? System.Guid.Empty,
+                action: YemenBooking.Core.Entities.AuditAction.UPDATE,
+                oldValues: null,
+                newValues: JsonSerializer.Serialize(new { entity.Id, entity.Category, entity.DisplayOrder, entity.IsMainImage, entity.Tags, entity.AltText }),
+                performedBy: _currentUserService.UserId,
+                notes: $"تم تحديث صورة عنصر وحدة في القسم بواسطة {_currentUserService.Username} (ID={_currentUserService.UserId})",
+                cancellationToken: cancellationToken);
 
             var dto = new ImageDto
             {

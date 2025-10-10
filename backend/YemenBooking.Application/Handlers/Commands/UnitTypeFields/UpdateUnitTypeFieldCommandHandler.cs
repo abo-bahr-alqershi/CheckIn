@@ -210,7 +210,7 @@ public class UpdateUnitTypeFieldCommandHandler : IRequestHandler<UpdateUnitTypeF
                     updatedField.Category
                 }),
                 performedBy: _currentUserService.UserId,
-                notes: $"تم تحديث الحقل الديناميكي: {updatedField.FieldName} لنوع الوحدة: {updatedField.UnitTypeId}",
+                notes: $"تم تحديث الحقل الديناميكي: {updatedField.FieldName} لنوع الوحدة: {updatedField.UnitTypeId} بواسطة {_currentUserService.Username} (ID={_currentUserService.UserId})",
                 cancellationToken: cancellationToken);
 
             // الخطوة 10: نشر الحدث

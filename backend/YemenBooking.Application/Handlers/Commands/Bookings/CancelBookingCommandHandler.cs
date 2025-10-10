@@ -369,12 +369,15 @@ public class CancelBookingCommandHandler : IRequestHandler<CancelBookingCommand,
     {
         // تسجيل العملية
         // Audit logging
-        await _auditService.LogAsync(
-            "CancelBooking",
-            booking.Id.ToString(),
-            $"تم إلغاء الحجز / Booking cancelled",
-            _currentUserService.UserId,
-            cancellationToken);
+        await _auditService.LogAuditAsync(
+            entityType: nameof(Booking),
+            entityId: booking.Id,
+            action: YemenBooking.Core.Entities.AuditAction.DELETE,
+            oldValues: null,
+            newValues: System.Text.Json.JsonSerializer.Serialize(new { Status = booking.Status.ToString(), Reason = booking.CancellationReason }),
+            performedBy: _currentUserService.UserId,
+            notes: $"تم إلغاء الحجز بواسطة {_currentUserService.Username} (ID={_currentUserService.UserId})",
+            cancellationToken: cancellationToken);
 
         // نشر حدث إلغاء الحجز
         // Publish booking cancelled event

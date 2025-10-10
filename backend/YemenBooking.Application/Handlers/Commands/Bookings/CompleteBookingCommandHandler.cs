@@ -62,7 +62,15 @@ public class CompleteBookingCommandHandler : IRequestHandler<CompleteBookingComm
             await _unitOfWork.Repository<Booking>().UpdateAsync(booking, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-            await _auditService.LogAsync("CompleteBooking", booking.Id.ToString(), "تم إكمال الحجز", _currentUserService.UserId, cancellationToken);
+            await _auditService.LogAuditAsync(
+                entityType: nameof(Booking),
+                entityId: booking.Id,
+                action: YemenBooking.Core.Entities.AuditAction.UPDATE,
+                oldValues: null,
+                newValues: System.Text.Json.JsonSerializer.Serialize(new { Status = booking.Status.ToString() }),
+                performedBy: _currentUserService.UserId,
+                notes: $"تم إكمال الحجز بواسطة {_currentUserService.Username} (ID={_currentUserService.UserId})",
+                cancellationToken: cancellationToken);
 
             return ResultDto<bool>.Succeeded(true, "تم إكمال الحجز بنجاح");
         }

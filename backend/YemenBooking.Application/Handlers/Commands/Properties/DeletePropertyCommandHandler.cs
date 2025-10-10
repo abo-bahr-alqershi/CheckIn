@@ -121,7 +121,7 @@ namespace YemenBooking.Application.Handlers.Commands.Properties
                 }),
                 newValues: null,
                 performedBy: _currentUserService.UserId,
-                notes: $"تم حذف الكيان {request.PropertyId}",
+                notes: $"تم حذف الكيان {request.PropertyId} بواسطة {_currentUserService.Username} (ID={_currentUserService.UserId})",
                 cancellationToken: cancellationToken);
 
             // استدعاء الفهرسة المباشرة لضمان حذف العقار من الفهرس

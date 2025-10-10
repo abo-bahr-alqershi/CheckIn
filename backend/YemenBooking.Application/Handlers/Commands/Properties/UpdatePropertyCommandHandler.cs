@@ -140,7 +140,7 @@ namespace YemenBooking.Application.Handlers.Commands.Properties
                 oldValues: JsonSerializer.Serialize(oldValues),
                 newValues: JsonSerializer.Serialize(newValues),
                 performedBy: _currentUserService.UserId,
-                notes: $"تم تحديث بيانات الكيان {request.PropertyId}",
+                notes: $"تم تحديث بيانات الكيان {request.PropertyId} بواسطة {_currentUserService.Username} (ID={_currentUserService.UserId})",
                 cancellationToken: cancellationToken);
 
             _logger.LogInformation("اكتمل تحديث بيانات الكيان: PropertyId={PropertyId}", request.PropertyId);

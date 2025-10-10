@@ -79,7 +79,7 @@ namespace YemenBooking.Application.Handlers.Commands.Properties
                 oldValues: null,
                 newValues: JsonSerializer.Serialize(new { Approved = true }),
                 performedBy: _currentUserService.UserId,
-                notes: $"تمت الموافقة على الكيان {request.PropertyId}",
+                notes: $"تمت الموافقة على الكيان {request.PropertyId} بواسطة {_currentUserService.Username} (ID={_currentUserService.UserId})",
                 cancellationToken: cancellationToken);
 
             // إرسال إشعار للمالك

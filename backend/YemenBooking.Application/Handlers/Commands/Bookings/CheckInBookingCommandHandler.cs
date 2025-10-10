@@ -76,7 +76,15 @@ public class CheckInBookingCommandHandler : IRequestHandler<CheckInBookingComman
             await _unitOfWork.Repository<Booking>().UpdateAsync(booking, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-            await _auditService.LogAsync("CheckInBooking", booking.Id.ToString(), "تم تسجيل الوصول", _currentUserService.UserId, cancellationToken);
+            await _auditService.LogAuditAsync(
+                entityType: nameof(Booking),
+                entityId: booking.Id,
+                action: YemenBooking.Core.Entities.AuditAction.UPDATE,
+                oldValues: null,
+                newValues: System.Text.Json.JsonSerializer.Serialize(new { Status = booking.Status.ToString(), ActualCheckInDate = booking.ActualCheckInDate }),
+                performedBy: _currentUserService.UserId,
+                notes: $"تم تسجيل الوصول بواسطة {_currentUserService.Username} (ID={_currentUserService.UserId})",
+                cancellationToken: cancellationToken);
 
             return ResultDto<bool>.Succeeded(true, "تم تسجيل الوصول بنجاح");
         }
