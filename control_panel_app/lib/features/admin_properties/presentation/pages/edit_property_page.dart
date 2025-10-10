@@ -107,6 +107,12 @@ class _EditPropertyPageContentState extends State<_EditPropertyPageContent>
   final GlobalKey<PropertyImageGalleryState> _galleryKey = GlobalKey();
   bool _isDeleting = false;
 
+  // Change tracking state (parity with unit edit)
+  bool _hasChanges = false;
+  List<String> _originalImageUrls = [];
+  bool _imagesChanged = false;
+  List<String> _originalAmenities = [];
+
   void _showDeletingDialog({String message = 'جاري حذف العقار...'}) {
     if (_isDeleting) return;
     _isDeleting = true;
@@ -196,8 +202,10 @@ class _EditPropertyPageContentState extends State<_EditPropertyPageContent>
         _isFeatured = property.isFeatured;
         _currency = property.currency;
         _selectedImages = property.images; // تخزين كائنات PropertyImage
+        _originalImageUrls = property.images.map((e) => e.url).toList();
         _selectedAmenities =
             property.amenities.map((amenity) => amenity.id).toList();
+        _originalAmenities = List<String>.from(_selectedAmenities);
         _isDataLoaded = true;
       });
     }
@@ -671,6 +679,9 @@ class _EditPropertyPageContentState extends State<_EditPropertyPageContent>
             onImagesChanged: (images) {
               setState(() {
                 _selectedImages = images;
+                final current = _selectedImages.map((e) => e.url).toList();
+                _imagesChanged = !_listEquals(current, _originalImageUrls);
+                _hasChanges = _checkForChanges();
               });
             },
             maxImages: 10,
@@ -689,6 +700,7 @@ class _EditPropertyPageContentState extends State<_EditPropertyPageContent>
             onAmenitiesChanged: (amenities) {
               setState(() {
                 _selectedAmenities = amenities;
+                _hasChanges = _checkForChanges();
               });
             },
             propertyTypeId: _selectedPropertyTypeId ?? _currentProperty?.typeId,
@@ -740,6 +752,19 @@ class _EditPropertyPageContentState extends State<_EditPropertyPageContent>
               {'label': 'عدد المرافق', 'value': '${_selectedAmenities.length}'},
             ],
           ),
+
+          const SizedBox(height: 20),
+          if (_hasChanges) ...[
+            Text(
+              'مراجعة التغييرات',
+              style: AppTextStyles.heading3.copyWith(
+                color: AppTheme.textWhite,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 12),
+            _buildChangesSummary(),
+          ],
         ],
       ),
     );
@@ -791,13 +816,32 @@ class _EditPropertyPageContentState extends State<_EditPropertyPageContent>
                     child: isCompleted
                         ? const Icon(Icons.check_rounded,
                             size: 16, color: Colors.white)
-                        : Text(
-                            '${index + 1}',
-                            style: AppTextStyles.caption.copyWith(
-                              color:
-                                  isActive ? Colors.white : AppTheme.textMuted,
-                              fontWeight: FontWeight.bold,
-                            ),
+                        : Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              Text(
+                                '${index + 1}',
+                                style: AppTextStyles.caption.copyWith(
+                                  color: isActive
+                                      ? Colors.white
+                                      : AppTheme.textMuted,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              if (index == _currentStep && _hasChanges)
+                                Positioned(
+                                  right: 0,
+                                  top: 0,
+                                  child: Container(
+                                    width: 6,
+                                    height: 6,
+                                    decoration: BoxDecoration(
+                                      color: AppTheme.warning,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                ),
+                            ],
                           ),
                   ),
                 ),
@@ -1434,7 +1478,9 @@ class _EditPropertyPageContentState extends State<_EditPropertyPageContent>
                           ),
                         )
                       : Text(
-                          _currentStep < 3 ? 'التالي' : 'حفظ التغييرات',
+                          _currentStep < 3
+                              ? 'التالي'
+                              : (_hasChanges ? 'حفظ التغييرات' : 'لا توجد تغييرات'),
                           style: AppTextStyles.buttonMedium.copyWith(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
@@ -1473,6 +1519,9 @@ class _EditPropertyPageContentState extends State<_EditPropertyPageContent>
               isFeatured: _isFeatured,
             ),
           );
+      setState(() {
+        _hasChanges = false;
+      });
     }
   }
 
@@ -1555,6 +1604,161 @@ class _EditPropertyPageContentState extends State<_EditPropertyPageContent>
         ],
       ),
     );
+  }
+
+  // Previous value helper row
+  Widget _buildPreviousValueRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Row(
+        children: [
+          Icon(Icons.history_rounded, size: 14, color: AppTheme.textMuted),
+          const SizedBox(width: 6),
+          Text(
+            '$label: ',
+            style: AppTextStyles.caption.copyWith(color: AppTheme.textMuted),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: AppTextStyles.caption.copyWith(color: AppTheme.textMuted),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.end,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Diff summary like unit page
+  Widget _buildChangesSummary() {
+    final changes = _collectChangedFields();
+    if (changes.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(colors: [
+            AppTheme.darkCard.withOpacity(0.5),
+            AppTheme.darkCard.withOpacity(0.3),
+          ]),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppTheme.darkBorder.withOpacity(0.3), width: 1),
+        ),
+        child: Text('لا توجد تغييرات', style: AppTextStyles.bodySmall.copyWith(color: AppTheme.textMuted)),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(colors: [
+          AppTheme.darkCard.withOpacity(0.5),
+          AppTheme.darkCard.withOpacity(0.3),
+        ]),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppTheme.primaryBlue.withOpacity(0.3), width: 1),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.track_changes_rounded, color: AppTheme.primaryBlue, size: 18),
+              const SizedBox(width: 8),
+              Text('ملخص التغييرات (${changes.length})',
+                  style: AppTextStyles.bodyMedium.copyWith(
+                    color: AppTheme.primaryBlue,
+                    fontWeight: FontWeight.bold,
+                  )),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ...changes.map((c) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(c['label']!,
+                          style: AppTextStyles.bodySmall.copyWith(color: AppTheme.textMuted)),
+                    ),
+                    Expanded(
+                      child: Text(c['old']!,
+                          textAlign: TextAlign.end,
+                          style: AppTextStyles.caption.copyWith(color: AppTheme.textMuted)),
+                    ),
+                    const SizedBox(width: 8),
+                    Icon(Icons.arrow_forward_rounded, size: 14, color: AppTheme.textMuted),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(c['new']!,
+                          textAlign: TextAlign.end,
+                          style: AppTextStyles.bodySmall.copyWith(
+                              color: AppTheme.textWhite, fontWeight: FontWeight.w600)),
+                    ),
+                  ],
+                ),
+              )),
+        ],
+      ),
+    );
+  }
+
+  List<Map<String, String>> _collectChangedFields() {
+    final list = <Map<String, String>>[];
+    if (_currentProperty == null) return list;
+    final p = _currentProperty!;
+    if (_nameController.text != p.name) {
+      list.add({'label': 'الاسم', 'old': p.name, 'new': _nameController.text});
+    }
+    if (_selectedPropertyTypeId != null && _selectedPropertyTypeId != p.typeId) {
+      list.add({'label': 'نوع العقار', 'old': p.typeName, 'new': _selectedPropertyTypeId!});
+    }
+    if (_currency != p.currency) {
+      list.add({'label': 'العملة', 'old': p.currency, 'new': _currency});
+    }
+    if (_addressController.text != p.address) {
+      list.add({'label': 'العنوان', 'old': p.address, 'new': _addressController.text});
+    }
+    if (_cityController.text != p.city) {
+      list.add({'label': 'المدينة', 'old': p.city, 'new': _cityController.text});
+    }
+    if (_starRating != p.starRating) {
+      list.add({'label': 'التقييم', 'old': '${p.starRating}', 'new': '$(_starRating)'});
+    }
+    if (_descriptionController.text != p.description) {
+      list.add({'label': 'الوصف', 'old': p.description, 'new': _descriptionController.text});
+    }
+    final currentUrls = _selectedImages.map((e) => e.url).toList();
+    if (!_listEquals(currentUrls, _originalImageUrls)) {
+      list.add({
+        'label': 'الصور',
+        'old': '${_originalImageUrls.length} صورة',
+        'new': '${currentUrls.length} صورة',
+      });
+    }
+    if (!_listEquals(_selectedAmenities, _originalAmenities)) {
+      list.add({
+        'label': 'المرافق',
+        'old': '${_originalAmenities.length}',
+        'new': '${_selectedAmenities.length}',
+      });
+    }
+    return list;
+  }
+
+  bool _listEquals(List<String> a, List<String> b) {
+    if (a.length != b.length) return false;
+    for (int i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
+
+  bool _checkForChanges() {
+    if (_currentProperty == null) return false;
+    return _collectChangedFields().isNotEmpty;
   }
 
   void _showDeleteConfirmation() {
