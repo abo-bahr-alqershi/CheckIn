@@ -968,6 +968,7 @@ class _CreatePropertyViewState extends State<_CreatePropertyView>
     TextInputType keyboardType = TextInputType.text,
     int maxLines = 1,
     String? Function(String?)? validator,
+    Function(String)? onChanged,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1017,6 +1018,7 @@ class _CreatePropertyViewState extends State<_CreatePropertyView>
               contentPadding: const EdgeInsets.all(16),
             ),
             validator: validator,
+            onChanged: onChanged,
           ),
         ),
       ],
