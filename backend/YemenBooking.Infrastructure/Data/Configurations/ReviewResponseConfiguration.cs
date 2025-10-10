@@ -32,6 +32,7 @@ public class ReviewResponseConfiguration : IEntityTypeConfiguration<ReviewRespon
             .HasComment("المستخدم الذي قام بالرد");
 
         builder.Property(r => r.RespondedByName)
+            .IsUnicode(true)
             .HasMaxLength(200)
             .HasComment("اسم المجيب (منسوخ)");
 
