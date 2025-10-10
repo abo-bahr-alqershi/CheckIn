@@ -18,6 +18,8 @@ class UpdatePropertyParams {
   final String? shortDescription;
   final String? currency;
   final bool? isFeatured;
+  final String? ownerId;
+  final List<String>? amenityIds;
 
   UpdatePropertyParams({
     required this.propertyId,
@@ -32,6 +34,8 @@ class UpdatePropertyParams {
     this.shortDescription,
     this.currency,
     this.isFeatured,
+    this.ownerId,
+    this.amenityIds,
   });
 
   Map<String, dynamic> toJson() {
@@ -47,6 +51,8 @@ class UpdatePropertyParams {
     if (shortDescription != null) data['shortDescription'] = shortDescription;
     if (currency != null) data['currency'] = currency;
     if (isFeatured != null) data['isFeatured'] = isFeatured;
+    if (ownerId != null) data['ownerId'] = ownerId;
+    if (amenityIds != null) data['amenityIds'] = amenityIds;
     return data;
   }
 }

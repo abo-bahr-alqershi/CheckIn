@@ -98,6 +98,8 @@ class UpdatePropertyEvent extends PropertiesEvent {
   final String? shortDescription;
   final String? currency;
   final bool? isFeatured;
+  final String? ownerId;
+  final List<String>? amenityIds;
   
   const UpdatePropertyEvent({
     required this.propertyId,
@@ -112,13 +114,15 @@ class UpdatePropertyEvent extends PropertiesEvent {
     this.shortDescription,
     this.currency,
     this.isFeatured,
+    this.ownerId,
+    this.amenityIds,
   });
   
   @override
   List<Object?> get props => [
     propertyId, name, address, description,
     latitude, longitude, city, starRating, images,
-    shortDescription, currency, isFeatured,
+    shortDescription, currency, isFeatured, ownerId, amenityIds,
   ];
 }
 
