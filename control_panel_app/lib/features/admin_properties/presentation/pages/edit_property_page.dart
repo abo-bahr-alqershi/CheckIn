@@ -49,8 +49,7 @@ class EditPropertyPage extends StatelessWidget {
             ..add(const LoadPropertyTypesEvent(pageSize: 100)),
         ),
         BlocProvider(
-          create: (_) =>
-              di.sl<AmenitiesBloc>()..add(const LoadAmenitiesEvent()),
+          create: (_) => di.sl<AmenitiesBloc>(),
         ),
         BlocProvider(
           create: (_) => di.sl<PropertyImagesBloc>(),
@@ -1562,7 +1561,8 @@ class _EditPropertyViewState extends State<_EditPropertyView>
                     children: [
                       Text(
                         _selectedOwner?.name ??
-                            (_originalProperty?.ownerName ?? 'اختر مالك العقار'),
+                            (_originalProperty?.ownerName ??
+                                'اختر مالك العقار'),
                         style: AppTextStyles.bodyMedium.copyWith(
                           color: (_selectedOwner == null &&
                                   (_originalProperty?.ownerName == null ||
@@ -2127,8 +2127,8 @@ class _EditPropertyViewState extends State<_EditPropertyView>
             _starRating != _originalProperty!.starRating ||
             _isFeatured != _originalProperty!.isFeatured ||
             _currency != _originalProperty!.currency ||
-        (_selectedOwner != null &&
-            _selectedOwner!.id != _originalProperty!.ownerId);
+            (_selectedOwner != null &&
+                _selectedOwner!.id != _originalProperty!.ownerId);
 
     // التحقق من تغييرات الصور
     final imagesChanged = _imagesChanged ||

@@ -58,7 +58,9 @@ class _AmenitySelectorWidgetState extends State<AmenitySelectorWidget> {
         // Initial state - request filtered load by property type
         if (state is AmenitiesInitial) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted && widget.propertyTypeId != null && widget.propertyTypeId!.isNotEmpty) {
+            if (mounted &&
+                widget.propertyTypeId != null &&
+                widget.propertyTypeId!.isNotEmpty) {
               context.read<AmenitiesBloc>().add(
                     LoadAmenitiesEventWithType(
                       propertyTypeId: widget.propertyTypeId!,
@@ -89,7 +91,8 @@ class _AmenitySelectorWidgetState extends State<AmenitySelectorWidget> {
           Expanded(
             child: Text(
               'اختر نوع العقار أولاً لعرض المرافق المتاحة له فقط',
-              style: AppTextStyles.bodySmall.copyWith(color: AppTheme.textMuted),
+              style:
+                  AppTextStyles.bodySmall.copyWith(color: AppTheme.textMuted),
             ),
           ),
         ],
