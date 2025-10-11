@@ -86,4 +86,16 @@ public class UpdatePropertyCommand : IRequest<ResultDto<bool>>
     /// </summary>
     public bool? IsFeatured { get; set; }
 
+    /// <summary>
+    /// تحديث المالك (اختياري - للمشرف فقط)
+    /// New owner id (optional - admin only)
+    /// </summary>
+    public Guid? OwnerId { get; set; }
+
+    /// <summary>
+    /// قائمة معرفات المرافق المراد تعيينها للعقار (تزامن كامل)
+    /// List of amenity ids to assign to the property (full sync)
+    /// </summary>
+    public List<Guid>? AmenityIds { get; set; }
+
 } 
