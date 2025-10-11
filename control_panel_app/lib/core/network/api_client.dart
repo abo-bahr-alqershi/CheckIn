@@ -27,7 +27,9 @@ class ApiClient {
 
     _dio.interceptors.addAll([
       AuthInterceptor(),
+      UserFeedbackInterceptor(),
       ErrorInterceptor(_dio),
+      // Logging of server/user messages is handled by ErrorInterceptor via MessageService
       if (const bool.fromEnvironment('DEBUG'))
         PrettyDioLogger(
           requestHeader: true,

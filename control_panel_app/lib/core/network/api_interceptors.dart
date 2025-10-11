@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import '../../services/local_storage_service.dart';
+import '../../services/message_service.dart';
 import '../constants/storage_constants.dart';
 import '../constants/api_constants.dart';
 import '../localization/locale_manager.dart';
@@ -46,6 +47,55 @@ class AuthInterceptor extends Interceptor {
   }
 }
 
+/// Interceptor to surface server messages on successful HTTP responses
+/// when backend embeds ResultDto with success/isSuccess flags.
+class UserFeedbackInterceptor extends Interceptor {
+  @override
+  void onResponse(Response response, ResponseInterceptorHandler handler) {
+    try {
+      final extra = response.requestOptions.extra;
+      final data = response.data;
+      if (data is Map<String, dynamic>) {
+        final hasSuccessKey = data.containsKey('success') || data.containsKey('isSuccess');
+        final bool? isSuccess = data['success'] as bool? ?? data['isSuccess'] as bool?;
+        final String message = _extractResponseMessage(data);
+
+        // Only show failure messages from server when success/isSuccess == false
+        if (hasSuccessKey && isSuccess == false) {
+          final suppressed = (extra['suppressErrorToast'] == true);
+          if (!suppressed && message.isNotEmpty) {
+            MessageService.showError(message);
+          }
+        }
+      }
+    } catch (_) {}
+
+    handler.next(response);
+  }
+}
+
+String _extractResponseMessage(Map<String, dynamic> data) {
+  final msg = (data['message'] ?? data['error'] ?? '').toString();
+  if (msg.trim().isNotEmpty) return msg;
+  final errors = data['errors'];
+  if (errors is List) {
+    final joined = errors.map((e) => e.toString()).join('\n');
+    if (joined.trim().isNotEmpty) return joined;
+  } else if (errors is Map) {
+    final List<String> messages = [];
+    errors.forEach((key, value) {
+      if (value is List) {
+        messages.addAll(value.map((e) => e.toString()));
+      } else if (value != null) {
+        messages.add(value.toString());
+      }
+    });
+    final joined = messages.join('\n');
+    if (joined.trim().isNotEmpty) return joined;
+  }
+  return '';
+}
+
 class ErrorInterceptor extends Interceptor {
   ErrorInterceptor(this._dio);
 
@@ -63,7 +113,18 @@ class ErrorInterceptor extends Interceptor {
       return handler.next(err);
     }
 
-    // Only handle 401 Unauthorized
+    // Show validation/server messages globally unless suppressed
+    try {
+      final suppressed = (requestOptions.extra['suppressErrorToast'] == true);
+      if (!suppressed) {
+        final message = _extractErrorMessage(err);
+        if (message.isNotEmpty) {
+          MessageService.showError(message);
+        }
+      }
+    } catch (_) {}
+
+    // Only handle 401 Unauthorized (token refresh flow)
     if (status == 401) {
       try {
         final localStorage = sl<LocalStorageService>();
@@ -160,6 +221,53 @@ class ErrorInterceptor extends Interceptor {
     try {
       AppBloc.authBloc.add(const LogoutEvent());
     } catch (_) {}
+  }
+}
+
+String _extractErrorMessage(DioException err) {
+  final data = err.response?.data;
+  // Backend ResultDto pattern: { success, message, errors, errorCode, ... }
+  if (data is Map<String, dynamic>) {
+    // Prefer explicit message when present
+    final explicitMessage = (data['message'] ?? data['error'] ?? '').toString();
+    if (explicitMessage.trim().isNotEmpty) return explicitMessage;
+
+    // errors may be List or Map of field=>[errors]
+    final errors = data['errors'];
+    if (errors is List) {
+      final joined = errors.map((e) => e.toString()).join('\n');
+      if (joined.trim().isNotEmpty) return joined;
+    } else if (errors is Map) {
+      final List<String> messages = [];
+      errors.forEach((key, value) {
+        if (value is List) {
+          messages.addAll(value.map((e) => e.toString()));
+        } else if (value != null) {
+          messages.add(value.toString());
+        }
+      });
+      final joined = messages.join('\n');
+      if (joined.trim().isNotEmpty) return joined;
+    }
+  }
+
+  // Fallback based on status code
+  final statusCode = err.response?.statusCode;
+  switch (statusCode) {
+    case 400:
+      return 'طلب غير صحيح';
+    case 401:
+      return 'غير مصرح بالوصول';
+    case 403:
+      return 'ليس لديك صلاحية';
+    case 404:
+      return 'لم يتم العثور على البيانات';
+    case 422:
+      return 'البيانات المدخلة غير صحيحة';
+    case 500:
+      return 'خطأ في الخادم';
+    default:
+      return err.message ?? 'حدث خطأ غير متوقع';
   }
 }
 
