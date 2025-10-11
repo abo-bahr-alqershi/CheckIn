@@ -10,6 +10,8 @@ import 'package:bookn_cp_app/features/admin_services/domain/entities/money.dart'
 import 'package:bookn_cp_app/features/admin_services/domain/entities/pricing_model.dart';
 import 'package:bookn_cp_app/features/admin_services/domain/entities/service.dart'
     as svc_entity;
+import 'package:bookn_cp_app/features/admin_services/domain/entities/service_details.dart'
+    as svc_entity;
 import 'package:bookn_cp_app/features/admin_services/presentation/bloc/services_bloc.dart';
 import 'package:bookn_cp_app/features/admin_services/presentation/bloc/services_event.dart';
 import 'package:bookn_cp_app/features/admin_services/presentation/bloc/services_state.dart';
@@ -1516,11 +1518,11 @@ class _EditServicePageState extends State<EditServicePage>
         _selectedPricingModel != _originalService!.pricingModel ||
         _selectedIcon != _originalService!.icon ||
         (_originalService is svc_entity.ServiceDetails &&
-                _descriptionController.text.trim() !=
-                    ((_originalService as svc_entity.ServiceDetails))
+            _descriptionController.text.trim() !=
+                ((_originalService as svc_entity.ServiceDetails)
                         .description
                         ?.trim() ??
-            '');
+                    ''));
   }
 
   bool _hasChangesInStep(int step) {
@@ -1531,11 +1533,11 @@ class _EditServicePageState extends State<EditServicePage>
         return _nameController.text != _originalService!.name ||
             _selectedIcon != _originalService!.icon ||
             (_originalService is svc_entity.ServiceDetails &&
-                    _descriptionController.text.trim() !=
-                        ((_originalService as svc_entity.ServiceDetails))
+                _descriptionController.text.trim() !=
+                    ((_originalService as svc_entity.ServiceDetails)
                             .description
                             ?.trim() ??
-                '');
+                        ''));
       case 1: // Pricing
         return double.tryParse(_amountController.text) !=
                 _originalService!.price.amount ||
