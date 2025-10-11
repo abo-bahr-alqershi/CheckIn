@@ -11,20 +11,17 @@ import 'package:bookn_cp_app/core/theme/app_text_styles.dart';
 import '../../../../core/utils/validators.dart';
 import '../bloc/users_list/users_list_bloc.dart';
 import '../widgets/user_role_selector.dart';
+import '../../domain/entities/user.dart';
 
 class CreateUserPage extends StatefulWidget {
   final String? userId; // if provided -> edit mode
-  final String? initialName;
-  final String? initialEmail;
-  final String? initialPhone;
-  final String? initialRoleId;
-  const CreateUserPage(
-      {super.key,
-      this.userId,
-      this.initialName,
-      this.initialEmail,
-      this.initialPhone,
-      this.initialRoleId});
+  final User? initialUser; // For edit mode
+
+  const CreateUserPage({
+    super.key,
+    this.userId,
+    this.initialUser,
+  });
 
   @override
   State<CreateUserPage> createState() => _CreateUserPageState();
@@ -33,16 +30,12 @@ class CreateUserPage extends StatefulWidget {
 class _CreateUserPageState extends State<CreateUserPage>
     with TickerProviderStateMixin {
   // Animation Controllers
-  late AnimationController _backgroundAnimationController;
+  late AnimationController _animationController;
   late AnimationController _glowController;
-  late AnimationController _particleController;
-  late AnimationController _contentAnimationController;
-
-  // Animations
-  late Animation<double> _backgroundRotation;
-  late Animation<double> _glowAnimation;
-  late Animation<double> _contentFadeAnimation;
-  late Animation<Offset> _contentSlideAnimation;
+  late AnimationController _loadingAnimationController;
+  late Animation<double> _fadeAnimation;
+  late Animation<Offset> _slideAnimation;
+  late Animation<double> _loadingRotation;
 
   // Form Controllers
   final _formKey = GlobalKey<FormState>();
@@ -57,92 +50,114 @@ class _CreateUserPageState extends State<CreateUserPage>
   int _currentStep = 0;
   bool _isSubmitting = false;
 
+  // Edit specific state
+  User? _originalUser;
+  bool _isDataLoaded = false;
+  bool _hasChanges = false;
+
+  // Original values for comparison
+  String? _originalName;
+  String? _originalEmail;
+  String? _originalPhone;
+  String? _originalRole;
+
   @override
   void initState() {
     super.initState();
     _initializeAnimations();
-    // Ensure UsersListBloc has a baseline state for listeners/refresh
-    // This allows the page to listen for a loaded state after create/update
-    // and ensures RefreshUsersEvent works.
-    try {
-      context.read<UsersListBloc>().add(LoadUsersEvent());
-    } catch (_) {}
-    // Pre-fill if edit mode
-    if (widget.userId != null) {
-      _nameController.text = widget.initialName ?? _nameController.text;
-      _emailController.text = widget.initialEmail ?? _emailController.text;
-      _phoneController.text = widget.initialPhone ?? _phoneController.text;
-      _selectedRole = widget.initialRoleId;
+
+    // Load initial data for edit mode
+    if (widget.userId != null && widget.initialUser != null) {
+      _loadUserData(widget.initialUser!);
+    } else if (widget.userId != null) {
+      // Load user data from API if not provided
+      _loadUserFromApi();
+    } else {
+      _isDataLoaded = true;
     }
+
+    // Start animation after build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _animationController.forward();
+      }
+    });
   }
 
   void _initializeAnimations() {
-    _backgroundAnimationController = AnimationController(
-      duration: const Duration(seconds: 20),
-      vsync: this,
-    )..repeat();
-
-    _glowController = AnimationController(
-      duration: const Duration(seconds: 3),
-      vsync: this,
-    )..repeat(reverse: true);
-
-    _particleController = AnimationController(
-      duration: const Duration(seconds: 15),
-      vsync: this,
-    )..repeat();
-
-    _contentAnimationController = AnimationController(
+    _animationController = AnimationController(
       duration: const Duration(milliseconds: 800),
       vsync: this,
     );
 
-    _backgroundRotation = Tween<double>(
-      begin: 0,
-      end: 2 * math.pi,
-    ).animate(CurvedAnimation(
-      parent: _backgroundAnimationController,
-      curve: Curves.linear,
-    ));
+    _glowController = AnimationController(
+      duration: const Duration(seconds: 2),
+      vsync: this,
+    )..repeat(reverse: true);
 
-    _glowAnimation = Tween<double>(
-      begin: 0.3,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _glowController,
-      curve: Curves.easeInOut,
-    ));
+    _loadingAnimationController = AnimationController(
+      duration: const Duration(seconds: 1),
+      vsync: this,
+    )..repeat();
 
-    _contentFadeAnimation = Tween<double>(
+    _fadeAnimation = Tween<double>(
       begin: 0.0,
       end: 1.0,
     ).animate(CurvedAnimation(
-      parent: _contentAnimationController,
+      parent: _animationController,
       curve: Curves.easeOut,
     ));
 
-    _contentSlideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.05),
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, 0.1),
       end: Offset.zero,
     ).animate(CurvedAnimation(
-      parent: _contentAnimationController,
+      parent: _animationController,
       curve: Curves.easeOutQuart,
     ));
 
-    // Start animations
-    Future.delayed(const Duration(milliseconds: 100), () {
-      if (mounted) {
-        _contentAnimationController.forward();
-      }
+    _loadingRotation = Tween<double>(
+      begin: 0,
+      end: 2 * math.pi,
+    ).animate(CurvedAnimation(
+      parent: _loadingAnimationController,
+      curve: Curves.linear,
+    ));
+  }
+
+  void _loadUserFromApi() {
+    // Load user data from API
+    context
+        .read<UsersListBloc>()
+        .add(LoadUserDetailsEvent(userId: widget.userId!));
+  }
+
+  void _loadUserData(User user) {
+    if (_isDataLoaded) return;
+
+    setState(() {
+      _originalUser = user;
+      _isDataLoaded = true;
+
+      // Populate controllers
+      _nameController.text = user.name;
+      _emailController.text = user.email;
+      _phoneController.text = user.phone ?? '';
+      _selectedRole = user.role;
+
+      // Store original values
+      _originalName = user.name;
+      _originalEmail = user.email;
+      _originalPhone = user.phone ?? '';
+      _originalRole = user.role;
     });
   }
 
   @override
   void dispose() {
-    _backgroundAnimationController.dispose();
+    _animationController.dispose();
     _glowController.dispose();
-    _particleController.dispose();
-    _contentAnimationController.dispose();
+    _loadingAnimationController.dispose();
     _nameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
@@ -152,67 +167,75 @@ class _CreateUserPageState extends State<CreateUserPage>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppTheme.darkBackground,
-      body: BlocListener<UsersListBloc, UsersListState>(
+    final isEditMode = widget.userId != null;
+
+    return WillPopScope(
+      onWillPop: _onWillPop,
+      child: BlocListener<UsersListBloc, UsersListState>(
         listener: (context, state) {
-          // الاستماع لحالة نجاح العملية
+          // Listen for user details loaded (for edit mode)
+          if (state is UserDetailsLoaded && !_isDataLoaded) {
+            _loadUserData(state.user);
+          }
+
+          // Listen for operation success
           if (state is UserOperationSuccess && _isSubmitting) {
             _showSuccessMessage(state.message);
             setState(() {
               _isSubmitting = false;
             });
-
-            // في حالة التحديث، نعود مرة واحدة فقط (إلى صفحة التفاصيل أو القائمة)
-            // في حالة الإنشاء، نعود إلى صفحة القائمة
-            if (context.canPop()) {
-              context.pop();
-            } else {
-              // إذا لم نستطع pop، نذهب إلى صفحة قائمة المستخدمين
-              context.go('/admin/users');
-            }
+            Future.delayed(const Duration(milliseconds: 500), () {
+              if (mounted) {
+                context.pop(true); // Return true to indicate success
+              }
+            });
           }
-          // الاستماع لحالة الخطأ
+
+          // Listen for errors
           if (state is UsersListError && _isSubmitting) {
             _showErrorMessage(state.message);
             setState(() {
               _isSubmitting = false;
             });
-            // لا نقوم بإغلاق الصفحة في حالة الخطأ
           }
         },
-        child: Stack(
-          children: [
-            // Animated Background
-            _buildAnimatedBackground(),
+        child: Scaffold(
+          backgroundColor: AppTheme.darkBackground,
+          body: Stack(
+            children: [
+              // Animated Background
+              _buildAnimatedBackground(),
 
-            // Main Content
-            SafeArea(
-              child: Column(
-                children: [
-                  // Header
-                  _buildHeader(),
+              // Main Content or Loading
+              SafeArea(
+                child: !_isDataLoaded && isEditMode
+                    ? _buildLoadingState()
+                    : Column(
+                        children: [
+                          // Header
+                          _buildHeader(),
 
-                  // Progress Indicator
-                  _buildProgressIndicator(),
+                          // Progress Indicator
+                          _buildProgressIndicator(),
 
-                  // Form Content
-                  Expanded(
-                    child: FadeTransition(
-                      opacity: _contentFadeAnimation,
-                      child: SlideTransition(
-                        position: _contentSlideAnimation,
-                        child: _buildFormContent(),
+                          // Form Content
+                          Expanded(
+                            child: FadeTransition(
+                              opacity: _fadeAnimation,
+                              child: SlideTransition(
+                                position: _slideAnimation,
+                                child: _buildFormContent(),
+                              ),
+                            ),
+                          ),
+
+                          // Action Buttons
+                          _buildActionButtons(),
+                        ],
                       ),
-                    ),
-                  ),
-
-                  // Action Buttons
-                  _buildActionButtons(),
-                ],
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -220,7 +243,7 @@ class _CreateUserPageState extends State<CreateUserPage>
 
   Widget _buildAnimatedBackground() {
     return AnimatedBuilder(
-      animation: Listenable.merge([_backgroundRotation, _glowAnimation]),
+      animation: _glowController,
       builder: (context, child) {
         return Container(
           decoration: BoxDecoration(
@@ -236,8 +259,8 @@ class _CreateUserPageState extends State<CreateUserPage>
           ),
           child: CustomPaint(
             painter: _CreateUserBackgroundPainter(
-              rotation: _backgroundRotation.value,
-              glowIntensity: _glowAnimation.value,
+              glowIntensity: _glowController.value,
+              isEditMode: widget.userId != null,
             ),
             size: Size.infinite,
           ),
@@ -246,7 +269,86 @@ class _CreateUserPageState extends State<CreateUserPage>
     );
   }
 
+  Widget _buildLoadingState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          AnimatedBuilder(
+            animation: _loadingRotation,
+            builder: (context, child) {
+              return Transform.rotate(
+                angle: _loadingRotation.value,
+                child: Container(
+                  width: 100,
+                  height: 100,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        AppTheme.primaryBlue.withOpacity(0.3),
+                        AppTheme.primaryPurple.withOpacity(0.2),
+                        AppTheme.primaryViolet.withOpacity(0.1),
+                      ],
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppTheme.primaryBlue.withOpacity(0.3),
+                        blurRadius: 30,
+                        spreadRadius: 10,
+                      ),
+                    ],
+                  ),
+                  child: Center(
+                    child: Container(
+                      width: 80,
+                      height: 80,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: AppTheme.darkBackground,
+                      ),
+                      child: Center(
+                        child: Icon(
+                          Icons.person_rounded,
+                          color: AppTheme.primaryBlue,
+                          size: 40,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 32),
+          ShaderMask(
+            shaderCallback: (bounds) =>
+                AppTheme.primaryGradient.createShader(bounds),
+            child: Text(
+              'جاري تحميل بيانات المستخدم...',
+              style: AppTextStyles.heading3.copyWith(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'الرجاء الانتظار',
+            style: AppTextStyles.bodyMedium.copyWith(
+              color: AppTheme.textMuted,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildHeader() {
+    final isEditMode = widget.userId != null;
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -299,24 +401,48 @@ class _CreateUserPageState extends State<CreateUserPage>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                ShaderMask(
-                  shaderCallback: (bounds) =>
-                      AppTheme.primaryGradient.createShader(bounds),
-                  child: Text(
-                    widget.userId == null
-                        ? 'إضافة مستخدم جديد'
-                        : 'تعديل المستخدم',
-                    style: AppTextStyles.heading2.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
+                Row(
+                  children: [
+                    ShaderMask(
+                      shaderCallback: (bounds) =>
+                          AppTheme.primaryGradient.createShader(bounds),
+                      child: Text(
+                        isEditMode ? 'تعديل المستخدم' : 'إضافة مستخدم جديد',
+                        style: AppTextStyles.heading2.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
-                  ),
+                    if (isEditMode && _hasChanges) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppTheme.warning.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: AppTheme.warning.withOpacity(0.5),
+                            width: 1,
+                          ),
+                        ),
+                        child: Text(
+                          'محرر',
+                          style: AppTextStyles.caption.copyWith(
+                            color: AppTheme.warning,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  widget.userId == null
-                      ? 'قم بملء البيانات المطلوبة لإضافة المستخدم'
-                      : 'قم بتحديث بيانات المستخدم',
+                  isEditMode
+                      ? _originalUser?.name ?? 'قم بتعديل البيانات المطلوبة'
+                      : 'قم بملء البيانات المطلوبة لإضافة المستخدم',
                   style: AppTextStyles.bodySmall.copyWith(
                     color: AppTheme.textMuted,
                   ),
@@ -324,6 +450,29 @@ class _CreateUserPageState extends State<CreateUserPage>
               ],
             ),
           ),
+
+          // Reset Button (only in edit mode with changes)
+          if (isEditMode && _hasChanges)
+            GestureDetector(
+              onTap: _resetChanges,
+              child: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: AppTheme.error.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: AppTheme.error.withOpacity(0.3),
+                    width: 1,
+                  ),
+                ),
+                child: Icon(
+                  Icons.refresh_rounded,
+                  color: AppTheme.error,
+                  size: 20,
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -344,6 +493,7 @@ class _CreateUserPageState extends State<CreateUserPage>
         children: List.generate(steps.length, (index) {
           final isActive = index <= _currentStep;
           final isCompleted = index < _currentStep;
+          final isModified = widget.userId != null && _hasChangesInStep(index);
 
           return Expanded(
             child: Row(
@@ -360,15 +510,19 @@ class _CreateUserPageState extends State<CreateUserPage>
                         : null,
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: isActive
-                          ? AppTheme.primaryBlue.withOpacity(0.5)
-                          : AppTheme.darkBorder.withOpacity(0.3),
-                      width: 1,
+                      color: isModified
+                          ? AppTheme.warning.withOpacity(0.5)
+                          : isActive
+                              ? AppTheme.primaryBlue.withOpacity(0.5)
+                              : AppTheme.darkBorder.withOpacity(0.3),
+                      width: isModified ? 2 : 1,
                     ),
                     boxShadow: isActive
                         ? [
                             BoxShadow(
-                              color: AppTheme.primaryBlue.withOpacity(0.3),
+                              color: isModified
+                                  ? AppTheme.warning.withOpacity(0.3)
+                                  : AppTheme.primaryBlue.withOpacity(0.3),
                               blurRadius: 10,
                             ),
                           ]
@@ -376,8 +530,10 @@ class _CreateUserPageState extends State<CreateUserPage>
                   ),
                   child: Center(
                     child: isCompleted
-                        ? const Icon(
-                            Icons.check_rounded,
+                        ? Icon(
+                            isModified
+                                ? Icons.edit_rounded
+                                : Icons.check_rounded,
                             size: 16,
                             color: Colors.white,
                           )
@@ -399,7 +555,14 @@ class _CreateUserPageState extends State<CreateUserPage>
                       height: 2,
                       margin: const EdgeInsets.symmetric(horizontal: 8),
                       decoration: BoxDecoration(
-                        gradient: isCompleted ? AppTheme.primaryGradient : null,
+                        gradient: isCompleted
+                            ? isModified
+                                ? LinearGradient(colors: [
+                                    AppTheme.warning,
+                                    AppTheme.warning.withOpacity(0.5)
+                                  ])
+                                : AppTheme.primaryGradient
+                            : null,
                         color: !isCompleted
                             ? AppTheme.darkBorder.withOpacity(0.2)
                             : null,
@@ -418,6 +581,13 @@ class _CreateUserPageState extends State<CreateUserPage>
   Widget _buildFormContent() {
     return Form(
       key: _formKey,
+      onChanged: () {
+        if (widget.userId != null) {
+          setState(() {
+            _hasChanges = _checkForChanges();
+          });
+        }
+      },
       child: IndexedStack(
         index: _currentStep,
         children: [
@@ -431,11 +601,21 @@ class _CreateUserPageState extends State<CreateUserPage>
   }
 
   Widget _buildBasicInfoStep() {
+    final isEditMode = widget.userId != null;
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Change Indicator for Name
+          if (isEditMode && _originalName != null)
+            _buildOriginalValueIndicator(
+              'الاسم الأصلي',
+              _originalName!,
+              _nameController.text != _originalName,
+            ),
+
           // Name
           _buildInputField(
             controller: _nameController,
@@ -446,6 +626,14 @@ class _CreateUserPageState extends State<CreateUserPage>
           ),
 
           const SizedBox(height: 20),
+
+          // Change Indicator for Email
+          if (isEditMode && _originalEmail != null)
+            _buildOriginalValueIndicator(
+              'البريد الإلكتروني الأصلي',
+              _originalEmail!,
+              _emailController.text != _originalEmail,
+            ),
 
           // Email
           _buildInputField(
@@ -460,18 +648,32 @@ class _CreateUserPageState extends State<CreateUserPage>
           const SizedBox(height: 20),
 
           // Password (only in create mode)
-          if (widget.userId == null) _buildPasswordField(),
+          if (!isEditMode) ...[
+            _buildPasswordField(),
+          ] else ...[
+            _buildChangePasswordCard(),
+          ],
         ],
       ),
     );
   }
 
   Widget _buildContactStep() {
+    final isEditMode = widget.userId != null;
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Change Indicator for Phone
+          if (isEditMode && _originalPhone != null)
+            _buildOriginalValueIndicator(
+              'رقم الهاتف الأصلي',
+              _originalPhone!.isEmpty ? 'غير محدد' : _originalPhone!,
+              _phoneController.text != _originalPhone,
+            ),
+
           // Phone
           _buildInputField(
             controller: _phoneController,
@@ -484,12 +686,13 @@ class _CreateUserPageState extends State<CreateUserPage>
 
           const SizedBox(height: 20),
 
-          // Additional contact info can be added here
+          // Additional contact info card
           _buildInfoCard(
             icon: Icons.info_rounded,
             title: 'معلومات إضافية',
             description:
                 'يمكنك إضافة معلومات اتصال إضافية لاحقاً من صفحة تفاصيل المستخدم',
+            color: AppTheme.info,
           ),
         ],
       ),
@@ -509,6 +712,14 @@ class _CreateUserPageState extends State<CreateUserPage>
               fontWeight: FontWeight.bold,
             ),
           ),
+          const SizedBox(height: 4),
+          if (widget.userId != null && _originalRole != null)
+            Text(
+              'الدور الحالي: ${_getRoleText(_originalRole!)}',
+              style: AppTextStyles.bodySmall.copyWith(
+                color: AppTheme.textMuted,
+              ),
+            ),
           const SizedBox(height: 16),
 
           // Role Selector
@@ -552,6 +763,10 @@ class _CreateUserPageState extends State<CreateUserPage>
 
     return roles.map((role) {
       final isSelected = _selectedRole == role['id'];
+      final hasChanged = widget.userId != null &&
+          _originalRole != null &&
+          role['id'] == _selectedRole &&
+          _selectedRole != _originalRole;
 
       return GestureDetector(
         onTap: () {
@@ -568,8 +783,10 @@ class _CreateUserPageState extends State<CreateUserPage>
             gradient: isSelected
                 ? LinearGradient(
                     colors: [
-                      (role['gradient'] as List<Color>)[0].withOpacity(0.1),
-                      (role['gradient'] as List<Color>)[1].withOpacity(0.05),
+                      (role['gradient'] as List<Color>)[0]
+                          .withOpacity(hasChanged ? 0.15 : 0.1),
+                      (role['gradient'] as List<Color>)[1]
+                          .withOpacity(hasChanged ? 0.08 : 0.05),
                     ],
                   )
                 : LinearGradient(
@@ -580,16 +797,20 @@ class _CreateUserPageState extends State<CreateUserPage>
                   ),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: isSelected
-                  ? (role['gradient'] as List<Color>)[0].withOpacity(0.5)
-                  : AppTheme.darkBorder.withOpacity(0.3),
-              width: 1,
+              color: hasChanged
+                  ? AppTheme.warning.withOpacity(0.5)
+                  : isSelected
+                      ? (role['gradient'] as List<Color>)[0].withOpacity(0.5)
+                      : AppTheme.darkBorder.withOpacity(0.3),
+              width: hasChanged ? 2 : 1,
             ),
             boxShadow: isSelected
                 ? [
                     BoxShadow(
-                      color:
-                          (role['gradient'] as List<Color>)[0].withOpacity(0.2),
+                      color: hasChanged
+                          ? AppTheme.warning.withOpacity(0.2)
+                          : (role['gradient'] as List<Color>)[0]
+                              .withOpacity(0.2),
                       blurRadius: 10,
                       offset: const Offset(0, 2),
                     ),
@@ -632,6 +853,16 @@ class _CreateUserPageState extends State<CreateUserPage>
                         color: AppTheme.textMuted,
                       ),
                     ),
+                    if (hasChanged) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        'كان: ${_getRoleText(_originalRole!)}',
+                        style: AppTextStyles.caption.copyWith(
+                          color: AppTheme.warning,
+                          fontSize: 10,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -641,7 +872,12 @@ class _CreateUserPageState extends State<CreateUserPage>
                   height: 24,
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
-                      colors: role['gradient'] as List<Color>,
+                      colors: hasChanged
+                          ? [
+                              AppTheme.warning,
+                              AppTheme.warning.withOpacity(0.7)
+                            ]
+                          : role['gradient'] as List<Color>,
                     ),
                     shape: BoxShape.circle,
                   ),
@@ -659,21 +895,56 @@ class _CreateUserPageState extends State<CreateUserPage>
   }
 
   Widget _buildReviewStep() {
+    final isEditMode = widget.userId != null;
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'مراجعة البيانات',
-            style: AppTextStyles.heading2.copyWith(
-              color: AppTheme.textWhite,
-              fontWeight: FontWeight.bold,
-            ),
+          Row(
+            children: [
+              Text(
+                isEditMode ? 'مراجعة التغييرات' : 'مراجعة البيانات',
+                style: AppTextStyles.heading2.copyWith(
+                  color: AppTheme.textWhite,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              if (isEditMode && _hasChanges) ...[
+                const SizedBox(width: 12),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        AppTheme.warning,
+                        AppTheme.warning.withOpacity(0.8),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Text(
+                    'يوجد تغييرات',
+                    style: AppTextStyles.caption.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ],
           ),
           const SizedBox(height: 20),
 
-          // Validation summary in the final step
+          // Changes Summary (for edit mode)
+          if (isEditMode && _hasChanges) ...[
+            _buildChangesSummary(),
+            const SizedBox(height: 20),
+          ],
+
+          // Validation summary
           Builder(builder: (context) {
             final errors = _getReviewValidationErrors();
             if (errors.isEmpty) return const SizedBox.shrink();
@@ -685,10 +956,21 @@ class _CreateUserPageState extends State<CreateUserPage>
           // Review Cards
           _buildReviewCard(
             title: 'المعلومات الأساسية',
+            icon: Icons.person_rounded,
+            iconColor: AppTheme.primaryBlue,
             items: [
-              {'label': 'الاسم', 'value': _nameController.text},
-              {'label': 'البريد الإلكتروني', 'value': _emailController.text},
-              {'label': 'كلمة المرور', 'value': '••••••••'},
+              {
+                'label': 'الاسم',
+                'value': _nameController.text,
+                'changed': isEditMode && _nameController.text != _originalName
+              },
+              {
+                'label': 'البريد الإلكتروني',
+                'value': _emailController.text,
+                'changed': isEditMode && _emailController.text != _originalEmail
+              },
+              if (!isEditMode)
+                {'label': 'كلمة المرور', 'value': '••••••••', 'changed': false},
             ],
           ),
 
@@ -696,8 +978,16 @@ class _CreateUserPageState extends State<CreateUserPage>
 
           _buildReviewCard(
             title: 'معلومات الاتصال',
+            icon: Icons.phone_rounded,
+            iconColor: AppTheme.success,
             items: [
-              {'label': 'رقم الهاتف', 'value': _phoneController.text},
+              {
+                'label': 'رقم الهاتف',
+                'value': _phoneController.text.isEmpty
+                    ? 'غير محدد'
+                    : _phoneController.text,
+                'changed': isEditMode && _phoneController.text != _originalPhone
+              },
             ],
           ),
 
@@ -705,10 +995,226 @@ class _CreateUserPageState extends State<CreateUserPage>
 
           _buildReviewCard(
             title: 'الصلاحيات',
+            icon: Icons.security_rounded,
+            iconColor: AppTheme.warning,
             items: [
-              {'label': 'الدور', 'value': _getRoleText(_selectedRole ?? '')},
+              {
+                'label': 'الدور',
+                'value': _getRoleText(_selectedRole ?? ''),
+                'changed': isEditMode && _selectedRole != _originalRole
+              },
             ],
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOriginalValueIndicator(
+      String label, String value, bool isChanged) {
+    if (!isChanged) return const SizedBox.shrink();
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppTheme.warning.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: AppTheme.warning.withOpacity(0.3),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.info_outline_rounded,
+            size: 14,
+            color: AppTheme.warning,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: RichText(
+              text: TextSpan(
+                children: [
+                  TextSpan(
+                    text: '$label: ',
+                    style: AppTextStyles.caption.copyWith(
+                      color: AppTheme.warning,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  TextSpan(
+                    text: value,
+                    style: AppTextStyles.caption.copyWith(
+                      color: AppTheme.warning.withOpacity(0.8),
+                    ),
+                  ),
+                ],
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildChangePasswordCard() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppTheme.info.withOpacity(0.1),
+            AppTheme.info.withOpacity(0.05),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppTheme.info.withOpacity(0.3),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.lock_reset_rounded,
+            color: AppTheme.info,
+            size: 24,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'تغيير كلمة المرور',
+                  style: AppTextStyles.bodyMedium.copyWith(
+                    color: AppTheme.textWhite,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'يمكن تغيير كلمة المرور من صفحة إعدادات المستخدم',
+                  style: AppTextStyles.caption.copyWith(
+                    color: AppTheme.textMuted,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildChangesSummary() {
+    final changes = _getChangedFields();
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppTheme.warning.withOpacity(0.1),
+            AppTheme.warning.withOpacity(0.05),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppTheme.warning.withOpacity(0.3),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.track_changes_rounded,
+                color: AppTheme.warning,
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'ملخص التغييرات (${changes.length})',
+                style: AppTextStyles.bodyMedium.copyWith(
+                  color: AppTheme.warning,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ...changes.map((change) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 6,
+                      height: 6,
+                      margin: const EdgeInsets.only(top: 6),
+                      decoration: BoxDecoration(
+                        color: AppTheme.warning,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            change['field']!,
+                            style: AppTextStyles.caption.copyWith(
+                              color: AppTheme.textWhite,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Row(
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  'من: ${change['oldValue']}',
+                                  style: AppTextStyles.caption.copyWith(
+                                    color: AppTheme.textMuted,
+                                    decoration: TextDecoration.lineThrough,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Icon(
+                                Icons.arrow_forward_rounded,
+                                size: 12,
+                                color: AppTheme.warning,
+                              ),
+                              const SizedBox(width: 8),
+                              Flexible(
+                                child: Text(
+                                  'إلى: ${change['newValue']}',
+                                  style: AppTextStyles.caption.copyWith(
+                                    color: AppTheme.success,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              )),
         ],
       ),
     );
@@ -843,19 +1349,20 @@ class _CreateUserPageState extends State<CreateUserPage>
     required IconData icon,
     required String title,
     required String description,
+    required Color color,
   }) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            AppTheme.primaryBlue.withOpacity(0.1),
-            AppTheme.primaryPurple.withOpacity(0.05),
+            color.withOpacity(0.1),
+            color.withOpacity(0.05),
           ],
         ),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: AppTheme.primaryBlue.withOpacity(0.3),
+          color: color.withOpacity(0.3),
           width: 1,
         ),
       ),
@@ -865,7 +1372,9 @@ class _CreateUserPageState extends State<CreateUserPage>
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              gradient: AppTheme.primaryGradient,
+              gradient: LinearGradient(
+                colors: [color, color.withOpacity(0.7)],
+              ),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(
@@ -903,32 +1412,83 @@ class _CreateUserPageState extends State<CreateUserPage>
 
   Widget _buildReviewCard({
     required String title,
-    required List<Map<String, String>> items,
+    required IconData icon,
+    required Color iconColor,
+    required List<Map<String, dynamic>> items,
   }) {
+    final hasChanges = items.any((item) => item['changed'] == true);
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [
-            AppTheme.darkCard.withOpacity(0.5),
-            AppTheme.darkCard.withOpacity(0.3),
-          ],
+          colors: hasChanges
+              ? [
+                  AppTheme.warning.withOpacity(0.05),
+                  AppTheme.darkCard.withOpacity(0.4),
+                ]
+              : [
+                  AppTheme.darkCard.withOpacity(0.5),
+                  AppTheme.darkCard.withOpacity(0.3),
+                ],
         ),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: AppTheme.darkBorder.withOpacity(0.3),
+          color: hasChanges
+              ? AppTheme.warning.withOpacity(0.3)
+              : AppTheme.darkBorder.withOpacity(0.3),
           width: 1,
         ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: AppTextStyles.bodyMedium.copyWith(
-              color: AppTheme.primaryBlue,
-              fontWeight: FontWeight.bold,
-            ),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: hasChanges
+                        ? [AppTheme.warning, AppTheme.warning.withOpacity(0.7)]
+                        : [iconColor, iconColor.withOpacity(0.7)],
+                  ),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Icon(
+                  icon,
+                  size: 14,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                title,
+                style: AppTextStyles.bodyMedium.copyWith(
+                  color: hasChanges ? AppTheme.warning : iconColor,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              if (hasChanges) ...[
+                const SizedBox(width: 8),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: AppTheme.warning.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    'معدّل',
+                    style: AppTextStyles.caption.copyWith(
+                      color: AppTheme.warning,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ],
           ),
           const SizedBox(height: 12),
           ...items.map((item) => Padding(
@@ -936,11 +1496,35 @@ class _CreateUserPageState extends State<CreateUserPage>
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      item['label']!,
-                      style: AppTextStyles.bodySmall.copyWith(
-                        color: AppTheme.textMuted,
-                      ),
+                    Row(
+                      children: [
+                        if (item['changed'] == true)
+                          Container(
+                            width: 6,
+                            height: 6,
+                            margin: const EdgeInsets.only(right: 4),
+                            decoration: BoxDecoration(
+                              color: AppTheme.warning,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        Icon(
+                          _getItemIcon(item['label']!),
+                          size: 14,
+                          color: item['changed'] == true
+                              ? AppTheme.warning.withOpacity(0.7)
+                              : AppTheme.textMuted.withOpacity(0.7),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          item['label']!,
+                          style: AppTextStyles.bodySmall.copyWith(
+                            color: item['changed'] == true
+                                ? AppTheme.warning
+                                : AppTheme.textMuted,
+                          ),
+                        ),
+                      ],
                     ),
                     Expanded(
                       child: Text(
@@ -963,6 +1547,8 @@ class _CreateUserPageState extends State<CreateUserPage>
   }
 
   Widget _buildActionButtons() {
+    final isEditMode = widget.userId != null;
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -1020,17 +1606,27 @@ class _CreateUserPageState extends State<CreateUserPage>
             flex: _currentStep == 0 ? 1 : 1,
             child: BlocBuilder<UsersListBloc, UsersListState>(
               builder: (context, state) {
-                final bool isSubmitting = _isSubmitting || state is UsersListLoading;
+                final bool isSubmitting =
+                    _isSubmitting || state is UsersListLoading;
                 return GestureDetector(
-                  onTap: isSubmitting ? null : (_currentStep < 3 ? _nextStep : _submitForm),
+                  onTap: isSubmitting
+                      ? null
+                      : (_currentStep < 3 ? _nextStep : _submitForm),
                   child: Container(
                     height: 48,
                     decoration: BoxDecoration(
-                      gradient: AppTheme.primaryGradient,
+                      gradient: isEditMode && _hasChanges
+                          ? LinearGradient(colors: [
+                              AppTheme.warning,
+                              AppTheme.warning.withOpacity(0.8)
+                            ])
+                          : AppTheme.primaryGradient,
                       borderRadius: BorderRadius.circular(12),
                       boxShadow: [
                         BoxShadow(
-                          color: AppTheme.primaryBlue.withOpacity(0.3),
+                          color: isEditMode && _hasChanges
+                              ? AppTheme.warning.withOpacity(0.3)
+                              : AppTheme.primaryBlue.withOpacity(0.3),
                           blurRadius: 12,
                           offset: const Offset(0, 4),
                         ),
@@ -1046,16 +1642,35 @@ class _CreateUserPageState extends State<CreateUserPage>
                                 strokeWidth: 2,
                               ),
                             )
-                          : Text(
-                              _currentStep < 3
-                                  ? 'التالي'
-                                  : (widget.userId == null
-                                      ? 'إنشاء المستخدم'
-                                      : 'تحديث المستخدم'),
-                              style: AppTextStyles.buttonMedium.copyWith(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                              ),
+                          : Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                if (_currentStep == 3 &&
+                                    isEditMode &&
+                                    _hasChanges)
+                                  const Icon(
+                                    Icons.save_rounded,
+                                    color: Colors.white,
+                                    size: 20,
+                                  ),
+                                if (_currentStep == 3 &&
+                                    isEditMode &&
+                                    _hasChanges)
+                                  const SizedBox(width: 8),
+                                Text(
+                                  _currentStep < 3
+                                      ? 'التالي'
+                                      : isEditMode
+                                          ? _hasChanges
+                                              ? 'حفظ التغييرات'
+                                              : 'لا توجد تغييرات'
+                                          : 'إنشاء المستخدم',
+                                  style: AppTextStyles.buttonMedium.copyWith(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
                             ),
                     ),
                   ),
@@ -1068,13 +1683,198 @@ class _CreateUserPageState extends State<CreateUserPage>
     );
   }
 
+  Widget _buildValidationSummary(List<String> errors) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppTheme.error.withOpacity(0.10),
+            AppTheme.error.withOpacity(0.05),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppTheme.error.withOpacity(0.35),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: AppTheme.error.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  Icons.error_outline_rounded,
+                  color: AppTheme.error,
+                  size: 18,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'يرجى مراجعة الأخطاء التالية',
+                style: AppTextStyles.bodyMedium.copyWith(
+                  color: AppTheme.error,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ...errors.map((e) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 6,
+                      height: 6,
+                      margin: const EdgeInsets.only(top: 6),
+                      decoration: BoxDecoration(
+                        color: AppTheme.error,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        e,
+                        style: AppTextStyles.bodySmall.copyWith(
+                          color: AppTheme.textWhite,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              )),
+        ],
+      ),
+    );
+  }
+
+  // Helper Methods
+  bool _checkForChanges() {
+    if (_originalUser == null) return false;
+
+    return _nameController.text != _originalName ||
+        _emailController.text != _originalEmail ||
+        _phoneController.text != _originalPhone ||
+        _selectedRole != _originalRole;
+  }
+
+  bool _hasChangesInStep(int step) {
+    if (_originalUser == null) return false;
+
+    switch (step) {
+      case 0: // Basic Info
+        return _nameController.text != _originalName ||
+            _emailController.text != _originalEmail;
+      case 1: // Contact
+        return _phoneController.text != _originalPhone;
+      case 2: // Permissions
+        return _selectedRole != _originalRole;
+      default:
+        return false;
+    }
+  }
+
+  List<Map<String, String>> _getChangedFields() {
+    final changes = <Map<String, String>>[];
+    if (_originalUser == null) return changes;
+
+    if (_nameController.text != _originalName) {
+      changes.add({
+        'field': 'الاسم',
+        'oldValue': _originalName ?? 'غير محدد',
+        'newValue': _nameController.text,
+      });
+    }
+
+    if (_emailController.text != _originalEmail) {
+      changes.add({
+        'field': 'البريد الإلكتروني',
+        'oldValue': _originalEmail ?? 'غير محدد',
+        'newValue': _emailController.text,
+      });
+    }
+
+    if (_phoneController.text != _originalPhone) {
+      changes.add({
+        'field': 'رقم الهاتف',
+        'oldValue':
+            _originalPhone?.isEmpty ?? true ? 'غير محدد' : _originalPhone!,
+        'newValue':
+            _phoneController.text.isEmpty ? 'غير محدد' : _phoneController.text,
+      });
+    }
+
+    if (_selectedRole != _originalRole) {
+      changes.add({
+        'field': 'الدور',
+        'oldValue': _getRoleText(_originalRole ?? ''),
+        'newValue': _getRoleText(_selectedRole ?? ''),
+      });
+    }
+
+    return changes;
+  }
+
+  void _resetChanges() {
+    if (_originalUser == null) return;
+
+    showDialog(
+      context: context,
+      builder: (context) => _ResetConfirmationDialog(
+        onConfirm: () {
+          Navigator.pop(context);
+
+          // Reset all values
+          setState(() {
+            _nameController.text = _originalName ?? '';
+            _emailController.text = _originalEmail ?? '';
+            _phoneController.text = _originalPhone ?? '';
+            _selectedRole = _originalRole;
+            _hasChanges = false;
+          });
+
+          _showSuccessMessage('تم استرجاع البيانات الأصلية');
+        },
+      ),
+    );
+  }
+
+  Future<bool> _onWillPop() async {
+    if (!_hasChanges) return true;
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => _UnsavedChangesDialog(),
+    );
+
+    return result ?? false;
+  }
+
   void _handleBack() {
     if (_currentStep > 0) {
       setState(() {
         _currentStep--;
       });
     } else {
-      context.pop();
+      if (widget.userId != null && _hasChanges) {
+        _onWillPop().then((canPop) {
+          if (canPop) {
+            context.pop();
+          }
+        });
+      } else {
+        context.pop();
+      }
     }
   }
 
@@ -1135,7 +1935,15 @@ class _CreateUserPageState extends State<CreateUserPage>
   }
 
   void _submitForm() {
-    // Ensure final-step explicit validation before saving
+    final isEditMode = widget.userId != null;
+
+    // Check for changes in edit mode
+    if (isEditMode && !_hasChanges) {
+      _showInfoMessage('لا توجد تغييرات للحفظ');
+      return;
+    }
+
+    // Validate
     final reviewErrors = _getReviewValidationErrors();
     if (reviewErrors.isNotEmpty) {
       _showErrorMessage('يرجى تصحيح الأخطاء قبل الحفظ');
@@ -1147,7 +1955,8 @@ class _CreateUserPageState extends State<CreateUserPage>
       setState(() {
         _isSubmitting = true;
       });
-      if (widget.userId == null) {
+
+      if (!isEditMode) {
         context.read<UsersListBloc>().add(
               CreateUserEvent(
                 name: _nameController.text,
@@ -1171,75 +1980,6 @@ class _CreateUserPageState extends State<CreateUserPage>
     }
   }
 
-  // Build validation summary card for the review step
-  Widget _buildValidationSummary(List<String> errors) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            AppTheme.error.withOpacity(0.10),
-            AppTheme.error.withOpacity(0.05),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: AppTheme.error.withOpacity(0.35),
-          width: 1,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: AppTheme.error.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(
-                  Icons.error_outline_rounded,
-                  color: AppTheme.error,
-                  size: 18,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'يرجى مراجعة الأخطاء التالية',
-                style: AppTextStyles.bodyMedium.copyWith(
-                  color: AppTheme.error,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          ...errors.map((e) => Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Icon(Icons.circle, size: 6, color: Colors.white70),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        e,
-                        style: AppTextStyles.bodySmall.copyWith(
-                          color: AppTheme.textWhite,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              )),
-        ],
-      ),
-    );
-  }
-
-  // Collect precise validation errors for the final review step
   List<String> _getReviewValidationErrors() {
     final List<String> errors = [];
 
@@ -1275,7 +2015,24 @@ class _CreateUserPageState extends State<CreateUserPage>
       case 'customer':
         return 'عميل';
       default:
-        return role;
+        return role.isEmpty ? 'غير محدد' : role;
+    }
+  }
+
+  IconData _getItemIcon(String label) {
+    switch (label) {
+      case 'الاسم':
+        return Icons.person_rounded;
+      case 'البريد الإلكتروني':
+        return Icons.email_rounded;
+      case 'كلمة المرور':
+        return Icons.lock_rounded;
+      case 'رقم الهاتف':
+        return Icons.phone_rounded;
+      case 'الدور':
+        return Icons.security_rounded;
+      default:
+        return Icons.info_rounded;
     }
   }
 
@@ -1326,56 +2083,329 @@ class _CreateUserPageState extends State<CreateUserPage>
       ),
     );
   }
+
+  void _showInfoMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(
+              Icons.info_outline_rounded,
+              color: Colors.white,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(message),
+            ),
+          ],
+        ),
+        backgroundColor: AppTheme.primaryBlue,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+      ),
+    );
+  }
 }
 
+// Additional Dialogs
+class _ResetConfirmationDialog extends StatelessWidget {
+  final VoidCallback onConfirm;
+
+  const _ResetConfirmationDialog({required this.onConfirm});
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      child: Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              AppTheme.darkCard.withOpacity(0.95),
+              AppTheme.darkCard.withOpacity(0.85),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: AppTheme.warning.withOpacity(0.3),
+            width: 1,
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    AppTheme.warning.withOpacity(0.2),
+                    AppTheme.warning.withOpacity(0.1),
+                  ],
+                ),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.refresh_rounded,
+                color: AppTheme.warning,
+                size: 32,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'استرجاع البيانات الأصلية',
+              style: AppTextStyles.heading3.copyWith(
+                color: AppTheme.textWhite,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'سيتم التراجع عن جميع التغييرات\nواسترجاع البيانات الأصلية',
+              style: AppTextStyles.bodyMedium.copyWith(
+                color: AppTheme.textMuted,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      decoration: BoxDecoration(
+                        color: AppTheme.darkSurface.withOpacity(0.5),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: AppTheme.darkBorder.withOpacity(0.3),
+                          width: 1,
+                        ),
+                      ),
+                      child: Center(
+                        child: Text(
+                          'إلغاء',
+                          style: AppTextStyles.buttonMedium.copyWith(
+                            color: AppTheme.textMuted,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () {
+                      HapticFeedback.mediumImpact();
+                      onConfirm();
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            AppTheme.warning,
+                            AppTheme.warning.withOpacity(0.8),
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Center(
+                        child: Text(
+                          'استرجاع',
+                          style: AppTextStyles.buttonMedium.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _UnsavedChangesDialog extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      child: Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              AppTheme.darkCard.withOpacity(0.95),
+              AppTheme.darkCard.withOpacity(0.85),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: AppTheme.error.withOpacity(0.3),
+            width: 1,
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    AppTheme.error.withOpacity(0.2),
+                    AppTheme.error.withOpacity(0.1),
+                  ],
+                ),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.warning_rounded,
+                color: AppTheme.error,
+                size: 32,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'تغييرات غير محفوظة',
+              style: AppTextStyles.heading3.copyWith(
+                color: AppTheme.textWhite,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'لديك تغييرات غير محفوظة.\nهل تريد الخروج بدون حفظ؟',
+              style: AppTextStyles.bodyMedium.copyWith(
+                color: AppTheme.textMuted,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => Navigator.pop(context, false),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      decoration: BoxDecoration(
+                        gradient: AppTheme.primaryGradient,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Center(
+                        child: Text(
+                          'البقاء',
+                          style: AppTextStyles.buttonMedium.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () {
+                      HapticFeedback.mediumImpact();
+                      Navigator.pop(context, true);
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      decoration: BoxDecoration(
+                        color: AppTheme.error.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: AppTheme.error.withOpacity(0.3),
+                          width: 1,
+                        ),
+                      ),
+                      child: Center(
+                        child: Text(
+                          'خروج بدون حفظ',
+                          style: AppTextStyles.buttonMedium.copyWith(
+                            color: AppTheme.error,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// Background Painter
 class _CreateUserBackgroundPainter extends CustomPainter {
-  final double rotation;
   final double glowIntensity;
+  final bool isEditMode;
 
   _CreateUserBackgroundPainter({
-    required this.rotation,
     required this.glowIntensity,
+    this.isEditMode = false,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 0.5;
+    final paint = Paint()..style = PaintingStyle.fill;
 
-    // Draw grid
-    paint.color = AppTheme.primaryBlue.withOpacity(0.05);
-    const spacing = 50.0;
+    // Draw glowing orbs
+    final primaryColor = isEditMode ? AppTheme.warning : AppTheme.primaryBlue;
 
-    for (double x = 0; x < size.width; x += spacing) {
-      canvas.drawLine(
-        Offset(x, 0),
-        Offset(x, size.height),
-        paint,
-      );
-    }
+    paint.shader = RadialGradient(
+      colors: [
+        primaryColor.withOpacity(0.1 * glowIntensity),
+        primaryColor.withOpacity(0.05 * glowIntensity),
+        Colors.transparent,
+      ],
+    ).createShader(Rect.fromCircle(
+      center: Offset(size.width * 0.8, size.height * 0.2),
+      radius: 150,
+    ));
 
-    for (double y = 0; y < size.height; y += spacing) {
-      canvas.drawLine(
-        Offset(0, y),
-        Offset(size.width, y),
-        paint,
-      );
-    }
+    canvas.drawCircle(
+      Offset(size.width * 0.8, size.height * 0.2),
+      150,
+      paint,
+    );
 
-    // Draw rotating circles
-    final center = Offset(size.width / 2, size.height / 2);
-    paint.color = AppTheme.primaryBlue.withOpacity(0.03 * glowIntensity);
+    paint.shader = RadialGradient(
+      colors: [
+        AppTheme.primaryPurple.withOpacity(0.1 * glowIntensity),
+        AppTheme.primaryPurple.withOpacity(0.05 * glowIntensity),
+        Colors.transparent,
+      ],
+    ).createShader(Rect.fromCircle(
+      center: Offset(size.width * 0.2, size.height * 0.7),
+      radius: 100,
+    ));
 
-    for (int i = 0; i < 3; i++) {
-      final radius = 200.0 + i * 100;
-      canvas.save();
-      canvas.translate(center.dx, center.dy);
-      canvas.rotate(rotation + i * 0.5);
-      canvas.translate(-center.dx, -center.dy);
-      canvas.drawCircle(center, radius, paint);
-      canvas.restore();
-    }
+    canvas.drawCircle(
+      Offset(size.width * 0.2, size.height * 0.7),
+      100,
+      paint,
+    );
   }
 
   @override
