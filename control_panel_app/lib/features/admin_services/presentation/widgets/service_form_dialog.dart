@@ -1,3 +1,4 @@
+import 'package:bookn_cp_app/features/admin_services/domain/entities/service_details.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:ui';
@@ -76,7 +77,8 @@ class _ServiceFormDialogState extends State<ServiceFormDialog>
       _selectedPricingModel = widget.service!.pricingModel;
       _selectedPropertyId = widget.service!.propertyId;
       if (widget.service is ServiceDetails) {
-        _descriptionController.text = (widget.service as ServiceDetails).description ?? '';
+        _descriptionController.text =
+            (widget.service as ServiceDetails).description ?? '';
       }
       _isFree = (double.tryParse(_amountController.text) ?? 0) == 0;
     } else {

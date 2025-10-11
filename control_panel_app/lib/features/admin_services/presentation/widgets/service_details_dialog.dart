@@ -1,3 +1,4 @@
+import 'package:bookn_cp_app/features/admin_services/domain/entities/service_details.dart';
 import 'package:flutter/material.dart';
 import 'dart:ui';
 import '../../../../core/theme/app_theme.dart';
@@ -145,7 +146,8 @@ class ServiceDetailsDialog extends StatelessWidget {
           _buildInfoRow(
             icon: Icons.description_rounded,
             label: 'الوصف',
-            value: (service is ServiceDetails && (service as dynamic).description != null)
+            value: (service is ServiceDetails &&
+                    (service as dynamic).description != null)
                 ? ((service as dynamic).description as String)
                 : '-',
           ),

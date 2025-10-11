@@ -705,10 +705,12 @@ class _EditServicePageState extends State<EditServicePage>
                     _hasChanges = _checkForChanges();
                   });
                 },
-                activeColor: AppTheme.success,
+                activeThumbColor: AppTheme.success,
               ),
               const SizedBox(width: 8),
-              Text('خدمة مجانية', style: AppTextStyles.bodyMedium.copyWith(color: AppTheme.textWhite)),
+              Text('خدمة مجانية',
+                  style: AppTextStyles.bodyMedium
+                      .copyWith(color: AppTheme.textWhite)),
             ],
           ),
 
@@ -1514,9 +1516,11 @@ class _EditServicePageState extends State<EditServicePage>
         _selectedPricingModel != _originalService!.pricingModel ||
         _selectedIcon != _originalService!.icon ||
         (_originalService is svc_entity.ServiceDetails &&
-            _descriptionController.text.trim() != ((
-                  _originalService as svc_entity.ServiceDetails)
-                ).description?.trim() ?? '');
+                _descriptionController.text.trim() !=
+                    ((_originalService as svc_entity.ServiceDetails))
+                        .description
+                        ?.trim() ??
+            '');
   }
 
   bool _hasChangesInStep(int step) {
@@ -1527,9 +1531,11 @@ class _EditServicePageState extends State<EditServicePage>
         return _nameController.text != _originalService!.name ||
             _selectedIcon != _originalService!.icon ||
             (_originalService is svc_entity.ServiceDetails &&
-                _descriptionController.text.trim() != ((
-                      _originalService as svc_entity.ServiceDetails)
-                    ).description?.trim() ?? '');
+                    _descriptionController.text.trim() !=
+                        ((_originalService as svc_entity.ServiceDetails))
+                            .description
+                            ?.trim() ??
+                '');
       case 1: // Pricing
         return double.tryParse(_amountController.text) !=
                 _originalService!.price.amount ||
@@ -1587,7 +1593,8 @@ class _EditServicePageState extends State<EditServicePage>
     }
 
     if (_originalService is svc_entity.ServiceDetails) {
-      final oldDesc = (_originalService as svc_entity.ServiceDetails).description ?? '';
+      final oldDesc =
+          (_originalService as svc_entity.ServiceDetails).description ?? '';
       if (_descriptionController.text.trim() != oldDesc.trim()) {
         changes.add({
           'field': 'الوصف',
@@ -1720,7 +1727,9 @@ class _EditServicePageState extends State<EditServicePage>
               price: price,
               pricingModel: _selectedPricingModel,
               icon: _selectedIcon,
-              description: _descriptionController.text.trim().isEmpty ? null : _descriptionController.text.trim(),
+              description: _descriptionController.text.trim().isEmpty
+                  ? null
+                  : _descriptionController.text.trim(),
             ),
           );
     }
