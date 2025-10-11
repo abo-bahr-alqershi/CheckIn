@@ -35,6 +35,7 @@ class CreateServiceEvent extends ServicesEvent {
   final Money price;
   final PricingModel pricingModel;
   final String icon;
+  final String? description;
 
   const CreateServiceEvent({
     required this.propertyId,
@@ -42,10 +43,11 @@ class CreateServiceEvent extends ServicesEvent {
     required this.price,
     required this.pricingModel,
     required this.icon,
+    this.description,
   });
 
   @override
-  List<Object> get props => [propertyId, name, price, pricingModel, icon];
+  List<Object?> get props => [propertyId, name, price, pricingModel, icon, description];
 }
 
 /// تحديث خدمة
@@ -55,6 +57,7 @@ class UpdateServiceEvent extends ServicesEvent {
   final Money? price;
   final PricingModel? pricingModel;
   final String? icon;
+  final String? description;
 
   const UpdateServiceEvent({
     required this.serviceId,
@@ -62,10 +65,11 @@ class UpdateServiceEvent extends ServicesEvent {
     this.price,
     this.pricingModel,
     this.icon,
+    this.description,
   });
 
   @override
-  List<Object?> get props => [serviceId, name, price, pricingModel, icon];
+  List<Object?> get props => [serviceId, name, price, pricingModel, icon, description];
 }
 
 /// حذف خدمة

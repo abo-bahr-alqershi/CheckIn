@@ -12,6 +12,7 @@ class ServiceModel extends Service {
     required super.price,
     required super.pricingModel,
     required super.icon,
+    super.description,
   });
 
   factory ServiceModel.fromJson(Map<String, dynamic> json) {
@@ -33,6 +34,7 @@ class ServiceModel extends Service {
       price: MoneyModel.fromJson(json['price'] ?? {}),
       pricingModel: pricingModel,
       icon: json['icon'] ?? 'room_service',
+      description: json['description'],
     );
   }
 
@@ -49,6 +51,7 @@ class ServiceModel extends Service {
       ).toJson(),
       'pricingModel': pricingModel.value,
       'icon': icon,
+      if (description != null) 'description': description,
     };
   }
 
@@ -60,5 +63,6 @@ class ServiceModel extends Service {
         price: price,
         pricingModel: pricingModel,
         icon: icon,
+        description: description,
       );
 }

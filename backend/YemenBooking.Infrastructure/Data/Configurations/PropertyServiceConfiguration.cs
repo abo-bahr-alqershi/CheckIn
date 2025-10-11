@@ -29,6 +29,11 @@ public class PropertyServiceConfiguration : IEntityTypeConfiguration<PropertySer
             .HasMaxLength(200)
             .HasComment("اسم الخدمة");
 
+        builder.Property(ps => ps.Description)
+            .HasMaxLength(1000)
+            .IsRequired(false)
+            .HasComment("وصف الخدمة");
+
         // Money value object configuration
         builder.OwnsOne(ps => ps.Price, money =>
         {

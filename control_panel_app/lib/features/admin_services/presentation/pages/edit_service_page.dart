@@ -48,6 +48,7 @@ class _EditServicePageState extends State<EditServicePage>
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _amountController = TextEditingController();
+  final TextEditingController _descriptionController = TextEditingController();
 
   // State
   String? _propertyName;
@@ -55,6 +56,7 @@ class _EditServicePageState extends State<EditServicePage>
   String _selectedCurrency = 'SAR';
   PricingModel _selectedPricingModel = PricingModel.perBooking;
   int _currentStep = 0;
+  bool _isFree = false;
 
   // Edit specific state
   svc_entity.Service? _originalService;
@@ -134,6 +136,10 @@ class _EditServicePageState extends State<EditServicePage>
       _selectedIcon = service.icon;
       _selectedCurrency = service.price.currency;
       _selectedPricingModel = service.pricingModel;
+      if (service is svc_entity.ServiceDetails) {
+        _descriptionController.text = service.description ?? '';
+      }
+      _isFree = (double.tryParse(_amountController.text) ?? 0) == 0;
     });
 
     // Start animation after data is loaded
@@ -606,6 +612,20 @@ class _EditServicePageState extends State<EditServicePage>
 
           // Icon Selector
           _buildIconSelector(),
+
+          const SizedBox(height: 20),
+
+          // Description
+          _buildInputField(
+            controller: _descriptionController,
+            label: 'الوصف',
+            hint: 'أدخل وصف الخدمة',
+            icon: Icons.description_rounded,
+            maxLines: 5,
+            validator: (value) {
+              return null;
+            },
+          ),
         ],
       ),
     );
@@ -643,15 +663,16 @@ class _EditServicePageState extends State<EditServicePage>
                 child: _buildInputField(
                   controller: _amountController,
                   label: 'السعر',
-                  hint: 'أدخل السعر',
+                  hint: _isFree ? '0' : 'أدخل السعر',
                   icon: Icons.attach_money_rounded,
                   keyboardType: TextInputType.number,
                   validator: (value) {
+                    if (_isFree) return null;
                     if (value == null || value.isEmpty) {
                       return 'الرجاء إدخال السعر';
                     }
                     final price = double.tryParse(value);
-                    if (price == null || price <= 0) {
+                    if (price == null || price < 0) {
                       return 'السعر غير صحيح';
                     }
                     return null;
@@ -668,6 +689,26 @@ class _EditServicePageState extends State<EditServicePage>
                   }),
                 ),
               ),
+            ],
+          ),
+
+          const SizedBox(height: 12),
+
+          Row(
+            children: [
+              Switch(
+                value: _isFree,
+                onChanged: (val) {
+                  setState(() {
+                    _isFree = val;
+                    if (val) _amountController.text = '0';
+                    _hasChanges = _checkForChanges();
+                  });
+                },
+                activeColor: AppTheme.success,
+              ),
+              const SizedBox(width: 8),
+              Text('خدمة مجانية', style: AppTextStyles.bodyMedium.copyWith(color: AppTheme.textWhite)),
             ],
           ),
 
@@ -1471,7 +1512,11 @@ class _EditServicePageState extends State<EditServicePage>
             _originalService!.price.amount ||
         _selectedCurrency != _originalService!.price.currency ||
         _selectedPricingModel != _originalService!.pricingModel ||
-        _selectedIcon != _originalService!.icon;
+        _selectedIcon != _originalService!.icon ||
+        (_originalService is svc_entity.ServiceDetails &&
+            _descriptionController.text.trim() != ((
+                  _originalService as svc_entity.ServiceDetails)
+                ).description?.trim() ?? '');
   }
 
   bool _hasChangesInStep(int step) {
@@ -1480,7 +1525,11 @@ class _EditServicePageState extends State<EditServicePage>
     switch (step) {
       case 0: // Basic Info
         return _nameController.text != _originalService!.name ||
-            _selectedIcon != _originalService!.icon;
+            _selectedIcon != _originalService!.icon ||
+            (_originalService is svc_entity.ServiceDetails &&
+                _descriptionController.text.trim() != ((
+                      _originalService as svc_entity.ServiceDetails)
+                    ).description?.trim() ?? '');
       case 1: // Pricing
         return double.tryParse(_amountController.text) !=
                 _originalService!.price.amount ||
@@ -1535,6 +1584,17 @@ class _EditServicePageState extends State<EditServicePage>
         'oldValue': _originalService!.pricingModel.label,
         'newValue': _selectedPricingModel.label,
       });
+    }
+
+    if (_originalService is svc_entity.ServiceDetails) {
+      final oldDesc = (_originalService as svc_entity.ServiceDetails).description ?? '';
+      if (_descriptionController.text.trim() != oldDesc.trim()) {
+        changes.add({
+          'field': 'الوصف',
+          'oldValue': oldDesc,
+          'newValue': _descriptionController.text.trim(),
+        });
+      }
     }
 
     return changes;
@@ -1628,17 +1688,16 @@ class _EditServicePageState extends State<EditServicePage>
   }
 
   bool _validatePricing() {
+    if (_isFree) return true;
     if (_amountController.text.isEmpty) {
       _showErrorMessage('الرجاء إدخال السعر');
       return false;
     }
-
     final price = double.tryParse(_amountController.text);
-    if (price == null || price <= 0) {
+    if (price == null || price < 0) {
       _showErrorMessage('السعر غير صحيح');
       return false;
     }
-
     return true;
   }
 
@@ -1650,7 +1709,7 @@ class _EditServicePageState extends State<EditServicePage>
 
     if (_formKey.currentState!.validate()) {
       final price = Money(
-        amount: double.parse(_amountController.text),
+        amount: double.tryParse(_amountController.text) ?? 0,
         currency: _selectedCurrency,
       );
 
@@ -1661,6 +1720,7 @@ class _EditServicePageState extends State<EditServicePage>
               price: price,
               pricingModel: _selectedPricingModel,
               icon: _selectedIcon,
+              description: _descriptionController.text.trim().isEmpty ? null : _descriptionController.text.trim(),
             ),
           );
     }

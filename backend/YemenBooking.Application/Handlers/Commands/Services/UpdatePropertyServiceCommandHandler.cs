@@ -44,8 +44,9 @@ namespace YemenBooking.Application.Handlers.Commands.Services
                 return ResultDto<bool>.Failed("معرف الخدمة مطلوب");
             if (request.Name != null && string.IsNullOrWhiteSpace(request.Name))
                 return ResultDto<bool>.Failed("اسم الخدمة المطلوب غير صالح");
-            if (request.Price != null && request.Price.Amount <= 0)
-                return ResultDto<bool>.Failed("السعر يجب أن يكون أكبر من صفر");
+            if (request.Price != null && request.Price.Amount < 0)
+                return ResultDto<bool>.Failed("السعر لا يمكن أن يكون سالباً");
+            // allow zero for free services
 
             // التحقق من الوجود
             var service = await _serviceRepository.GetPropertyServiceByIdAsync(request.ServiceId, cancellationToken);
@@ -75,6 +76,8 @@ namespace YemenBooking.Application.Handlers.Commands.Services
                 service.PricingModel = request.PricingModel.Value;
             if (!string.IsNullOrWhiteSpace(request.Icon))
                 service.Icon = request.Icon.Trim();
+            if (request.Description != null)
+                service.Description = request.Description.Trim();
 
             service.UpdatedBy = _currentUserService.UserId;
             service.UpdatedAt = DateTime.UtcNow;
@@ -82,13 +85,13 @@ namespace YemenBooking.Application.Handlers.Commands.Services
             await _serviceRepository.UpdatePropertyServiceAsync(service, cancellationToken);
 
             // تسجيل التدقيق (يدوي) يتضمن اسم ومعرّف المنفذ
-            var notes = $"تم تحديث الخدمة {request.ServiceId} بواسطة {_currentUserService.Username} (ID={_currentUserService.UserId})";
+            var notes = $"تم تحديث الخدمة {request.ServiceId} (السعر: {service.Price.Amount} {service.Price.Currency}, الوصف: {service.Description ?? "-"}) بواسطة {_currentUserService.Username} (ID={_currentUserService.UserId})";
             await _auditService.LogAuditAsync(
                 entityType: "PropertyService",
                 entityId: request.ServiceId,
                 action: YemenBooking.Core.Entities.AuditAction.UPDATE,
                 oldValues: null,
-                newValues: System.Text.Json.JsonSerializer.Serialize(new { Updated = true }),
+                newValues: System.Text.Json.JsonSerializer.Serialize(new { Updated = true, service.Price, service.Description }),
                 performedBy: _currentUserService.UserId,
                 notes: notes,
                 cancellationToken: cancellationToken);

@@ -42,6 +42,7 @@ namespace YemenBooking.Application.Handlers.Queries.Services
                 PropertyName = s.Property?.Name ?? string.Empty,
                 Name = s.Name,
                 Icon = s.Icon,
+                Description = s.Description,
                 Price = new MoneyDto
                 {
                     Amount = s.Price.Amount,

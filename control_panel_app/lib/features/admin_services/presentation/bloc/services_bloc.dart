@@ -155,6 +155,7 @@ class ServicesBloc extends Bloc<ServicesEvent, ServicesState> {
         price: event.price,
         pricingModel: event.pricingModel,
         icon: event.icon,
+        description: event.description,
       ),
     );
 
@@ -181,6 +182,7 @@ class ServicesBloc extends Bloc<ServicesEvent, ServicesState> {
         price: event.price,
         pricingModel: event.pricingModel,
         icon: event.icon,
+        description: event.description,
       ),
     );
 

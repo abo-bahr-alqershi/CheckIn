@@ -23,6 +23,7 @@ class ServicesRepositoryImpl implements ServicesRepository {
     required Money price,
     required PricingModel pricingModel,
     required String icon,
+    String? description,
   }) async {
     try {
       final result = await remoteDataSource.createService(
@@ -31,6 +32,7 @@ class ServicesRepositoryImpl implements ServicesRepository {
         price: price,
         pricingModel: pricingModel,
         icon: icon,
+        description: description,
       );
       return Right(result);
     } on ServerException catch (e) {
@@ -47,6 +49,7 @@ class ServicesRepositoryImpl implements ServicesRepository {
     Money? price,
     PricingModel? pricingModel,
     String? icon,
+    String? description,
   }) async {
     try {
       final result = await remoteDataSource.updateService(
@@ -55,6 +58,7 @@ class ServicesRepositoryImpl implements ServicesRepository {
         price: price,
         pricingModel: pricingModel,
         icon: icon,
+        description: description,
       );
       return Right(result);
     } on ServerException catch (e) {

@@ -33,11 +33,13 @@ class _ServiceFormDialogState extends State<ServiceFormDialog>
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _amountController = TextEditingController();
+  final _descriptionController = TextEditingController();
 
   String _selectedIcon = 'room_service';
   String _selectedCurrency = 'SAR';
   PricingModel _selectedPricingModel = PricingModel.perBooking;
   String? _selectedPropertyId;
+  bool _isFree = false;
 
   bool _isSubmitting = false;
 
@@ -73,6 +75,10 @@ class _ServiceFormDialogState extends State<ServiceFormDialog>
       _selectedCurrency = widget.service!.price.currency;
       _selectedPricingModel = widget.service!.pricingModel;
       _selectedPropertyId = widget.service!.propertyId;
+      if (widget.service is ServiceDetails) {
+        _descriptionController.text = (widget.service as ServiceDetails).description ?? '';
+      }
+      _isFree = (double.tryParse(_amountController.text) ?? 0) == 0;
     } else {
       _selectedPropertyId = widget.propertyId;
     }
@@ -108,11 +114,13 @@ class _ServiceFormDialogState extends State<ServiceFormDialog>
         'propertyId': _selectedPropertyId,
         'name': _nameController.text,
         'price': Money(
-          amount: double.parse(_amountController.text),
+          amount: double.tryParse(_amountController.text) ?? 0,
           currency: _selectedCurrency,
         ),
         'pricingModel': _selectedPricingModel,
         'icon': _selectedIcon,
+        if (_descriptionController.text.trim().isNotEmpty)
+          'description': _descriptionController.text.trim(),
       };
 
       widget.onSubmit(data);
@@ -382,11 +390,13 @@ class _ServiceFormDialogState extends State<ServiceFormDialog>
               ),
             ),
             validator: (value) {
+              if (_isFree) return null;
               if (value == null || value.isEmpty) {
                 return 'الرجاء إدخال السعر';
               }
-              if (double.tryParse(value) == null) {
-                return 'الرجاء إدخال رقم صحيح';
+              final parsed = double.tryParse(value);
+              if (parsed == null || parsed < 0) {
+                return 'السعر غير صحيح';
               }
               return null;
             },
@@ -474,6 +484,28 @@ class _ServiceFormDialogState extends State<ServiceFormDialog>
           }).toList(),
         ),
       ],
+    );
+  }
+
+  Widget _buildDescriptionField() {
+    return TextFormField(
+      controller: _descriptionController,
+      maxLines: 4,
+      style: AppTextStyles.bodyMedium.copyWith(color: AppTheme.textWhite),
+      decoration: InputDecoration(
+        labelText: 'الوصف',
+        labelStyle: AppTextStyles.bodySmall.copyWith(color: AppTheme.textMuted),
+        filled: true,
+        fillColor: AppTheme.darkSurface.withOpacity(0.3),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+        prefixIcon: Icon(
+          Icons.description_rounded,
+          color: AppTheme.primaryBlue.withOpacity(0.7),
+        ),
+      ),
     );
   }
 

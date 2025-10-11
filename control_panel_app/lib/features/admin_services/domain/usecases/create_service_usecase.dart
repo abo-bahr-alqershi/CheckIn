@@ -20,6 +20,7 @@ class CreateServiceUseCase implements UseCase<String, CreateServiceParams> {
       price: params.price,
       pricingModel: params.pricingModel,
       icon: params.icon,
+      description: params.description,
     );
   }
 }
@@ -30,6 +31,7 @@ class CreateServiceParams extends Equatable {
   final Money price;
   final PricingModel pricingModel;
   final String icon;
+  final String? description;
 
   const CreateServiceParams({
     required this.propertyId,
@@ -37,8 +39,9 @@ class CreateServiceParams extends Equatable {
     required this.price,
     required this.pricingModel,
     required this.icon,
+    this.description,
   });
 
   @override
-  List<Object> get props => [propertyId, name, price, pricingModel, icon];
+  List<Object?> get props => [propertyId, name, price, pricingModel, icon, description];
 }

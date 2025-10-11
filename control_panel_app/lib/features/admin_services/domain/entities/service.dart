@@ -11,6 +11,7 @@ class Service extends Equatable {
   final Money price;
   final PricingModel pricingModel;
   final String icon;
+  final String? description;
 
   const Service({
     required this.id,
@@ -20,6 +21,7 @@ class Service extends Equatable {
     required this.price,
     required this.pricingModel,
     required this.icon,
+    this.description,
   });
 
   @override
@@ -31,5 +33,6 @@ class Service extends Equatable {
         price,
         pricingModel,
         icon,
+        description,
       ];
 }
