@@ -60,15 +60,11 @@ class UserFeedbackInterceptor extends Interceptor {
         final bool? isSuccess = data['success'] as bool? ?? data['isSuccess'] as bool?;
         final String message = _extractResponseMessage(data);
 
+        // Only show failure messages from server when success/isSuccess == false
         if (hasSuccessKey && isSuccess == false) {
           final suppressed = (extra['suppressErrorToast'] == true);
           if (!suppressed && message.isNotEmpty) {
             MessageService.showError(message);
-          }
-        } else if (hasSuccessKey && isSuccess == true) {
-          final showSuccess = (extra['showSuccessToast'] == true);
-          if (showSuccess && message.isNotEmpty) {
-            MessageService.showSuccess(message);
           }
         }
       }
