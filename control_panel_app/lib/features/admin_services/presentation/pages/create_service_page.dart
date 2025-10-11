@@ -1,5 +1,6 @@
-import 'dart:ui';
+// lib/features/admin_services/presentation/pages/create_service_page.dart
 
+import 'dart:ui';
 import 'package:bookn_cp_app/core/theme/app_text_styles.dart';
 import 'package:bookn_cp_app/core/theme/app_theme.dart';
 import 'package:bookn_cp_app/features/admin_services/domain/entities/money.dart';
@@ -27,20 +28,25 @@ class CreateServicePage extends StatefulWidget {
 
 class _CreateServicePageState extends State<CreateServicePage>
     with TickerProviderStateMixin {
+  // Controllers
   late AnimationController _animationController;
   late AnimationController _glowController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
 
+  // Form Controllers
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _descriptionController = TextEditingController();
   final TextEditingController _amountController = TextEditingController();
 
+  // State
   String? _selectedPropertyId;
   String? _selectedPropertyName;
   String _selectedIcon = 'room_service';
   String _selectedCurrency = 'SAR';
   PricingModel _selectedPricingModel = PricingModel.perBooking;
+  int _currentStep = 0;
 
   @override
   void initState() {
@@ -76,8 +82,11 @@ class _CreateServicePageState extends State<CreateServicePage>
       curve: Curves.easeOutQuart,
     ));
 
+    // Start animation after build
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _animationController.forward();
+      if (mounted) {
+        _animationController.forward();
+      }
     });
   }
 
@@ -86,6 +95,7 @@ class _CreateServicePageState extends State<CreateServicePage>
     _animationController.dispose();
     _glowController.dispose();
     _nameController.dispose();
+    _descriptionController.dispose();
     _amountController.dispose();
     super.dispose();
   }
@@ -95,13 +105,14 @@ class _CreateServicePageState extends State<CreateServicePage>
     return BlocListener<ServicesBloc, ServicesState>(
       listener: (context, state) {
         if (state is ServiceOperationSuccess) {
-          _showSuccessMessage(state.message);
+          _showSuccessMessage('تم إنشاء الخدمة بنجاح');
           Future.delayed(const Duration(milliseconds: 500), () {
-            if (mounted)
+            if (mounted) {
               context.pop({
                 'refresh': true,
                 'propertyId': _selectedPropertyId,
               });
+            }
           });
         } else if (state is ServicesError) {
           _showErrorMessage(state.message);
@@ -111,20 +122,31 @@ class _CreateServicePageState extends State<CreateServicePage>
         backgroundColor: AppTheme.darkBackground,
         body: Stack(
           children: [
+            // Animated Background
             _buildAnimatedBackground(),
+
+            // Main Content
             SafeArea(
               child: Column(
                 children: [
+                  // Header
                   _buildHeader(),
+
+                  // Progress Indicator
+                  _buildProgressIndicator(),
+
+                  // Form Content
                   Expanded(
                     child: FadeTransition(
                       opacity: _fadeAnimation,
                       child: SlideTransition(
                         position: _slideAnimation,
-                        child: _buildForm(),
+                        child: _buildFormContent(),
                       ),
                     ),
                   ),
+
+                  // Action Buttons
                   _buildActionButtons(),
                 ],
               ),
@@ -136,22 +158,29 @@ class _CreateServicePageState extends State<CreateServicePage>
   }
 
   Widget _buildAnimatedBackground() {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            AppTheme.darkBackground,
-            AppTheme.darkBackground2.withOpacity(0.8),
-            AppTheme.darkBackground3.withOpacity(0.6),
-          ],
-        ),
-      ),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-        child: const SizedBox.expand(),
-      ),
+    return AnimatedBuilder(
+      animation: _glowController,
+      builder: (context, child) {
+        return Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                AppTheme.darkBackground,
+                AppTheme.darkBackground2.withOpacity(0.8),
+                AppTheme.darkBackground3.withOpacity(0.6),
+              ],
+            ),
+          ),
+          child: CustomPaint(
+            painter: _CreateServiceBackgroundPainter(
+              glowIntensity: _glowController.value,
+            ),
+            size: Size.infinite,
+          ),
+        );
+      },
     );
   }
 
@@ -174,8 +203,9 @@ class _CreateServicePageState extends State<CreateServicePage>
       ),
       child: Row(
         children: [
+          // Back Button
           GestureDetector(
-            onTap: () => context.pop(),
+            onTap: _handleBack,
             child: Container(
               width: 40,
               height: 40,
@@ -199,7 +229,10 @@ class _CreateServicePageState extends State<CreateServicePage>
               ),
             ),
           ),
+
           const SizedBox(width: 16),
+
+          // Title
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -230,71 +263,117 @@ class _CreateServicePageState extends State<CreateServicePage>
     );
   }
 
-  Widget _buildForm() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
-      child: Form(
-        key: _formKey,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildNameField(),
-            const SizedBox(height: 20),
-            _buildPropertySelector(),
-            const SizedBox(height: 20),
-            _buildIconSelector(),
-            const SizedBox(height: 20),
-            _buildPriceSection(),
-            const SizedBox(height: 20),
-            _buildPricingModelSelector(),
-          ],
-        ),
+  Widget _buildProgressIndicator() {
+    final steps = [
+      'المعلومات الأساسية',
+      'التسعير',
+      'المراجعة'
+    ];
+
+    return Container(
+      height: 80,
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      child: Row(
+        children: List.generate(steps.length, (index) {
+          final isActive = index <= _currentStep;
+          final isCompleted = index < _currentStep;
+
+          return Expanded(
+            child: Row(
+              children: [
+                // Step Indicator
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    gradient: isActive ? AppTheme.primaryGradient : null,
+                    color: !isActive
+                        ? AppTheme.darkSurface.withOpacity(0.5)
+                        : null,
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: isActive
+                          ? AppTheme.primaryBlue.withOpacity(0.5)
+                          : AppTheme.darkBorder.withOpacity(0.3),
+                      width: 1,
+                    ),
+                    boxShadow: isActive
+                        ? [
+                            BoxShadow(
+                              color: AppTheme.primaryBlue.withOpacity(0.3),
+                              blurRadius: 10,
+                            ),
+                          ]
+                        : null,
+                  ),
+                  child: Center(
+                    child: isCompleted
+                        ? const Icon(
+                            Icons.check_rounded,
+                            size: 16,
+                            color: Colors.white,
+                          )
+                        : Text(
+                            '${index + 1}',
+                            style: AppTextStyles.caption.copyWith(
+                              color:
+                                  isActive ? Colors.white : AppTheme.textMuted,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                  ),
+                ),
+
+                // Line
+                if (index < steps.length - 1)
+                  Expanded(
+                    child: Container(
+                      height: 2,
+                      margin: const EdgeInsets.symmetric(horizontal: 8),
+                      decoration: BoxDecoration(
+                        gradient: isCompleted ? AppTheme.primaryGradient : null,
+                        color: !isCompleted
+                            ? AppTheme.darkBorder.withOpacity(0.2)
+                            : null,
+                        borderRadius: BorderRadius.circular(1),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          );
+        }),
       ),
     );
   }
 
-  Widget _buildNameField() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'اسم الخدمة',
-          style: AppTextStyles.bodyMedium.copyWith(
-            color: AppTheme.textWhite,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                AppTheme.darkCard.withOpacity(0.5),
-                AppTheme.darkCard.withOpacity(0.3),
-              ],
-            ),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: AppTheme.darkBorder.withOpacity(0.3),
-              width: 1,
-            ),
-          ),
-          child: TextFormField(
+  Widget _buildFormContent() {
+    return Form(
+      key: _formKey,
+      child: IndexedStack(
+        index: _currentStep,
+        children: [
+          _buildBasicInfoStep(),
+          _buildPricingStep(),
+          _buildReviewStep(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBasicInfoStep() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Service Name
+          _buildInputField(
             controller: _nameController,
-            style: AppTextStyles.bodyMedium.copyWith(color: AppTheme.textWhite),
-            decoration: InputDecoration(
-              hintText: 'أدخل اسم الخدمة',
-              hintStyle: AppTextStyles.bodyMedium.copyWith(
-                color: AppTheme.textMuted.withOpacity(0.5),
-              ),
-              prefixIcon: Icon(
-                Icons.label_rounded,
-                color: AppTheme.primaryBlue.withOpacity(0.7),
-                size: 20,
-              ),
-              border: InputBorder.none,
-              contentPadding: const EdgeInsets.all(16),
-            ),
+            label: 'اسم الخدمة',
+            hint: 'أدخل اسم الخدمة',
+            icon: Icons.label_rounded,
             validator: (value) {
               if (value == null || value.isEmpty) {
                 return 'الرجاء إدخال اسم الخدمة';
@@ -302,8 +381,133 @@ class _CreateServicePageState extends State<CreateServicePage>
               return null;
             },
           ),
-        ),
-      ],
+
+          const SizedBox(height: 20),
+
+          // Property Selector
+          _buildPropertySelector(),
+
+          const SizedBox(height: 20),
+
+          // Icon Selector
+          _buildIconSelector(),
+
+          const SizedBox(height: 20),
+
+          // Description
+          _buildInputField(
+            controller: _descriptionController,
+            label: 'الوصف',
+            hint: 'أدخل وصف الخدمة',
+            icon: Icons.description_rounded,
+            maxLines: 5,
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return 'الرجاء إدخال وصف الخدمة';
+              }
+              return null;
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPricingStep() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Pricing Section
+          Text(
+            'التسعير',
+            style: AppTextStyles.heading3.copyWith(
+              color: AppTheme.textWhite,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          Row(
+            children: [
+              Expanded(
+                flex: 2,
+                child: _buildInputField(
+                  controller: _amountController,
+                  label: 'السعر',
+                  hint: 'أدخل السعر',
+                  icon: Icons.attach_money_rounded,
+                  keyboardType: TextInputType.number,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'الرجاء إدخال السعر';
+                    }
+                    final price = double.tryParse(value);
+                    if (price == null || price <= 0) {
+                      return 'السعر غير صحيح';
+                    }
+                    return null;
+                  },
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _CurrencyDropdown(
+                  value: _selectedCurrency,
+                  onChanged: (v) => setState(() => _selectedCurrency = v),
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 20),
+
+          // Pricing Model Selector
+          _buildPricingModelSelector(),
+
+          const SizedBox(height: 30),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildReviewStep() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'مراجعة البيانات',
+            style: AppTextStyles.heading2.copyWith(
+              color: AppTheme.textWhite,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 20),
+          _buildReviewCard(
+            title: 'المعلومات الأساسية',
+            items: [
+              {'label': 'الاسم', 'value': _nameController.text},
+              {'label': 'العقار', 'value': _selectedPropertyName ?? 'غير محدد'},
+              {'label': 'الأيقونة', 'value': _selectedIcon},
+              {'label': 'الوصف', 'value': _descriptionController.text},
+            ],
+          ),
+          const SizedBox(height: 16),
+          _buildReviewCard(
+            title: 'التسعير',
+            items: [
+              {
+                'label': 'السعر',
+                'value': '${_amountController.text} $_selectedCurrency'
+              },
+              {'label': 'نموذج التسعير', 'value': _selectedPricingModel.label},
+            ],
+          ),
+        ],
+      ),
     );
   }
 
@@ -378,30 +582,22 @@ class _CreateServicePageState extends State<CreateServicePage>
     );
   }
 
-  void _showIconPicker() {
-    showDialog(
-      fullscreenDialog: true,
-      context: context,
-      builder: (context) => ServiceIconPicker(
-        selectedIcon: _selectedIcon,
-        onIconSelected: (icon) {
-          setState(() => _selectedIcon = icon);
-        },
-      ),
-    );
-  }
-
   Widget _buildIconSelector() {
     return GestureDetector(
       onTap: _showIconPicker,
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: AppTheme.darkSurface.withOpacity(0.3),
+          gradient: LinearGradient(
+            colors: [
+              AppTheme.darkCard.withOpacity(0.5),
+              AppTheme.darkCard.withOpacity(0.3),
+            ],
+          ),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: AppTheme.darkBorder.withOpacity(0.2),
-            width: 0.5,
+            color: AppTheme.darkBorder.withOpacity(0.3),
+            width: 1,
           ),
         ),
         child: Row(
@@ -409,17 +605,12 @@ class _CreateServicePageState extends State<CreateServicePage>
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    AppTheme.primaryBlue.withOpacity(0.2),
-                    AppTheme.primaryPurple.withOpacity(0.1),
-                  ],
-                ),
+                gradient: AppTheme.primaryGradient,
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(
-                Icons.room_service,
-                color: AppTheme.primaryBlue,
+                _getIconData(_selectedIcon),
+                color: Colors.white,
                 size: 24,
               ),
             ),
@@ -455,65 +646,16 @@ class _CreateServicePageState extends State<CreateServicePage>
     );
   }
 
-  Widget _buildPriceSection() {
-    return Row(
-      children: [
-        Expanded(
-          flex: 2,
-          child: TextFormField(
-            controller: _amountController,
-            keyboardType: TextInputType.number,
-            inputFormatters: [
-              FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
-            ],
-            style: AppTextStyles.bodyMedium.copyWith(color: AppTheme.textWhite),
-            decoration: InputDecoration(
-              labelText: 'السعر',
-              labelStyle:
-                  AppTextStyles.bodySmall.copyWith(color: AppTheme.textMuted),
-              filled: true,
-              fillColor: AppTheme.darkSurface.withOpacity(0.3),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(
-                  color: AppTheme.darkBorder.withOpacity(0.2),
-                  width: 0.5,
-                ),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(
-                  color: AppTheme.success.withOpacity(0.5),
-                  width: 1,
-                ),
-              ),
-              prefixIcon: Icon(
-                Icons.attach_money_rounded,
-                color: AppTheme.success.withOpacity(0.7),
-              ),
-            ),
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return 'الرجاء إدخال السعر';
-              }
-              if (double.tryParse(value) == null) {
-                return 'الرجاء إدخال رقم صحيح';
-              }
-              return null;
-            },
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-            child: _CurrencyDropdown(
-          value: _selectedCurrency,
-          onChanged: (v) => setState(() => _selectedCurrency = v),
-        )),
-      ],
+  void _showIconPicker() {
+    showDialog(
+      fullscreenDialog: true,
+      context: context,
+      builder: (context) => ServiceIconPicker(
+        selectedIcon: _selectedIcon,
+        onIconSelected: (icon) {
+          setState(() => _selectedIcon = icon);
+        },
+      ),
     );
   }
 
@@ -524,42 +666,41 @@ class _CreateServicePageState extends State<CreateServicePage>
         Text(
           'نموذج التسعير',
           style: AppTextStyles.bodyMedium.copyWith(
-            color: AppTheme.textLight,
+            color: AppTheme.textWhite,
+            fontWeight: FontWeight.w600,
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 8),
         Wrap(
-          spacing: 8,
-          runSpacing: 8,
+          spacing: 12,
           children: PricingModel.values.map((model) {
-            final bool isSelected = _selectedPricingModel == model;
+            final isSelected = _selectedPricingModel == model;
             return GestureDetector(
               onTap: () {
-                HapticFeedback.lightImpact();
                 setState(() => _selectedPricingModel = model);
+                HapticFeedback.lightImpact();
               },
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 decoration: BoxDecoration(
                   gradient: isSelected ? AppTheme.primaryGradient : null,
-                  color:
-                      isSelected ? null : AppTheme.darkSurface.withOpacity(0.3),
-                  borderRadius: BorderRadius.circular(20),
+                  color: isSelected ? null : AppTheme.darkCard.withOpacity(0.5),
+                  borderRadius: BorderRadius.circular(12),
                   border: Border.all(
                     color: isSelected
                         ? AppTheme.primaryBlue.withOpacity(0.5)
-                        : AppTheme.darkBorder.withOpacity(0.2),
-                    width: isSelected ? 1.5 : 0.5,
+                        : AppTheme.darkBorder.withOpacity(0.3),
+                    width: 1,
                   ),
                 ),
                 child: Text(
                   model.label,
-                  style: AppTextStyles.bodySmall.copyWith(
+                  style: AppTextStyles.bodyMedium.copyWith(
                     color: isSelected ? Colors.white : AppTheme.textMuted,
                     fontWeight:
-                        isSelected ? FontWeight.bold : FontWeight.normal,
+                        isSelected ? FontWeight.w600 : FontWeight.normal,
                   ),
                 ),
               ),
@@ -567,6 +708,154 @@ class _CreateServicePageState extends State<CreateServicePage>
           }).toList(),
         ),
       ],
+    );
+  }
+
+  Widget _buildInputField({
+    required TextEditingController controller,
+    required String label,
+    required String hint,
+    required IconData icon,
+    TextInputType keyboardType = TextInputType.text,
+    int maxLines = 1,
+    String? Function(String?)? validator,
+    Function(String)? onChanged,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: AppTextStyles.bodyMedium.copyWith(
+            color: AppTheme.textWhite,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                AppTheme.darkCard.withOpacity(0.5),
+                AppTheme.darkCard.withOpacity(0.3),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: AppTheme.darkBorder.withOpacity(0.3),
+              width: 1,
+            ),
+          ),
+          child: TextFormField(
+            controller: controller,
+            keyboardType: keyboardType,
+            maxLines: maxLines,
+            style: AppTextStyles.bodyMedium.copyWith(
+              color: AppTheme.textWhite,
+            ),
+            decoration: InputDecoration(
+              hintText: hint,
+              hintStyle: AppTextStyles.bodyMedium.copyWith(
+                color: AppTheme.textMuted.withOpacity(0.5),
+              ),
+              prefixIcon: maxLines == 1
+                  ? Icon(
+                      icon,
+                      color: AppTheme.primaryBlue.withOpacity(0.7),
+                      size: 20,
+                    )
+                  : null,
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.all(16),
+            ),
+            validator: validator,
+            onChanged: onChanged,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildReviewCard({
+    required String title,
+    required List<Map<String, String>> items,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppTheme.darkCard.withOpacity(0.5),
+            AppTheme.darkCard.withOpacity(0.3),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppTheme.darkBorder.withOpacity(0.3),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  gradient: AppTheme.primaryGradient,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: const Icon(
+                  Icons.info_rounded,
+                  size: 14,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                title,
+                style: AppTextStyles.bodyMedium.copyWith(
+                  color: AppTheme.primaryBlue,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ...items.map((item) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      flex: 2,
+                      child: Text(
+                        item['label']!,
+                        style: AppTextStyles.bodySmall.copyWith(
+                          color: AppTheme.textMuted,
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      flex: 3,
+                      child: Text(
+                        item['value']!,
+                        style: AppTextStyles.bodySmall.copyWith(
+                          color: AppTheme.textWhite,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        textAlign: TextAlign.end,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              )),
+        ],
+      ),
     );
   }
 
@@ -589,39 +878,45 @@ class _CreateServicePageState extends State<CreateServicePage>
       ),
       child: Row(
         children: [
-          Expanded(
-            child: GestureDetector(
-              onTap: () => context.pop(),
-              child: Container(
-                height: 48,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      AppTheme.darkSurface.withOpacity(0.5),
-                      AppTheme.darkSurface.withOpacity(0.3),
-                    ],
+          // Previous Button
+          if (_currentStep > 0)
+            Expanded(
+              child: GestureDetector(
+                onTap: _previousStep,
+                child: Container(
+                  height: 48,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        AppTheme.darkSurface.withOpacity(0.5),
+                        AppTheme.darkSurface.withOpacity(0.3),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: AppTheme.darkBorder.withOpacity(0.3),
+                      width: 1,
+                    ),
                   ),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: AppTheme.darkBorder.withOpacity(0.3),
-                    width: 1,
-                  ),
-                ),
-                child: Center(
-                  child: Text(
-                    'إلغاء',
-                    style: AppTextStyles.buttonMedium.copyWith(
-                      color: AppTheme.textWhite,
+                  child: Center(
+                    child: Text(
+                      'السابق',
+                      style: AppTextStyles.buttonMedium.copyWith(
+                        color: AppTheme.textWhite,
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
-          ),
-          const SizedBox(width: 12),
+
+          if (_currentStep > 0) const SizedBox(width: 12),
+
+          // Next/Submit Button
           Expanded(
+            flex: _currentStep == 0 ? 1 : 1,
             child: GestureDetector(
-              onTap: _submit,
+              onTap: _currentStep < 2 ? _nextStep : _submitForm,
               child: Container(
                 height: 48,
                 decoration: BoxDecoration(
@@ -649,7 +944,7 @@ class _CreateServicePageState extends State<CreateServicePage>
                         );
                       }
                       return Text(
-                        'إضافة الخدمة',
+                        _currentStep < 2 ? 'التالي' : 'إضافة الخدمة',
                         style: AppTextStyles.buttonMedium.copyWith(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
@@ -666,7 +961,69 @@ class _CreateServicePageState extends State<CreateServicePage>
     );
   }
 
-  void _submit() {
+  // Helper Methods
+  void _handleBack() {
+    if (_currentStep > 0) {
+      setState(() {
+        _currentStep--;
+      });
+    } else {
+      context.pop();
+    }
+  }
+
+  void _previousStep() {
+    if (_currentStep > 0) {
+      setState(() {
+        _currentStep--;
+      });
+    }
+  }
+
+  void _nextStep() {
+    if (_currentStep < 2) {
+      bool isValid = true;
+
+      if (_currentStep == 0) {
+        isValid = _validateBasicInfo();
+      } else if (_currentStep == 1) {
+        isValid = _validatePricing();
+      }
+
+      if (isValid) {
+        setState(() {
+          _currentStep++;
+        });
+      }
+    }
+  }
+
+  bool _validateBasicInfo() {
+    if (_nameController.text.isEmpty ||
+        _selectedPropertyId == null ||
+        _descriptionController.text.isEmpty) {
+      _showErrorMessage('الرجاء ملء جميع الحقول المطلوبة');
+      return false;
+    }
+    return true;
+  }
+
+  bool _validatePricing() {
+    if (_amountController.text.isEmpty) {
+      _showErrorMessage('الرجاء إدخال السعر');
+      return false;
+    }
+
+    final price = double.tryParse(_amountController.text);
+    if (price == null || price <= 0) {
+      _showErrorMessage('السعر غير صحيح');
+      return false;
+    }
+
+    return true;
+  }
+
+  void _submitForm() {
     if (_formKey.currentState!.validate()) {
       if (_selectedPropertyId == null) {
         _showErrorMessage('الرجاء اختيار العقار');
@@ -690,6 +1047,21 @@ class _CreateServicePageState extends State<CreateServicePage>
     }
   }
 
+  IconData _getIconData(String iconName) {
+    // Convert string icon name to IconData
+    // This is simplified - you might want to use a more comprehensive mapping
+    switch (iconName) {
+      case 'room_service':
+        return Icons.room_service;
+      case 'cleaning_services':
+        return Icons.cleaning_services;
+      case 'local_laundry_service':
+        return Icons.local_laundry_service;
+      default:
+        return Icons.miscellaneous_services;
+    }
+  }
+
   void _showSuccessMessage(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -700,7 +1072,9 @@ class _CreateServicePageState extends State<CreateServicePage>
               color: Colors.white,
             ),
             const SizedBox(width: 12),
-            Expanded(child: Text(message)),
+            Expanded(
+              child: Text(message),
+            ),
           ],
         ),
         backgroundColor: AppTheme.success,
@@ -722,7 +1096,9 @@ class _CreateServicePageState extends State<CreateServicePage>
               color: Colors.white,
             ),
             const SizedBox(width: 12),
-            Expanded(child: Text(message)),
+            Expanded(
+              child: Text(message),
+            ),
           ],
         ),
         backgroundColor: AppTheme.error,
@@ -735,6 +1111,57 @@ class _CreateServicePageState extends State<CreateServicePage>
   }
 }
 
+// Background Painter
+class _CreateServiceBackgroundPainter extends CustomPainter {
+  final double glowIntensity;
+
+  _CreateServiceBackgroundPainter({required this.glowIntensity});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..style = PaintingStyle.fill;
+
+    // Draw glowing orbs
+    paint.shader = RadialGradient(
+      colors: [
+        AppTheme.primaryBlue.withOpacity(0.1 * glowIntensity),
+        AppTheme.primaryBlue.withOpacity(0.05 * glowIntensity),
+        Colors.transparent,
+      ],
+    ).createShader(Rect.fromCircle(
+      center: Offset(size.width * 0.8, size.height * 0.2),
+      radius: 150,
+    ));
+
+    canvas.drawCircle(
+      Offset(size.width * 0.8, size.height * 0.2),
+      150,
+      paint,
+    );
+
+    paint.shader = RadialGradient(
+      colors: [
+        AppTheme.primaryPurple.withOpacity(0.1 * glowIntensity),
+        AppTheme.primaryPurple.withOpacity(0.05 * glowIntensity),
+        Colors.transparent,
+      ],
+    ).createShader(Rect.fromCircle(
+      center: Offset(size.width * 0.2, size.height * 0.7),
+      radius: 100,
+    ));
+
+    canvas.drawCircle(
+      Offset(size.width * 0.2, size.height * 0.7),
+      100,
+      paint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+}
+
+// Keep Currency Dropdown as is
 class _CurrencyDropdown extends StatefulWidget {
   final String value;
   final ValueChanged<String> onChanged;
