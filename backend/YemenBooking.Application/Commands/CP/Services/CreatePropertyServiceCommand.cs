@@ -39,4 +39,10 @@ public class CreatePropertyServiceCommand : IRequest<ResultDto<Guid>>
     /// Service icon
     /// </summary>
     public string Icon { get; set; } = string.Empty;
+
+    /// <summary>
+    /// وصف الخدمة
+    /// Service description
+    /// </summary>
+    public string? Description { get; set; }
 } 

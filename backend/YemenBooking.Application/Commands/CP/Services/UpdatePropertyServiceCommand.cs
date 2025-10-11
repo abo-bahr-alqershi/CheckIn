@@ -40,4 +40,10 @@ public class UpdatePropertyServiceCommand : IRequest<ResultDto<bool>>
     /// Updated pricing model
     /// </summary>
     public PricingModel? PricingModel { get; set; }
+
+        /// <summary>
+        /// الوصف المحدث
+        /// Updated description
+        /// </summary>
+        public string? Description { get; set; }
 }

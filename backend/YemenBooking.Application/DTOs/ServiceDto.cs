@@ -41,6 +41,12 @@ namespace YemenBooking.Application.DTOs
         public string Icon { get; set; } = string.Empty;
 
         /// <summary>
+        /// وصف الخدمة
+        /// Service description
+        /// </summary>
+        public string? Description { get; set; }
+
+        /// <summary>
         /// سعر الخدمة
         /// Service price
         /// </summary>

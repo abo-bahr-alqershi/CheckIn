@@ -143,6 +143,14 @@ class ServiceDetailsDialog extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           _buildInfoRow(
+            icon: Icons.description_rounded,
+            label: 'الوصف',
+            value: (service is ServiceDetails && (service as dynamic).description != null)
+                ? ((service as dynamic).description as String)
+                : '-',
+          ),
+          const SizedBox(height: 16),
+          _buildInfoRow(
             icon: Icons.attach_money_rounded,
             label: 'السعر',
             value: '${service.price.amount} ${service.price.currency}',

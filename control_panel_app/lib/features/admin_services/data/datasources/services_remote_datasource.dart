@@ -15,6 +15,7 @@ abstract class ServicesRemoteDataSource {
     required Money price,
     required PricingModel pricingModel,
     required String icon,
+    String? description,
   });
 
   Future<bool> updateService({
@@ -23,6 +24,7 @@ abstract class ServicesRemoteDataSource {
     Money? price,
     PricingModel? pricingModel,
     String? icon,
+    String? description,
   });
 
   Future<bool> deleteService(String serviceId);
@@ -49,6 +51,7 @@ class ServicesRemoteDataSourceImpl implements ServicesRemoteDataSource {
     required Money price,
     required PricingModel pricingModel,
     required String icon,
+    String? description,
   }) async {
     try {
       final response = await apiClient.post(
@@ -63,6 +66,7 @@ class ServicesRemoteDataSourceImpl implements ServicesRemoteDataSource {
           // Map app enum values to backend-supported enum strings
           'pricingModel': _toServerPricingModel(pricingModel),
           'icon': icon,
+          if (description != null) 'description': description,
         },
       );
       
@@ -82,6 +86,7 @@ class ServicesRemoteDataSourceImpl implements ServicesRemoteDataSource {
     Money? price,
     PricingModel? pricingModel,
     String? icon,
+    String? description,
   }) async {
     try {
       final data = <String, dynamic>{
@@ -97,6 +102,7 @@ class ServicesRemoteDataSourceImpl implements ServicesRemoteDataSource {
       }
       if (pricingModel != null) data['pricingModel'] = _toServerPricingModel(pricingModel);
       if (icon != null) data['icon'] = icon;
+      if (description != null) data['description'] = description;
 
       final response = await apiClient.put(
         '$_basePath/$serviceId',

@@ -40,6 +40,9 @@ class _CreateServicePageState extends State<CreateServicePage>
   final TextEditingController _descriptionController = TextEditingController();
   final TextEditingController _amountController = TextEditingController();
 
+  // Free toggle
+  bool _isFree = false;
+
   // State
   String? _selectedPropertyId;
   String? _selectedPropertyName;
@@ -432,15 +435,16 @@ class _CreateServicePageState extends State<CreateServicePage>
                 child: _buildInputField(
                   controller: _amountController,
                   label: 'السعر',
-                  hint: 'أدخل السعر',
+                  hint: _isFree ? '0' : 'أدخل السعر',
                   icon: Icons.attach_money_rounded,
                   keyboardType: TextInputType.number,
                   validator: (value) {
+                    if (_isFree) return null;
                     if (value == null || value.isEmpty) {
                       return 'الرجاء إدخال السعر';
                     }
                     final price = double.tryParse(value);
-                    if (price == null || price <= 0) {
+                    if (price == null || price < 0) {
                       return 'السعر غير صحيح';
                     }
                     return null;
@@ -454,6 +458,25 @@ class _CreateServicePageState extends State<CreateServicePage>
                   onChanged: (v) => setState(() => _selectedCurrency = v),
                 ),
               ),
+            ],
+          ),
+
+          const SizedBox(height: 12),
+
+          Row(
+            children: [
+              Switch(
+                value: _isFree,
+                onChanged: (val) {
+                  setState(() {
+                    _isFree = val;
+                    if (val) _amountController.text = '0';
+                  });
+                },
+                activeColor: AppTheme.success,
+              ),
+              const SizedBox(width: 8),
+              Text('خدمة مجانية', style: AppTextStyles.bodyMedium.copyWith(color: AppTheme.textWhite)),
             ],
           ),
 
@@ -1005,17 +1028,16 @@ class _CreateServicePageState extends State<CreateServicePage>
   }
 
   bool _validatePricing() {
+    if (_isFree) return true;
     if (_amountController.text.isEmpty) {
       _showErrorMessage('الرجاء إدخال السعر');
       return false;
     }
-
     final price = double.tryParse(_amountController.text);
-    if (price == null || price <= 0) {
+    if (price == null || price < 0) {
       _showErrorMessage('السعر غير صحيح');
       return false;
     }
-
     return true;
   }
 
@@ -1027,7 +1049,7 @@ class _CreateServicePageState extends State<CreateServicePage>
       }
 
       final price = Money(
-        amount: double.parse(_amountController.text),
+        amount: double.tryParse(_amountController.text) ?? 0,
         currency: _selectedCurrency,
       );
 
@@ -1038,6 +1060,7 @@ class _CreateServicePageState extends State<CreateServicePage>
               price: price,
               pricingModel: _selectedPricingModel,
               icon: _selectedIcon,
+              description: _descriptionController.text.trim().isEmpty ? null : _descriptionController.text.trim(),
             ),
           );
     }

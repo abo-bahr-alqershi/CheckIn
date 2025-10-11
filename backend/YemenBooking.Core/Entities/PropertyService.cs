@@ -35,6 +35,12 @@ public class PropertyService : BaseEntity<Guid>
     public Money Price { get; set; }
     
     /// <summary>
+    /// وصف الخدمة
+    /// Service description
+    /// </summary>
+    public string? Description { get; set; }
+
+    /// <summary>
     /// أيقونة الخدمة
     /// Service icon
     /// </summary>

@@ -15,6 +15,7 @@ abstract class ServicesRepository {
     required Money price,
     required PricingModel pricingModel,
     required String icon,
+    String? description,
   });
 
   /// تحديث خدمة
@@ -24,6 +25,7 @@ abstract class ServicesRepository {
     Money? price,
     PricingModel? pricingModel,
     String? icon,
+    String? description,
   });
 
   /// حذف خدمة

@@ -44,8 +44,9 @@ namespace YemenBooking.Application.Handlers.Commands.Services
                 return ResultDto<Guid>.Failed("معرف الكيان مطلوب");
             if (string.IsNullOrWhiteSpace(request.Name))
                 return ResultDto<Guid>.Failed("اسم الخدمة مطلوب");
-            if (request.Price == null || request.Price.Amount <= 0)
-                return ResultDto<Guid>.Failed("السعر يجب أن يكون أكبر من صفر");
+            if (request.Price == null || request.Price.Amount < 0)
+                return ResultDto<Guid>.Failed("السعر لا يمكن أن يكون سالباً");
+            // allow zero for free services
 
             // التحقق من الصلاحيات (مالك الكيان أو مسؤول)
             var property = await _serviceRepository.GetPropertyByIdAsync(request.PropertyId, cancellationToken);
@@ -66,6 +67,7 @@ namespace YemenBooking.Application.Handlers.Commands.Services
                 Name = request.Name.Trim(),
                 Price = new Money(request.Price.Amount, request.Price.Currency),
                 PricingModel = request.PricingModel,
+                Description = string.IsNullOrWhiteSpace(request.Description) ? null : request.Description!.Trim(),
                 Icon = (request.Icon ?? string.Empty).Trim(),
                 CreatedBy = _currentUserService.UserId,
                 CreatedAt = DateTime.UtcNow
@@ -73,13 +75,13 @@ namespace YemenBooking.Application.Handlers.Commands.Services
             var created = await _serviceRepository.CreatePropertyServiceAsync(service, cancellationToken);
 
             // تسجيل التدقيق (يدوي) يتضمن اسم ومعرّف المنفذ
-            var notes = $"تم إنشاء خدمة جديدة {created.Id} للكيان {created.PropertyId} بواسطة {_currentUserService.Username} (ID={_currentUserService.UserId})";
+            var notes = $"تم إنشاء خدمة جديدة {created.Id} للكيان {created.PropertyId} (السعر: {created.Price.Amount} {created.Price.Currency}, الوصف: {created.Description ?? "-"}) بواسطة {_currentUserService.Username} (ID={_currentUserService.UserId})";
             await _auditService.LogAuditAsync(
                 entityType: "PropertyService",
                 entityId: created.Id,
                 action: YemenBooking.Core.Entities.AuditAction.CREATE,
                 oldValues: null,
-                newValues: System.Text.Json.JsonSerializer.Serialize(new { created.Id, created.PropertyId, created.Name }),
+                newValues: System.Text.Json.JsonSerializer.Serialize(new { created.Id, created.PropertyId, created.Name, created.Price, created.Description }),
                 performedBy: _currentUserService.UserId,
                 notes: notes,
                 cancellationToken: cancellationToken);

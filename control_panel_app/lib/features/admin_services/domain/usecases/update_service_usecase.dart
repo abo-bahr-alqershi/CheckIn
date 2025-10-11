@@ -20,6 +20,7 @@ class UpdateServiceUseCase implements UseCase<bool, UpdateServiceParams> {
       price: params.price,
       pricingModel: params.pricingModel,
       icon: params.icon,
+      description: params.description,
     );
   }
 }
@@ -30,6 +31,7 @@ class UpdateServiceParams extends Equatable {
   final Money? price;
   final PricingModel? pricingModel;
   final String? icon;
+  final String? description;
 
   const UpdateServiceParams({
     required this.serviceId,
@@ -37,8 +39,9 @@ class UpdateServiceParams extends Equatable {
     this.price,
     this.pricingModel,
     this.icon,
+    this.description,
   });
 
   @override
-  List<Object?> get props => [serviceId, name, price, pricingModel, icon];
+  List<Object?> get props => [serviceId, name, price, pricingModel, icon, description];
 }

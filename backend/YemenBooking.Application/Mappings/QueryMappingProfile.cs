@@ -83,7 +83,8 @@ namespace YemenBooking.Application.Mappings
 
             // Service mapping
             CreateMap<PropertyService, ServiceDto>()
-                .ForMember(dest => dest.PropertyName, opt => opt.MapFrom(src => src.Property.Name));
+                .ForMember(dest => dest.PropertyName, opt => opt.MapFrom(src => src.Property.Name))
+                .ForMember(dest => dest.Description, opt => opt.MapFrom(src => src.Description));
 
             // Unit mapping
             CreateMap<Unit, UnitDto>()
