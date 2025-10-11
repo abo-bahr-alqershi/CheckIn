@@ -103,6 +103,9 @@ class AuditLogsQuery extends Equatable {
   final DateTime? to;
   final String? searchTerm;
   final String? operationType;
+  // Optional precise filters
+  final String? entityType; // e.g., "Booking"
+  final String? recordId;   // entity GUID as string
 
   const AuditLogsQuery({
     this.pageNumber,
@@ -112,6 +115,8 @@ class AuditLogsQuery extends Equatable {
     this.to,
     this.searchTerm,
     this.operationType,
+    this.entityType,
+    this.recordId,
   });
 
   Map<String, dynamic> toMap() {
@@ -123,6 +128,8 @@ class AuditLogsQuery extends Equatable {
       if (to != null) 'to': to!.toIso8601String(),
       if (searchTerm != null) 'searchTerm': searchTerm,
       if (operationType != null) 'operationType': operationType,
+      if (entityType != null) 'entityType': entityType,
+      if (recordId != null) 'recordId': recordId,
     };
   }
 
@@ -135,6 +142,8 @@ class AuditLogsQuery extends Equatable {
         to,
         searchTerm,
         operationType,
+        entityType,
+        recordId,
       ];
 }
 

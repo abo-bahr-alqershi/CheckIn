@@ -36,8 +36,9 @@ class _BookingAuditTimelinePageState extends State<BookingAuditTimelinePage> {
     final query = AuditLogsQuery(
       pageNumber: 1,
       pageSize: 100,
-      // Back-end supports entity filter via entityType=Booking & recordId
-      // We'll pass as searchTerm fallback as well to match string contains
+      entityType: 'Booking',
+      recordId: widget.bookingId,
+      // Keep searchTerm as fallback for older APIs or loose matches
       searchTerm: widget.bookingId,
     );
     context.read<AuditLogsBloc>().add(LoadAuditLogsEvent(query: query));
