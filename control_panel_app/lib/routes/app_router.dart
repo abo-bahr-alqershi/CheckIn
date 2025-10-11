@@ -4,6 +4,7 @@ import 'package:bookn_cp_app/features/admin_cities/presentation/pages/city_form_
 import 'package:bookn_cp_app/features/admin_units/domain/entities/unit.dart';
 import 'package:bookn_cp_app/features/admin_units/presentation/bloc/unit_images/unit_images_bloc.dart';
 import 'package:bookn_cp_app/features/admin_units/presentation/bloc/unit_images/unit_images_event.dart';
+import 'package:bookn_cp_app/features/auth/presentation/bloc/auth_event.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -210,9 +211,12 @@ class AppRouter {
       redirect: (context, state) {
         // Proactive route guard: if token expired, force logout and go to /login
         try {
-          final token = di.sl<LocalStorageService>()
+          final token = di
+              .sl<LocalStorageService>()
               .getData(StorageConstants.accessToken) as String?;
-          if (token != null && token.isNotEmpty && _isJwtExpiredRouter(token, skewSeconds: 10)) {
+          if (token != null &&
+              token.isNotEmpty &&
+              _isJwtExpiredRouter(token, skewSeconds: 10)) {
             context.read<AuthBloc>().add(const LogoutEvent());
             return '/login';
           }
