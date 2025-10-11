@@ -1112,8 +1112,15 @@ class AppRouter {
           builder: (context, state) {
             final userId = state.pathParameters['userId']!;
             final extras = state.extra as Map<String, dynamic>?;
-            return BlocProvider<au_list_bloc.UsersListBloc>(
-              create: (_) => di.sl<au_list_bloc.UsersListBloc>(),
+            return MultiBlocProvider(
+              providers: [
+                BlocProvider<au_list_bloc.UsersListBloc>(
+                  create: (_) => di.sl<au_list_bloc.UsersListBloc>(),
+                ),
+                BlocProvider<au_details_bloc.UserDetailsBloc>(
+                  create: (_) => di.sl<au_details_bloc.UserDetailsBloc>(),
+                ),
+              ],
               child: au_pages.CreateUserPage(
                 userId: userId,
                 initialName: extras?['name'] as String?,

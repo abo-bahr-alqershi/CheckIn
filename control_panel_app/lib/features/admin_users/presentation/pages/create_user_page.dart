@@ -10,17 +10,26 @@ import 'dart:math' as math;
 import 'package:bookn_cp_app/core/theme/app_text_styles.dart';
 import '../../../../core/utils/validators.dart';
 import '../bloc/users_list/users_list_bloc.dart';
-import '../widgets/user_role_selector.dart';
+import '../bloc/user_details/user_details_bloc.dart';
 import '../../domain/entities/user.dart';
+import '../../domain/entities/user_details.dart';
 
 class CreateUserPage extends StatefulWidget {
   final String? userId; // if provided -> edit mode
   final User? initialUser; // For edit mode
+  final String? initialName;
+  final String? initialEmail;
+  final String? initialPhone;
+  final String? initialRoleId;
 
   const CreateUserPage({
     super.key,
     this.userId,
     this.initialUser,
+    this.initialName,
+    this.initialEmail,
+    this.initialPhone,
+    this.initialRoleId,
   });
 
   @override
@@ -49,9 +58,9 @@ class _CreateUserPageState extends State<CreateUserPage>
   bool _isPasswordVisible = false;
   int _currentStep = 0;
   bool _isSubmitting = false;
+  bool _isPrefilledFromExtras = false;
 
   // Edit specific state
-  User? _originalUser;
   bool _isDataLoaded = false;
   bool _hasChanges = false;
 
@@ -66,12 +75,18 @@ class _CreateUserPageState extends State<CreateUserPage>
     super.initState();
     _initializeAnimations();
 
-    // Load initial data for edit mode
-    if (widget.userId != null && widget.initialUser != null) {
-      _loadUserData(widget.initialUser!);
-    } else if (widget.userId != null) {
-      // Load user data from API if not provided
-      _loadUserFromApi();
+    if (widget.userId != null) {
+      if (widget.initialUser != null) {
+        _loadUserData(widget.initialUser!, shouldSetState: false);
+      } else if (_hasInitialFieldData) {
+        _prefillFromInitialFields(shouldSetState: false);
+      }
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _loadUserFromApi();
+        }
+      });
     } else {
       _isDataLoaded = true;
     }
@@ -126,32 +141,70 @@ class _CreateUserPageState extends State<CreateUserPage>
   }
 
   void _loadUserFromApi() {
-    // Load user data from API
-    context
-        .read<UsersListBloc>()
-        .add(LoadUserDetailsEvent(userId: widget.userId!));
+    final userId = widget.userId;
+    if (userId == null) return;
+
+    context.read<UserDetailsBloc>().add(
+          LoadUserDetailsEvent(userId: userId),
+        );
   }
 
-  void _loadUserData(User user) {
-    if (_isDataLoaded) return;
-
-    setState(() {
-      _originalUser = user;
+  void _loadUserData(User user, {bool shouldSetState = true}) {
+    void apply() {
       _isDataLoaded = true;
+      _isPrefilledFromExtras = false;
 
-      // Populate controllers
       _nameController.text = user.name;
       _emailController.text = user.email;
-      _phoneController.text = user.phone ?? '';
-      _selectedRole = user.role;
+      _phoneController.text = user.phone;
+      _selectedRole = user.role.isEmpty ? null : user.role;
 
-      // Store original values
       _originalName = user.name;
       _originalEmail = user.email;
-      _originalPhone = user.phone ?? '';
-      _originalRole = user.role;
-    });
+      _originalPhone = user.phone;
+      _originalRole = user.role.isEmpty ? null : user.role;
+      _hasChanges = false;
+    }
+
+    if (shouldSetState && mounted) {
+      setState(apply);
+    } else {
+      apply();
+    }
   }
+
+  void _prefillFromInitialFields({bool shouldSetState = true}) {
+    void apply() {
+      _isPrefilledFromExtras = true;
+      _isDataLoaded = true;
+
+      final role = widget.initialRoleId;
+      final roleValue = role != null && role.isEmpty ? null : role;
+
+      _nameController.text = widget.initialName ?? '';
+      _emailController.text = widget.initialEmail ?? '';
+      _phoneController.text = widget.initialPhone ?? '';
+      _selectedRole = roleValue;
+
+      _originalName = widget.initialName ?? '';
+      _originalEmail = widget.initialEmail ?? '';
+      _originalPhone = widget.initialPhone ?? '';
+      _originalRole = roleValue;
+      _hasChanges = false;
+    }
+
+    if (shouldSetState && mounted) {
+      setState(apply);
+    } else {
+      apply();
+    }
+  }
+
+  bool get _hasInitialFieldData =>
+      widget.initialName != null ||
+      widget.initialEmail != null ||
+      widget.initialPhone != null ||
+      widget.initialRoleId != null;
 
   @override
   void dispose() {
@@ -169,75 +222,130 @@ class _CreateUserPageState extends State<CreateUserPage>
   Widget build(BuildContext context) {
     final isEditMode = widget.userId != null;
 
+    final scaffold = Scaffold(
+      backgroundColor: AppTheme.darkBackground,
+      body: Stack(
+        children: [
+          _buildAnimatedBackground(),
+          SafeArea(
+            child: !_isDataLoaded && isEditMode
+                ? _buildLoadingState()
+                : Column(
+                    children: [
+                      _buildHeader(),
+                      _buildProgressIndicator(),
+                      Expanded(
+                        child: FadeTransition(
+                          opacity: _fadeAnimation,
+                          child: SlideTransition(
+                            position: _slideAnimation,
+                            child: _buildFormContent(),
+                          ),
+                        ),
+                      ),
+                      _buildActionButtons(),
+                    ],
+                  ),
+          ),
+        ],
+      ),
+    );
+
+    Widget content;
+    if (isEditMode) {
+      content = MultiBlocListener(
+        listeners: [
+          BlocListener<UserDetailsBloc, UserDetailsState>(
+            listener: _handleUserDetailsState,
+          ),
+          BlocListener<UsersListBloc, UsersListState>(
+            listener: _handleUsersListState,
+          ),
+        ],
+        child: scaffold,
+      );
+    } else {
+      content = BlocListener<UsersListBloc, UsersListState>(
+        listener: _handleUsersListState,
+        child: scaffold,
+      );
+    }
+
     return WillPopScope(
       onWillPop: _onWillPop,
-      child: BlocListener<UsersListBloc, UsersListState>(
-        listener: (context, state) {
-          // Listen for user details loaded (for edit mode)
-          if (state is UserDetailsLoaded && !_isDataLoaded) {
-            _loadUserData(state.user);
-          }
+      child: content,
+    );
+  }
 
-          // Listen for operation success
-          if (state is UserOperationSuccess && _isSubmitting) {
-            _showSuccessMessage(state.message);
-            setState(() {
-              _isSubmitting = false;
-            });
-            Future.delayed(const Duration(milliseconds: 500), () {
-              if (mounted) {
-                context.pop(true); // Return true to indicate success
-              }
-            });
-          }
+  void _handleUserDetailsState(
+    BuildContext context,
+    UserDetailsState state,
+  ) {
+    if (!mounted) return;
 
-          // Listen for errors
-          if (state is UsersListError && _isSubmitting) {
-            _showErrorMessage(state.message);
-            setState(() {
-              _isSubmitting = false;
-            });
-          }
-        },
-        child: Scaffold(
-          backgroundColor: AppTheme.darkBackground,
-          body: Stack(
-            children: [
-              // Animated Background
-              _buildAnimatedBackground(),
+    if (state is UserDetailsLoading &&
+        !_isPrefilledFromExtras &&
+        !_isDataLoaded) {
+      setState(() {
+        _isDataLoaded = false;
+      });
+    }
 
-              // Main Content or Loading
-              SafeArea(
-                child: !_isDataLoaded && isEditMode
-                    ? _buildLoadingState()
-                    : Column(
-                        children: [
-                          // Header
-                          _buildHeader(),
+    if (state is UserDetailsLoaded) {
+      final user = _mapUserDetailsToUser(state.userDetails);
+      _loadUserData(user);
+    }
 
-                          // Progress Indicator
-                          _buildProgressIndicator(),
+    if (state is UserDetailsError) {
+      if (!_isDataLoaded) {
+        setState(() {
+          _isDataLoaded = true;
+        });
+      }
+      _showErrorMessage(state.message);
+    }
+  }
 
-                          // Form Content
-                          Expanded(
-                            child: FadeTransition(
-                              opacity: _fadeAnimation,
-                              child: SlideTransition(
-                                position: _slideAnimation,
-                                child: _buildFormContent(),
-                              ),
-                            ),
-                          ),
+  void _handleUsersListState(
+    BuildContext context,
+    UsersListState state,
+  ) {
+    if (state is UserOperationSuccess && _isSubmitting) {
+      _showSuccessMessage(state.message);
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+        });
+      }
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (mounted) {
+          context.pop(true);
+        }
+      });
+    }
 
-                          // Action Buttons
-                          _buildActionButtons(),
-                        ],
-                      ),
-              ),
-            ],
-          ),
-        ),
-      ),
+    if (state is UsersListError && _isSubmitting) {
+      _showErrorMessage(state.message);
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+        });
+      }
+    }
+  }
+
+  User _mapUserDetailsToUser(UserDetails details) {
+    return User(
+      id: details.id,
+      name: details.userName,
+      role: details.role ?? '',
+      email: details.email,
+      phone: details.phoneNumber,
+      profileImage: details.avatarUrl,
+      createdAt: details.createdAt,
+      isActive: details.isActive,
+      settings: null,
+      favorites: null,
     );
   }
 
@@ -441,7 +549,9 @@ class _CreateUserPageState extends State<CreateUserPage>
                 const SizedBox(height: 4),
                 Text(
                   isEditMode
-                      ? _originalUser?.name ?? 'قم بتعديل البيانات المطلوبة'
+                      ? (_originalName != null && _originalName!.isNotEmpty
+                          ? _originalName!
+                          : 'قم بتعديل البيانات المطلوبة')
                       : 'قم بملء البيانات المطلوبة لإضافة المستخدم',
                   style: AppTextStyles.bodySmall.copyWith(
                     color: AppTheme.textMuted,
@@ -1760,25 +1870,30 @@ class _CreateUserPageState extends State<CreateUserPage>
 
   // Helper Methods
   bool _checkForChanges() {
-    if (_originalUser == null) return false;
+    if (widget.userId == null) return false;
 
-    return _nameController.text != _originalName ||
-        _emailController.text != _originalEmail ||
-        _phoneController.text != _originalPhone ||
-        _selectedRole != _originalRole;
+    final currentRole = _selectedRole ?? '';
+    final originalRole = _originalRole ?? '';
+
+    return _nameController.text != (_originalName ?? '') ||
+        _emailController.text != (_originalEmail ?? '') ||
+        _phoneController.text != (_originalPhone ?? '') ||
+        currentRole != originalRole;
   }
 
   bool _hasChangesInStep(int step) {
-    if (_originalUser == null) return false;
+    if (widget.userId == null) return false;
 
     switch (step) {
       case 0: // Basic Info
-        return _nameController.text != _originalName ||
-            _emailController.text != _originalEmail;
+        return _nameController.text != (_originalName ?? '') ||
+            _emailController.text != (_originalEmail ?? '');
       case 1: // Contact
-        return _phoneController.text != _originalPhone;
+        return _phoneController.text != (_originalPhone ?? '');
       case 2: // Permissions
-        return _selectedRole != _originalRole;
+        final currentRole = _selectedRole ?? '';
+        final originalRole = _originalRole ?? '';
+        return currentRole != originalRole;
       default:
         return false;
     }
@@ -1786,39 +1901,44 @@ class _CreateUserPageState extends State<CreateUserPage>
 
   List<Map<String, String>> _getChangedFields() {
     final changes = <Map<String, String>>[];
-    if (_originalUser == null) return changes;
+    if (widget.userId == null) return changes;
 
-    if (_nameController.text != _originalName) {
+    final originalName = _originalName ?? '';
+    final originalEmail = _originalEmail ?? '';
+    final originalPhone = _originalPhone ?? '';
+    final originalRole = _originalRole ?? '';
+
+    if (_nameController.text != originalName) {
       changes.add({
         'field': 'الاسم',
-        'oldValue': _originalName ?? 'غير محدد',
+        'oldValue': originalName.isEmpty ? 'غير محدد' : originalName,
         'newValue': _nameController.text,
       });
     }
 
-    if (_emailController.text != _originalEmail) {
+    if (_emailController.text != originalEmail) {
       changes.add({
         'field': 'البريد الإلكتروني',
-        'oldValue': _originalEmail ?? 'غير محدد',
+        'oldValue': originalEmail.isEmpty ? 'غير محدد' : originalEmail,
         'newValue': _emailController.text,
       });
     }
 
-    if (_phoneController.text != _originalPhone) {
+    if (_phoneController.text != originalPhone) {
       changes.add({
         'field': 'رقم الهاتف',
-        'oldValue':
-            _originalPhone?.isEmpty ?? true ? 'غير محدد' : _originalPhone!,
+        'oldValue': originalPhone.isEmpty ? 'غير محدد' : originalPhone,
         'newValue':
             _phoneController.text.isEmpty ? 'غير محدد' : _phoneController.text,
       });
     }
 
-    if (_selectedRole != _originalRole) {
+    final currentRole = _selectedRole ?? '';
+    if (currentRole != originalRole) {
       changes.add({
         'field': 'الدور',
-        'oldValue': _getRoleText(_originalRole ?? ''),
-        'newValue': _getRoleText(_selectedRole ?? ''),
+        'oldValue': _getRoleText(originalRole),
+        'newValue': _getRoleText(currentRole),
       });
     }
 
@@ -1826,7 +1946,7 @@ class _CreateUserPageState extends State<CreateUserPage>
   }
 
   void _resetChanges() {
-    if (_originalUser == null) return;
+    if (widget.userId == null) return;
 
     showDialog(
       context: context,

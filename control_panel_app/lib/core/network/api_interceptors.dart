@@ -13,22 +13,27 @@ import '../../features/auth/domain/repositories/auth_repository.dart';
 
 class AuthInterceptor extends Interceptor {
   @override
-  void onRequest(RequestOptions options, RequestInterceptorHandler handler) async {
+  void onRequest(
+      RequestOptions options, RequestInterceptorHandler handler) async {
     // Allow skipping auth header for specific requests
     if (options.extra['skipAuth'] == true) {
       return handler.next(options);
     }
     final localStorage = sl<LocalStorageService>();
     final token = localStorage.getData(StorageConstants.accessToken) as String?;
-    
+
     if (token != null && token.isNotEmpty) {
       // Always overwrite Authorization with the latest token
-      options.headers[ApiConstants.authorization] = '${ApiConstants.bearer} $token';
+      options.headers[ApiConstants.authorization] =
+          '${ApiConstants.bearer} $token';
     }
     // propagate role/property context for backend if needed
-    final accountRole = localStorage.getData(StorageConstants.accountRole)?.toString();
-    final propertyId = localStorage.getData(StorageConstants.propertyId)?.toString();
-    final propertyCurrency = localStorage.getData(StorageConstants.propertyCurrency)?.toString();
+    final accountRole =
+        localStorage.getData(StorageConstants.accountRole)?.toString();
+    final propertyId =
+        localStorage.getData(StorageConstants.propertyId)?.toString();
+    final propertyCurrency =
+        localStorage.getData(StorageConstants.propertyCurrency)?.toString();
     if (accountRole != null && accountRole.isNotEmpty) {
       options.headers['X-Account-Role'] = accountRole;
     }
@@ -38,11 +43,11 @@ class AuthInterceptor extends Interceptor {
     if (propertyCurrency != null && propertyCurrency.isNotEmpty) {
       options.headers['X-Property-Currency'] = propertyCurrency;
     }
-    
+
     // Add current language to headers
     final locale = LocaleManager.getCurrentLocale();
     options.headers[ApiConstants.acceptLanguage] = locale.languageCode;
-    
+
     handler.next(options);
   }
 }
@@ -56,17 +61,24 @@ class UserFeedbackInterceptor extends Interceptor {
       final extra = response.requestOptions.extra;
       final data = response.data;
       if (data is Map<String, dynamic>) {
-        final hasSuccessKey = data.containsKey('success') || data.containsKey('isSuccess');
-        final bool? isSuccess = data['success'] as bool? ?? data['isSuccess'] as bool?;
+        final hasSuccessKey =
+            data.containsKey('success') || data.containsKey('isSuccess');
+        final bool? isSuccess =
+            data['success'] as bool? ?? data['isSuccess'] as bool?;
         final String message = _extractResponseMessage(data);
 
-        // Only show failure messages from server when success/isSuccess == false
         if (hasSuccessKey && isSuccess == false) {
           final suppressed = (extra['suppressErrorToast'] == true);
           if (!suppressed && message.isNotEmpty) {
             MessageService.showError(message);
           }
         }
+        // else if (hasSuccessKey && isSuccess == true) {
+        //   final showSuccess = (extra['showSuccessToast'] == true);
+        //   if (showSuccess && message.isNotEmpty) {
+        //     MessageService.showSuccess(message);
+        //   }
+        // }
       }
     } catch (_) {}
 
@@ -128,7 +140,8 @@ class ErrorInterceptor extends Interceptor {
     if (status == 401) {
       try {
         final localStorage = sl<LocalStorageService>();
-        final String? refreshToken = localStorage.getData(StorageConstants.refreshToken) as String?;
+        final String? refreshToken =
+            localStorage.getData(StorageConstants.refreshToken) as String?;
 
         // If no refresh token, logout
         if (refreshToken == null || refreshToken.isEmpty) {
@@ -145,7 +158,9 @@ class ErrorInterceptor extends Interceptor {
         // If a refresh is already happening, wait for it
         if (_isRefreshing) {
           try {
-            await (_refreshCompleter ?? Completer<void>()..complete()).future;
+            await (_refreshCompleter ?? Completer<void>()
+                  ..complete())
+                .future;
           } catch (_) {}
         } else {
           // Start refresh
@@ -164,7 +179,8 @@ class ErrorInterceptor extends Interceptor {
         }
 
         // Retry the original request with updated token
-        final String? newAccess = localStorage.getData(StorageConstants.accessToken) as String?;
+        final String? newAccess =
+            localStorage.getData(StorageConstants.accessToken) as String?;
         if (newAccess == null || newAccess.isEmpty) {
           await _forceLogout();
           return handler.next(err);
@@ -201,10 +217,10 @@ class ErrorInterceptor extends Interceptor {
         await _forceLogout();
       }
     }
-    
+
     handler.next(err);
   }
-  
+
   Future<void> _refreshAccessToken(String refreshToken) async {
     final authRepository = sl<AuthRepository>();
     await authRepository.refreshToken(refreshToken: refreshToken);
@@ -213,9 +229,9 @@ class ErrorInterceptor extends Interceptor {
   Future<void> _forceLogout() async {
     try {
       // Clear local storages first
-    final localStorage = sl<LocalStorageService>();
-    await localStorage.removeData(StorageConstants.accessToken);
-    await localStorage.removeData(StorageConstants.refreshToken);
+      final localStorage = sl<LocalStorageService>();
+      await localStorage.removeData(StorageConstants.accessToken);
+      await localStorage.removeData(StorageConstants.refreshToken);
     } catch (_) {}
     // Dispatch logout to trigger router redirect
     try {
@@ -280,13 +296,15 @@ class LoggingInterceptor extends Interceptor {
 
   @override
   void onResponse(Response response, ResponseInterceptorHandler handler) {
-    debugPrint('RESPONSE[${response.statusCode}] => PATH: ${response.requestOptions.path}');
+    debugPrint(
+        'RESPONSE[${response.statusCode}] => PATH: ${response.requestOptions.path}');
     handler.next(response);
   }
 
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) {
-    debugPrint('ERROR[${err.response?.statusCode}] => PATH: ${err.requestOptions.path}');
+    debugPrint(
+        'ERROR[${err.response?.statusCode}] => PATH: ${err.requestOptions.path}');
     handler.next(err);
   }
 }
