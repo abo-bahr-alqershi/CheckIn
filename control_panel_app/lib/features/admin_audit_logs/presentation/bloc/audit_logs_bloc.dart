@@ -175,6 +175,8 @@ extension on AuditLogsQuery {
     DateTime? to,
     String? searchTerm,
     String? operationType,
+    String? entityType,
+    String? recordId,
   }) {
     return AuditLogsQuery(
       pageNumber: pageNumber ?? this.pageNumber,
@@ -184,6 +186,8 @@ extension on AuditLogsQuery {
       to: to ?? this.to,
       searchTerm: searchTerm ?? this.searchTerm,
       operationType: operationType ?? this.operationType,
+      entityType: entityType ?? this.entityType,
+      recordId: recordId ?? this.recordId,
     );
   }
 }
