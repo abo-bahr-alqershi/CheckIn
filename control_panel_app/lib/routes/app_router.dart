@@ -133,6 +133,11 @@ import 'package:bookn_cp_app/features/helpers/presentation/pages/booking_search_
 import 'package:bookn_cp_app/features/admin_units/presentation/pages/unit_gallery_page.dart';
 import 'route_animations.dart';
 import 'route_guards.dart' as guards;
+import 'package:bookn_cp_app/services/navigation_service.dart';
+import 'package:bookn_cp_app/services/local_storage_service.dart';
+import 'package:bookn_cp_app/core/constants/storage_constants.dart';
+import 'package:bookn_cp_app/injection_container.dart' as di;
+import 'dart:convert';
 // Admin Bookings pages & blocs
 import 'package:bookn_cp_app/features/admin_bookings/presentation/pages/bookings_list_page.dart';
 import 'package:bookn_cp_app/features/admin_bookings/presentation/pages/booking_details_page.dart';
@@ -199,9 +204,20 @@ class AppRouter {
   static GoRouter build(BuildContext context) {
     final authBloc = context.read<AuthBloc>();
     return GoRouter(
+      navigatorKey: NavigationService.rootNavigatorKey,
       initialLocation: '/',
       refreshListenable: GoRouterRefreshStream(authBloc.stream),
       redirect: (context, state) {
+        // Proactive route guard: if token expired, force logout and go to /login
+        try {
+          final token = di.sl<LocalStorageService>()
+              .getData(StorageConstants.accessToken) as String?;
+          if (token != null && token.isNotEmpty && _isJwtExpiredRouter(token, skewSeconds: 10)) {
+            context.read<AuthBloc>().add(const LogoutEvent());
+            return '/login';
+          }
+        } catch (_) {}
+
         final authState = context.read<AuthBloc>().state;
         final goingToLogin = state.matchedLocation == '/login';
         final goingToRegister = state.matchedLocation == '/register';
@@ -1193,6 +1209,31 @@ class AppRouter {
         ),
       ],
     );
+  }
+
+  // Lightweight JWT exp check for router guard
+  static bool _isJwtExpiredRouter(String jwt, {int skewSeconds = 0}) {
+    try {
+      final parts = jwt.split('.');
+      if (parts.length != 3) return false;
+      final payload = parts[1].replaceAll('-', '+').replaceAll('_', '/');
+      var normalized = payload;
+      while (normalized.length % 4 != 0) {
+        normalized += '=';
+      }
+      final decoded = String.fromCharCodes(base64Url.decode(normalized));
+      final map = jsonDecode(decoded) as Map<String, dynamic>;
+      final exp = map['exp'];
+      if (exp is int) {
+        final expiresAt = DateTime.fromMillisecondsSinceEpoch(exp * 1000);
+        return DateTime.now().isAfter(
+          expiresAt.subtract(Duration(seconds: skewSeconds)),
+        );
+      }
+      return false;
+    } catch (_) {
+      return false;
+    }
   }
 }
 
