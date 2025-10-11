@@ -12,6 +12,7 @@ import 'package:bookn_cp_app/injection_container.dart' as di;
 import 'package:bookn_cp_app/core/bloc/app_bloc.dart';
 // Removed settings bloc dependency
 import 'package:bookn_cp_app/core/theme/app_theme.dart';
+import 'package:bookn_cp_app/services/message_service.dart';
 
 class YemenBookingApp extends StatelessWidget {
   const YemenBookingApp({super.key});
@@ -36,6 +37,7 @@ class YemenBookingApp extends StatelessWidget {
                 darkTheme: ThemeData.dark(),
                 themeMode: themeState.themeMode,
                 locale: localeState,
+                scaffoldMessengerKey: MessageService.scaffoldMessengerKey,
                 localizationsDelegates: const [
                   AppLocalizations.delegate,
                   GlobalMaterialLocalizations.delegate,
