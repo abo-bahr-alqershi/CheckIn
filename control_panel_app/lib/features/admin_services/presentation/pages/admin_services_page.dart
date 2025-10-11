@@ -27,7 +27,7 @@ import '../widgets/service_stats_row.dart';
 import '../widgets/service_filters_widget.dart';
 import '../utils/service_icons.dart';
 
-/// 🎯 Admin Services Page
+/// 🎯 Ultra Premium Admin Services Page
 class AdminServicesPage extends StatefulWidget {
   const AdminServicesPage({super.key});
 
@@ -41,10 +41,12 @@ class _AdminServicesPageState extends State<AdminServicesPage>
   late AnimationController _backgroundAnimationController;
   late AnimationController _particlesAnimationController;
   late AnimationController _glowAnimationController;
+  late AnimationController _cardEntranceController;
 
   // Animations
   late Animation<double> _backgroundRotationAnimation;
   late Animation<double> _glowAnimation;
+  late Animation<double> _cardEntranceAnimation;
 
   // Particles
   final List<_Particle> _particles = [];
@@ -88,6 +90,11 @@ class _AdminServicesPageState extends State<AdminServicesPage>
       vsync: this,
     )..repeat(reverse: true);
 
+    _cardEntranceController = AnimationController(
+      duration: const Duration(milliseconds: 1200),
+      vsync: this,
+    );
+
     _backgroundRotationAnimation = Tween<double>(
       begin: 0,
       end: 2 * math.pi,
@@ -103,16 +110,27 @@ class _AdminServicesPageState extends State<AdminServicesPage>
       parent: _glowAnimationController,
       curve: Curves.easeInOut,
     ));
+
+    _cardEntranceAnimation = CurvedAnimation(
+      parent: _cardEntranceController,
+      curve: Curves.easeOutCubic,
+    );
+
+    // Start entrance animation
+    Future.delayed(const Duration(milliseconds: 100), () {
+      if (mounted) {
+        _cardEntranceController.forward();
+      }
+    });
   }
 
   void _generateParticles() {
-    for (int i = 0; i < 20; i++) {
+    for (int i = 0; i < 30; i++) {
       _particles.add(_Particle());
     }
   }
 
   void _loadInitialData() {
-    // Load all services by default so the page is not empty on first open
     context.read<ServicesBloc>().add(const LoadServicesEvent(
         serviceType: 'all', pageNumber: 1, pageSize: 20));
   }
@@ -122,6 +140,7 @@ class _AdminServicesPageState extends State<AdminServicesPage>
     _backgroundAnimationController.dispose();
     _particlesAnimationController.dispose();
     _glowAnimationController.dispose();
+    _cardEntranceController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
@@ -142,6 +161,10 @@ class _AdminServicesPageState extends State<AdminServicesPage>
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+    final isMobile = size.width < 600;
+    final isTablet = size.width >= 600 && size.width < 1200;
+
     return BlocListener<ServicesBloc, ServicesState>(
       listener: (context, state) {
         if (state is ServicesDeleting) {
@@ -152,6 +175,10 @@ class _AdminServicesPageState extends State<AdminServicesPage>
         } else if (state is ServicesDeleteSuccess) {
           _dismissDeletingDialog();
           _showSnack('تم حذف الخدمة بنجاح', AppTheme.success);
+        } else if (state is ServicesLoaded) {
+          // Restart entrance animation when data is loaded
+          _cardEntranceController.reset();
+          _cardEntranceController.forward();
         }
       },
       child: Scaffold(
@@ -164,45 +191,50 @@ class _AdminServicesPageState extends State<AdminServicesPage>
             // Floating Particles
             _buildFloatingParticles(),
 
-            // Main Content with CustomScrollView for better scrolling
+            // Main Content
             RefreshIndicator(
               onRefresh: () async {
                 if (_selectedPropertyId != null) {
-                  context.read<ServicesBloc>().add(LoadServicesEvent(propertyId: _selectedPropertyId));
+                  context
+                      .read<ServicesBloc>()
+                      .add(LoadServicesEvent(propertyId: _selectedPropertyId));
                 } else {
-                  context.read<ServicesBloc>().add(const LoadServicesEvent(serviceType: 'all', pageNumber: 1, pageSize: 20));
+                  context.read<ServicesBloc>().add(const LoadServicesEvent(
+                      serviceType: 'all', pageNumber: 1, pageSize: 20));
                 }
               },
+              color: AppTheme.primaryBlue,
+              backgroundColor: AppTheme.darkCard,
               child: CustomScrollView(
                 controller: _scrollController,
                 physics: const BouncingScrollPhysics(
                   parent: AlwaysScrollableScrollPhysics(),
                 ),
                 slivers: [
-                // App Bar similar to bookings page
-                _buildSliverAppBar(),
+                  // Premium App Bar
+                  _buildSliverAppBar(isMobile),
 
-                // Stats Cards as SliverToBoxAdapter
-                SliverToBoxAdapter(
-                  child: _buildStatsCards(),
-                ),
-
-                // Filters as SliverToBoxAdapter
-                if (_showFilters)
+                  // Stats Cards
                   SliverToBoxAdapter(
-                    child: _buildFilters(),
+                    child: _buildStatsCards(),
                   ),
 
-                // Content as SliverFillRemaining لضمان قيود الارتفاع
-                SliverFillRemaining(
-                  hasScrollBody: true,
-                  child: _buildContent(),
-                ),
+                  // Filters
+                  if (_showFilters)
+                    SliverToBoxAdapter(
+                      child: _buildFilters(),
+                    ),
 
-                // Bottom padding
-                const SliverToBoxAdapter(
-                  child: SizedBox(height: 100),
-                ),
+                  // Content
+                  SliverPadding(
+                    padding: EdgeInsets.all(isMobile ? 16 : 20),
+                    sliver: _buildContent(isMobile, isTablet),
+                  ),
+
+                  // Bottom padding for FAB
+                  const SliverToBoxAdapter(
+                    child: SizedBox(height: 100),
+                  ),
                 ],
               ),
             ),
@@ -213,82 +245,78 @@ class _AdminServicesPageState extends State<AdminServicesPage>
     );
   }
 
-  bool _isDeleting = false;
-  void _showDeletingDialog() {
-    if (_isDeleting) return;
-    _isDeleting = true;
-    showDialog(
-      fullscreenDialog: true,
-      context: context,
-      barrierDismissible: false,
-      barrierColor: Colors.transparent,
-      builder: (_) => const Dialog(
-        backgroundColor: Colors.transparent,
-        insetPadding: EdgeInsets.zero,
-        elevation: 0,
-        child: Center(
-          child: LoadingWidget(
-              type: LoadingType.futuristic, message: 'جاري حذف الخدمة...'),
-        ),
-      ),
-    );
-  }
-
-  void _dismissDeletingDialog() {
-    if (_isDeleting) {
-      _isDeleting = false;
-      if (mounted) {
-        Navigator.of(context, rootNavigator: true).pop();
-      }
-    }
-  }
-
-  void _showSnack(String message, Color color) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: color,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-    );
-  }
-
-  // SliverAppBar aligned with bookings page styling
-  Widget _buildSliverAppBar() {
+  Widget _buildSliverAppBar(bool isMobile) {
     return SliverAppBar(
-      expandedHeight: 120,
+      expandedHeight: isMobile ? 140 : 160,
       floating: true,
       pinned: true,
       centerTitle: false,
-      backgroundColor: AppTheme.darkBackground,
+      backgroundColor: AppTheme.darkBackground.withOpacity(0.95),
       flexibleSpace: FlexibleSpaceBar(
-        titlePadding: const EdgeInsetsDirectional.only(start: 16, bottom: 16),
-        title: Text(
-          'إدارة الخدمات',
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: AppTextStyles.heading1.copyWith(
-            color: AppTheme.textWhite,
-            shadows: [
-              Shadow(
-                color: AppTheme.primaryBlue.withOpacity(0.3),
-                blurRadius: 10,
-              ),
-            ],
-          ),
+        titlePadding: EdgeInsetsDirectional.only(
+          start: isMobile ? 16 : 24,
+          bottom: 16,
         ),
-        background: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                AppTheme.primaryBlue.withOpacity(0.1),
-                AppTheme.darkBackground,
-              ],
+        title: AnimatedBuilder(
+          animation: _glowAnimation,
+          builder: (context, child) {
+            return Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    AppTheme.primaryBlue
+                        .withOpacity(0.1 * _glowAnimation.value),
+                    AppTheme.primaryPurple
+                        .withOpacity(0.05 * _glowAnimation.value),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: AppTheme.primaryBlue
+                      .withOpacity(0.2 * _glowAnimation.value),
+                  width: 1,
+                ),
+              ),
+              child: Text(
+                'إدارة الخدمات',
+                style: AppTextStyles.heading2.copyWith(
+                  color: AppTheme.textWhite,
+                  fontSize: isMobile ? 18 : 20,
+                  shadows: [
+                    Shadow(
+                      color: AppTheme.primaryBlue.withOpacity(0.5),
+                      blurRadius: 15,
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
+        background: Stack(
+          children: [
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    AppTheme.primaryBlue.withOpacity(0.15),
+                    AppTheme.primaryPurple.withOpacity(0.08),
+                    AppTheme.darkBackground.withOpacity(0.95),
+                  ],
+                ),
+              ),
             ),
-          ),
+            Positioned.fill(
+              child: CustomPaint(
+                painter: _AppBarPatternPainter(
+                  animation: _backgroundRotationAnimation.value,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
       actions: _buildAppBarActions(context),
@@ -297,18 +325,21 @@ class _AdminServicesPageState extends State<AdminServicesPage>
 
   List<Widget> _buildAppBarActions(BuildContext context) {
     final width = MediaQuery.of(context).size.width;
-    if (width < 720) {
+    final isMobile = width < 600;
+
+    if (isMobile) {
       return [
         _buildAppBarIconAction(
           icon: Icons.filter_list_rounded,
           onPressed: () => setState(() => _showFilters = !_showFilters),
+          isActive: _showFilters,
         ),
         _buildAppBarIconAction(
-          icon: Icons.add_rounded,
-          onPressed: _navigateToCreatePage,
+          icon:
+              _isGridView ? Icons.view_list_rounded : Icons.view_module_rounded,
+          onPressed: () => setState(() => _isGridView = !_isGridView),
         ),
-        _buildOverflowMenu(),
-        const SizedBox(width: 4),
+        const SizedBox(width: 8),
       ];
     }
 
@@ -316,75 +347,52 @@ class _AdminServicesPageState extends State<AdminServicesPage>
       _buildAppBarIconAction(
         icon: Icons.filter_list_rounded,
         onPressed: () => setState(() => _showFilters = !_showFilters),
+        isActive: _showFilters,
       ),
       _buildAppBarIconAction(
         icon: Icons.grid_view_rounded,
         onPressed: () => setState(() => _isGridView = true),
+        isActive: _isGridView,
       ),
       _buildAppBarIconAction(
         icon: Icons.view_list_rounded,
         onPressed: () => setState(() => _isGridView = false),
+        isActive: !_isGridView,
       ),
-      _buildAppBarIconAction(
-        icon: Icons.add_rounded,
-        onPressed: _navigateToCreatePage,
-      ),
-      const SizedBox(width: 4),
+      const SizedBox(width: 8),
     ];
   }
 
   Widget _buildAppBarIconAction({
     required IconData icon,
     required VoidCallback onPressed,
+    bool isActive = false,
   }) {
-    return IconButton(
-      onPressed: onPressed,
-      padding: const EdgeInsets.symmetric(horizontal: 4),
-      constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-      icon: Icon(
-        icon,
-        color: AppTheme.textWhite,
-        size: 20,
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 4),
+      decoration: BoxDecoration(
+        gradient: isActive ? AppTheme.primaryGradient : null,
+        color: !isActive ? AppTheme.darkCard.withOpacity(0.3) : null,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isActive
+              ? AppTheme.primaryBlue.withOpacity(0.3)
+              : AppTheme.darkBorder.withOpacity(0.1),
+          width: 1,
+        ),
       ),
-      splashRadius: 20,
-    );
-  }
-
-  Widget _buildOverflowMenu() {
-    return PopupMenuButton<String>(
-      icon: Icon(Icons.more_vert_rounded, color: AppTheme.textWhite),
-      onSelected: (value) {
-        switch (value) {
-          case 'grid':
-            setState(() => _isGridView = true);
-            break;
-          case 'list':
-            setState(() => _isGridView = false);
-            break;
-        }
-      },
-      itemBuilder: (context) => [
-        const PopupMenuItem(
-          value: 'grid',
-          child: Row(
-            children: [
-              Icon(Icons.grid_view_rounded, size: 18),
-              SizedBox(width: 8),
-              Text('شبكة'),
-            ],
-          ),
+      child: IconButton(
+        onPressed: () {
+          HapticFeedback.lightImpact();
+          onPressed();
+        },
+        icon: Icon(
+          icon,
+          color: isActive ? Colors.white : AppTheme.textMuted,
+          size: 20,
         ),
-        const PopupMenuItem(
-          value: 'list',
-          child: Row(
-            children: [
-              Icon(Icons.view_list_rounded, size: 18),
-              SizedBox(width: 8),
-              Text('قائمة'),
-            ],
-          ),
-        ),
-      ],
+        splashRadius: 20,
+      ),
     );
   }
 
@@ -399,8 +407,8 @@ class _AdminServicesPageState extends State<AdminServicesPage>
               end: Alignment.bottomRight,
               colors: [
                 AppTheme.darkBackground,
-                AppTheme.darkBackground2,
-                AppTheme.darkBackground3,
+                AppTheme.darkBackground2.withOpacity(0.95),
+                AppTheme.darkBackground3.withOpacity(0.9),
               ],
             ),
           ),
@@ -431,145 +439,6 @@ class _AdminServicesPageState extends State<AdminServicesPage>
     );
   }
 
-  Widget _buildHeader() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            AppTheme.darkCard.withOpacity(0.7),
-            AppTheme.darkCard.withOpacity(0.3),
-          ],
-        ),
-        border: Border(
-          bottom: BorderSide(
-            color: AppTheme.primaryBlue.withOpacity(0.3),
-            width: 0.5,
-          ),
-        ),
-      ),
-      child: Column(
-        children: [
-          // Title Section
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        AnimatedBuilder(
-                          animation: _glowAnimation,
-                          builder: (context, child) {
-                            return Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                gradient: AppTheme.primaryGradient,
-                                borderRadius: BorderRadius.circular(12),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: AppTheme.primaryBlue.withOpacity(
-                                      0.3 + 0.2 * _glowAnimation.value,
-                                    ),
-                                    blurRadius: 20,
-                                    spreadRadius: 2,
-                                  ),
-                                ],
-                              ),
-                              child: const Icon(
-                                Icons.room_service_rounded,
-                                color: Colors.white,
-                                size: 24,
-                              ),
-                            );
-                          },
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'إدارة الخدمات',
-                                style: AppTextStyles.heading1.copyWith(
-                                  color: AppTheme.textWhite,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              Text(
-                                'إدارة خدمات العقارات والتحكم في الأسعار',
-                                style: AppTextStyles.bodySmall.copyWith(
-                                  color: AppTheme.textMuted,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-
-              // View Toggle
-              Container(
-                decoration: BoxDecoration(
-                  color: AppTheme.darkCard.withOpacity(0.5),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: AppTheme.darkBorder.withOpacity(0.3),
-                    width: 0.5,
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    _buildViewToggleButton(
-                      icon: Icons.grid_view_rounded,
-                      isSelected: _isGridView,
-                      onTap: () => setState(() => _isGridView = true),
-                    ),
-                    _buildViewToggleButton(
-                      icon: Icons.view_list_rounded,
-                      isSelected: !_isGridView,
-                      onTap: () => setState(() => _isGridView = false),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildViewToggleButton({
-    required IconData icon,
-    required bool isSelected,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.lightImpact();
-        onTap();
-      },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          gradient: isSelected ? AppTheme.primaryGradient : null,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Icon(
-          icon,
-          color: isSelected ? Colors.white : AppTheme.textMuted,
-          size: 20,
-        ),
-      ),
-    );
-  }
-
   Widget _buildStatsCards() {
     return BlocBuilder<ServicesBloc, ServicesState>(
       builder: (context, state) {
@@ -588,7 +457,8 @@ class _AdminServicesPageState extends State<AdminServicesPage>
   }
 
   Widget _buildFilters() {
-    return Padding(
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: ServiceFiltersWidget(
         selectedPropertyId: _selectedPropertyId,
@@ -618,113 +488,160 @@ class _AdminServicesPageState extends State<AdminServicesPage>
     );
   }
 
-  Widget _buildContent() {
+  Widget _buildContent(bool isMobile, bool isTablet) {
     return BlocBuilder<ServicesBloc, ServicesState>(
       builder: (context, state) {
         if (state is ServicesLoading) {
-          return Container(
-            height: 400,
-            alignment: Alignment.center,
-            child: const LoadingWidget(),
+          return const SliverFillRemaining(
+            hasScrollBody: false,
+            child: Center(
+              child: LoadingWidget(
+                type: LoadingType.futuristic,
+              ),
+            ),
           );
         }
 
         if (state is ServicesError) {
-          return Container(
-            height: 400,
-            alignment: Alignment.center,
-            child: CustomErrorWidget(
-              message: state.message,
-              onRetry: _loadInitialData,
+          return SliverFillRemaining(
+            hasScrollBody: false,
+            child: Center(
+              child: CustomErrorWidget(
+                message: state.message,
+                onRetry: _loadInitialData,
+              ),
             ),
           );
         }
 
         if (state is ServicesLoaded) {
           if (state.services.isEmpty) {
-            return Container(
-              height: 400,
-              alignment: Alignment.center,
-              child: const EmptyWidget(
-                message: 'لا توجد خدمات حالياً',
+            return const SliverFillRemaining(
+              hasScrollBody: false,
+              child: Center(
+                child: EmptyWidget(
+                  message: 'لا توجد خدمات حالياً',
+                  // icon: Icons.miscellaneous_services_rounded,
+                  // actionLabel: 'إضافة خدمة',
+                  // onAction: _navigateToCreatePage,
+                ),
               ),
             );
           }
 
           return _isGridView
-              ? _buildGridView(state.services, state)
+              ? _buildGridView(state.services, state, isMobile, isTablet)
               : _buildListView(state.services, state);
         }
 
-        return const SizedBox.shrink();
+        return const SliverToBoxAdapter(
+          child: SizedBox.shrink(),
+        );
       },
     );
   }
 
-  Widget _buildGridView(List<Service> services, ServicesLoaded state) {
-    return Padding(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        children: [
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              crossAxisSpacing: 16,
-              mainAxisSpacing: 16,
-              childAspectRatio: 1.8,
-            ),
-            itemCount: services.length,
-            itemBuilder: (context, index) {
-              final service = services[index];
-              return FuturisticServiceCard(
-                service: service,
-                onTap: () => _showServiceDetails(service),
-                onEdit: () => _showEditDialog(service),
-                onDelete: () => _confirmDelete(service),
-              );
-            },
-          ),
-          if (state.isLoadingMore)
-            const Padding(
-              padding: EdgeInsets.all(16.0),
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
+  Widget _buildGridView(
+    List<Service> services,
+    ServicesLoaded state,
+    bool isMobile,
+    bool isTablet,
+  ) {
+    // Determine grid layout based on screen size
+    int crossAxisCount;
+    double childAspectRatio;
+
+    if (isMobile) {
+      crossAxisCount = 1; // Single column for mobile
+      childAspectRatio = 2.2;
+    } else if (isTablet) {
+      crossAxisCount = 2;
+      childAspectRatio = 1.8;
+    } else {
+      crossAxisCount = 3;
+      childAspectRatio = 1.5;
+    }
+
+    return SliverGrid(
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: crossAxisCount,
+        crossAxisSpacing: 16,
+        mainAxisSpacing: 16,
+        childAspectRatio: childAspectRatio,
+      ),
+      delegate: SliverChildBuilderDelegate(
+        (context, index) {
+          if (index < services.length) {
+            final service = services[index];
+            return AnimatedBuilder(
+              animation: _cardEntranceAnimation,
+              builder: (context, child) {
+                final delay = (index % 10) * 0.1;
+                final adjustedValue =
+                    (_cardEntranceAnimation.value - delay).clamp(0.0, 1.0);
+
+                return Transform.translate(
+                  offset: Offset(0, 30 * (1 - adjustedValue)),
+                  child: Opacity(
+                    opacity: adjustedValue,
+                    child: FuturisticServiceCard(
+                      service: service,
+                      onTap: () => _showServiceDetails(service),
+                      onEdit: () => _showEditDialog(service),
+                      onDelete: () => _confirmDelete(service),
+                    ),
+                  ),
+                );
+              },
+            );
+          }
+
+          // Loading indicator at the end
+          if (index == services.length && state.isLoadingMore) {
+            return Center(
+              child: Container(
+                padding: const EdgeInsets.all(20),
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: AppTheme.primaryBlue,
+                ),
               ),
-            ),
-        ],
+            );
+          }
+
+          return null;
+        },
+        childCount: services.length + (state.isLoadingMore ? 1 : 0),
       ),
     );
   }
 
   Widget _buildListView(List<Service> services, ServicesLoaded state) {
-    return Padding(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        children: [
-          FuturisticServicesTable(
-            services: services,
-            onServiceTap: _showServiceDetails,
-            onEdit: _showEditDialog,
-            onDelete: _confirmDelete,
-            controller: ScrollController(),
-            onLoadMore: state.paginatedServices?.hasNextPage == true
-                ? () => context
-                    .read<ServicesBloc>()
-                    .add(const LoadMoreServicesEvent())
-                : null,
-            hasReachedMax: !(state.paginatedServices?.hasNextPage == true),
-            isLoadingMore: state.isLoadingMore,
-          ),
-          if (state.isLoadingMore)
-            const Padding(
-              padding: EdgeInsets.all(16.0),
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
+    return SliverToBoxAdapter(
+      child: AnimatedBuilder(
+        animation: _cardEntranceAnimation,
+        builder: (context, child) {
+          return Transform.translate(
+            offset: Offset(0, 20 * (1 - _cardEntranceAnimation.value)),
+            child: Opacity(
+              opacity: _cardEntranceAnimation.value,
+              child: FuturisticServicesTable(
+                services: services,
+                onServiceTap: _showServiceDetails,
+                onEdit: _showEditDialog,
+                onDelete: _confirmDelete,
+                controller: ScrollController(),
+                onLoadMore: state.paginatedServices?.hasNextPage == true
+                    ? () => context
+                        .read<ServicesBloc>()
+                        .add(const LoadMoreServicesEvent())
+                    : null,
+                hasReachedMax: !(state.paginatedServices?.hasNextPage == true),
+                isLoadingMore: state.isLoadingMore,
               ),
             ),
-        ],
+          );
+        },
       ),
     );
   }
@@ -732,7 +649,7 @@ class _AdminServicesPageState extends State<AdminServicesPage>
   Widget _buildFloatingActionButton() {
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: 1),
-      duration: const Duration(milliseconds: 500),
+      duration: const Duration(milliseconds: 800),
       curve: Curves.elasticOut,
       builder: (context, value, child) {
         return Transform.scale(
@@ -747,21 +664,119 @@ class _AdminServicesPageState extends State<AdminServicesPage>
                   blurRadius: 20,
                   offset: const Offset(0, 8),
                 ),
+                BoxShadow(
+                  color: AppTheme.primaryPurple.withOpacity(0.3),
+                  blurRadius: 30,
+                  offset: const Offset(-5, -5),
+                ),
               ],
             ),
             child: FloatingActionButton(
               onPressed: _navigateToCreatePage,
               backgroundColor: Colors.transparent,
               elevation: 0,
-              child: const Icon(
-                Icons.add_rounded,
-                color: Colors.white,
-                size: 28,
+              child: Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Colors.white.withOpacity(0.2),
+                      Colors.transparent,
+                    ],
+                  ),
+                ),
+                child: const Icon(
+                  Icons.add_rounded,
+                  color: Colors.white,
+                  size: 28,
+                ),
               ),
             ),
           ),
         );
       },
+    );
+  }
+
+  bool _isDeleting = false;
+
+  void _showDeletingDialog() {
+    if (_isDeleting) return;
+    _isDeleting = true;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      barrierColor: Colors.black54,
+      builder: (_) => const Center(
+        child: LoadingWidget(
+          type: LoadingType.futuristic,
+          message: 'جاري حذف الخدمة...',
+        ),
+      ),
+    );
+  }
+
+  void _dismissDeletingDialog() {
+    if (_isDeleting) {
+      _isDeleting = false;
+      if (mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
+    }
+  }
+
+  void _showSnack(String message, Color color) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                color.withOpacity(0.9),
+                color.withOpacity(0.7),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: color.withOpacity(0.3),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Icon(
+                color == AppTheme.success
+                    ? Icons.check_circle_rounded
+                    : Icons.error_outline_rounded,
+                color: Colors.white,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  message,
+                  style: AppTextStyles.bodyMedium.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.all(16),
+        padding: EdgeInsets.zero,
+      ),
     );
   }
 
@@ -786,7 +801,6 @@ class _AdminServicesPageState extends State<AdminServicesPage>
     context.push('/helpers/search/properties', extra: {
       'allowMultiSelect': false,
       'onPropertySelected': (dynamic property) {
-        // property has id & name per PropertySearchPage model
         setState(() {
           _selectedPropertyId = property.id as String?;
           _selectedPropertyName = property.name as String?;
@@ -818,22 +832,23 @@ class _AdminServicesPageState extends State<AdminServicesPage>
     HapticFeedback.lightImpact();
     context.read<ServicesBloc>().add(LoadServiceDetailsEvent(service.id));
     await showDialog(
-      fullscreenDialog: true,
       context: context,
       builder: (context) => ServiceDetailsDialog(service: service),
     );
     if (!mounted) return;
     if (_selectedPropertyId != null) {
-      context.read<ServicesBloc>().add(LoadServicesEvent(propertyId: _selectedPropertyId));
+      context
+          .read<ServicesBloc>()
+          .add(LoadServicesEvent(propertyId: _selectedPropertyId));
     } else {
-      context.read<ServicesBloc>().add(const LoadServicesEvent(serviceType: 'all', pageNumber: 1, pageSize: 20));
+      context.read<ServicesBloc>().add(const LoadServicesEvent(
+          serviceType: 'all', pageNumber: 1, pageSize: 20));
     }
   }
 
   void _confirmDelete(Service service) {
     HapticFeedback.mediumImpact();
     showDialog(
-      fullscreenDialog: true,
       context: context,
       barrierColor: Colors.black87,
       builder: (dialogCtx) => BackdropFilter(
@@ -843,7 +858,12 @@ class _AdminServicesPageState extends State<AdminServicesPage>
           child: Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: AppTheme.darkCard,
+              gradient: LinearGradient(
+                colors: [
+                  AppTheme.darkCard.withOpacity(0.95),
+                  AppTheme.darkCard.withOpacity(0.85),
+                ],
+              ),
               borderRadius: BorderRadius.circular(24),
               border: Border.all(
                 color: AppTheme.error.withOpacity(0.3),
@@ -861,10 +881,23 @@ class _AdminServicesPageState extends State<AdminServicesPage>
               mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
-                  padding: const EdgeInsets.all(16),
+                  width: 64,
+                  height: 64,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: AppTheme.error.withOpacity(0.1),
+                    gradient: LinearGradient(
+                      colors: [
+                        AppTheme.error.withOpacity(0.2),
+                        AppTheme.error.withOpacity(0.1),
+                      ],
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppTheme.error.withOpacity(0.3),
+                        blurRadius: 20,
+                        spreadRadius: 5,
+                      ),
+                    ],
                   ),
                   child: Icon(
                     Icons.delete_outline,
@@ -874,16 +907,39 @@ class _AdminServicesPageState extends State<AdminServicesPage>
                 ),
                 const SizedBox(height: 20),
                 Text(
-                  'حذف الخدمة؟',
+                  'حذف الخدمة',
                   style: AppTextStyles.heading3.copyWith(
                     color: AppTheme.textWhite,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'لا يمكن التراجع عن هذا الإجراء',
+                  'هل أنت متأكد من حذف "${service.name}"؟',
                   style: AppTextStyles.bodyMedium.copyWith(
                     color: AppTheme.textMuted,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppTheme.error.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: AppTheme.error.withOpacity(0.2),
+                      width: 0.5,
+                    ),
+                  ),
+                  child: Text(
+                    'لا يمكن التراجع عن هذا الإجراء',
+                    style: AppTextStyles.caption.copyWith(
+                      color: AppTheme.error,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -893,10 +949,12 @@ class _AdminServicesPageState extends State<AdminServicesPage>
                       child: TextButton(
                         onPressed: () => Navigator.pop(dialogCtx),
                         style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
+                          backgroundColor:
+                              AppTheme.darkSurface.withOpacity(0.3),
                         ),
                         child: Text(
                           'إلغاء',
@@ -911,7 +969,6 @@ class _AdminServicesPageState extends State<AdminServicesPage>
                       child: ElevatedButton(
                         onPressed: () {
                           Navigator.pop(dialogCtx);
-                          _showDeletingDialog();
                           context.read<ServicesBloc>().add(
                                 DeleteServiceEvent(service.id),
                               );
@@ -919,16 +976,28 @@ class _AdminServicesPageState extends State<AdminServicesPage>
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppTheme.error,
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
+                          elevation: 0,
                         ),
-                        child: Text(
-                          'حذف',
-                          style: AppTextStyles.buttonMedium.copyWith(
-                            color: Colors.white,
-                          ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(
+                              Icons.delete_outline,
+                              size: 18,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'حذف',
+                              style: AppTextStyles.buttonMedium.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
@@ -943,13 +1012,14 @@ class _AdminServicesPageState extends State<AdminServicesPage>
   }
 }
 
-// Particle Model - كلاس مفقود
+// Enhanced Particle Model
 class _Particle {
   late double x, y, z;
   late double vx, vy;
   late double radius;
   late double opacity;
   late Color color;
+  late double lifespan;
 
   _Particle() {
     reset();
@@ -959,15 +1029,17 @@ class _Particle {
     x = math.Random().nextDouble();
     y = math.Random().nextDouble();
     z = math.Random().nextDouble();
-    vx = (math.Random().nextDouble() - 0.5) * 0.001;
-    vy = (math.Random().nextDouble() - 0.5) * 0.001;
-    radius = math.Random().nextDouble() * 2 + 0.5;
-    opacity = math.Random().nextDouble() * 0.3 + 0.1;
+    vx = (math.Random().nextDouble() - 0.5) * 0.002;
+    vy = (math.Random().nextDouble() - 0.5) * 0.002;
+    radius = math.Random().nextDouble() * 3 + 0.5;
+    opacity = math.Random().nextDouble() * 0.4 + 0.1;
+    lifespan = math.Random().nextDouble();
 
     final colors = [
       AppTheme.primaryBlue,
       AppTheme.primaryPurple,
       AppTheme.primaryCyan,
+      AppTheme.primaryViolet,
     ];
     color = colors[math.Random().nextInt(colors.length)];
   }
@@ -975,13 +1047,18 @@ class _Particle {
   void update() {
     x += vx;
     y += vy;
+    lifespan -= 0.01;
 
-    if (x < 0 || x > 1) vx = -vx;
-    if (y < 0 || y > 1) vy = -vy;
+    if (x < -0.1 || x > 1.1) vx = -vx;
+    if (y < -0.1 || y > 1.1) vy = -vy;
+
+    if (lifespan <= 0) {
+      reset();
+    }
   }
 }
 
-// Particle Painter - كلاس مفقود
+// Enhanced Particle Painter
 class _ParticlePainter extends CustomPainter {
   final List<_Particle> particles;
   final double animationValue;
@@ -997,16 +1074,17 @@ class _ParticlePainter extends CustomPainter {
       particle.update();
 
       final paint = Paint()
-        ..color = particle.color.withOpacity(particle.opacity)
+        ..color =
+            particle.color.withOpacity(particle.opacity * particle.lifespan)
         ..style = PaintingStyle.fill
         ..maskFilter = const MaskFilter.blur(
           BlurStyle.normal,
-          2,
+          3,
         );
 
       canvas.drawCircle(
         Offset(particle.x * size.width, particle.y * size.height),
-        particle.radius,
+        particle.radius * (1 + 0.2 * math.sin(animationValue * 2 * math.pi)),
         paint,
       );
     }
@@ -1016,7 +1094,7 @@ class _ParticlePainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }
 
-// Grid Pattern Painter - كلاس مفقود
+// Enhanced Grid Pattern Painter
 class _GridPatternPainter extends CustomPainter {
   final double rotation;
   final double opacity;
@@ -1029,34 +1107,89 @@ class _GridPatternPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = AppTheme.primaryBlue.withOpacity(opacity)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 0.3;
+      ..strokeWidth = 0.5;
 
     canvas.save();
     canvas.translate(size.width / 2, size.height / 2);
     canvas.rotate(rotation);
     canvas.translate(-size.width / 2, -size.height / 2);
 
-    const spacing = 30.0;
+    const spacing = 40.0;
 
-    for (double x = -spacing; x < size.width + spacing; x += spacing) {
-      canvas.drawLine(
-        Offset(x, -size.height),
-        Offset(x, size.height * 2),
-        paint,
-      );
-    }
+    // Draw hexagonal grid pattern
+    for (double x = -spacing; x < size.width + spacing; x += spacing * 1.5) {
+      for (double y = -spacing; y < size.height + spacing; y += spacing) {
+        final offset =
+            (x / (spacing * 1.5)).floor() % 2 == 0 ? 0.0 : spacing / 2;
 
-    for (double y = -spacing; y < size.height + spacing; y += spacing) {
-      canvas.drawLine(
-        Offset(-size.width, y),
-        Offset(size.width * 2, y),
-        paint,
-      );
+        paint.shader = RadialGradient(
+          colors: [
+            AppTheme.primaryBlue.withOpacity(opacity),
+            AppTheme.primaryPurple.withOpacity(opacity * 0.5),
+            Colors.transparent,
+          ],
+          radius: 0.5,
+        ).createShader(Rect.fromCircle(
+          center: Offset(x, y + offset),
+          radius: spacing / 2,
+        ));
+
+        _drawHexagon(canvas, Offset(x, y + offset), spacing / 3, paint);
+      }
     }
 
     canvas.restore();
+  }
+
+  void _drawHexagon(Canvas canvas, Offset center, double radius, Paint paint) {
+    final path = Path();
+    for (int i = 0; i < 6; i++) {
+      final angle = (i * 60 - 30) * math.pi / 180;
+      final x = center.dx + radius * math.cos(angle);
+      final y = center.dy + radius * math.sin(angle);
+      if (i == 0) {
+        path.moveTo(x, y);
+      } else {
+        path.lineTo(x, y);
+      }
+    }
+    path.close();
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+}
+
+// App Bar Pattern Painter
+class _AppBarPatternPainter extends CustomPainter {
+  final double animation;
+
+  _AppBarPatternPainter({required this.animation});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 0.5;
+
+    // Draw animated wave pattern
+    for (int i = 0; i < 5; i++) {
+      paint.color = AppTheme.primaryBlue.withOpacity(0.05 - i * 0.01);
+
+      final path = Path();
+      path.moveTo(0, size.height * 0.5);
+
+      for (double x = 0; x <= size.width; x += 10) {
+        final y = size.height * 0.5 +
+            math.sin((x / size.width * 4 * math.pi) + animation + i * 0.5) *
+                (20 + i * 5);
+        path.lineTo(x, y);
+      }
+
+      canvas.drawPath(path, paint);
+    }
   }
 
   @override

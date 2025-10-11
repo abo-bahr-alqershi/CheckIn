@@ -176,7 +176,7 @@ class _AuditLogTimelineWidgetState extends State<AuditLogTimelineWidget>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'الخط الزمني للأنشطة',
+                  'الخط الزمني',
                   style: (isCompact
                           ? AppTextStyles.bodyLarge
                           : AppTextStyles.heading3)
