@@ -16,6 +16,7 @@ abstract class AuditLogsRemoteDataSource {
   Future<PaginatedResult<AuditLog>> getAdminActivityLogs(
       AdminActivityLogsQuery query);
   Future<List<AuditLog>> exportAuditLogs(AuditLogsQuery query);
+  Future<AuditLog> getAuditLogDetails(String auditLogId);
 }
 
 class AuditLogsRemoteDataSourceImpl implements AuditLogsRemoteDataSource {
@@ -65,6 +66,21 @@ class AuditLogsRemoteDataSourceImpl implements AuditLogsRemoteDataSource {
       rethrow;
     } catch (e) {
       throw ServerException('Unexpected error occurred: ${e.toString()}');
+    }
+  }
+
+  @override
+  Future<AuditLog> getAuditLogDetails(String auditLogId) async {
+    try {
+      final response = await apiClient.get('$_baseEndpoint/$auditLogId/details');
+      if (response.data is Map<String, dynamic>) {
+        return AuditLogModel.fromJson(response.data as Map<String, dynamic>);
+      }
+      throw const ServerException('Invalid response for audit log details');
+    } on DioException catch (e) {
+      throw ServerException(
+        e.response?.data?['message'] ?? 'Failed to fetch audit log details',
+      );
     }
   }
 

@@ -64,6 +64,15 @@ class SelectAuditLogEvent extends AuditLogsEvent {
   List<Object?> get props => [auditLog];
 }
 
+class LoadAuditLogDetailsEvent extends AuditLogsEvent {
+  final String auditLogId;
+
+  const LoadAuditLogDetailsEvent({required this.auditLogId});
+
+  @override
+  List<Object?> get props => [auditLogId];
+}
+
 class ClearFiltersEvent extends AuditLogsEvent {
   const ClearFiltersEvent();
 }

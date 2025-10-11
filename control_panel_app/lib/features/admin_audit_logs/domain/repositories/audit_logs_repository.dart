@@ -16,4 +16,7 @@ abstract class AuditLogsRepository {
       AdminActivityLogsQuery query);
   Future<Either<Failure, List<AuditLog>>> exportAuditLogs(
       AuditLogsQuery query);
+
+  /// Get single audit log details including heavy fields
+  Future<Either<Failure, AuditLog>> getAuditLogDetails(String auditLogId);
 }

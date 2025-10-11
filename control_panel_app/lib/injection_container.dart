@@ -1453,6 +1453,7 @@ void _initAdminAuditLogs() {
   sl.registerFactory(() => AuditLogsBloc(
         getAuditLogsUseCase: sl<al_uc_get.GetAuditLogsUseCase>(),
         exportAuditLogsUseCase: sl<al_uc_export.ExportAuditLogsUseCase>(),
+        repository: sl<al_repo.AuditLogsRepository>(),
       ));
 
   // Use cases

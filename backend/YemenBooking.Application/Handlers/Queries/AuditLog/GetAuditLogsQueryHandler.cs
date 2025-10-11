@@ -63,61 +63,49 @@ namespace YemenBooking.Application.Handlers.Queries.AuditLog
             if (!await _currentUserService.IsInRoleAsync("Admin"))
                 throw new BusinessRuleException("Forbidden", "ليس لديك صلاحية لعرض سجلات التدقيق");
 
-            // جلب سجلات التدقيق
-            // جلب جميع السجلات الأساسية (بإلغاء الترقيم في الخدمة)
-            var allLogs = await _auditService.GetAuditTrailAsync(
+            // استعلام مرقم وخفيف على مستوى قاعدة البيانات
+            AuditAction? parsedAction = null;
+            if (!string.IsNullOrWhiteSpace(request.OperationType) && Enum.TryParse<AuditAction>(request.OperationType, true, out var actionEnum))
+            {
+                parsedAction = actionEnum;
+            }
+
+            // استخدام الخدمة مع إسقاط الحقول الثقيلة، واحتساب العدد الكلي من DB
+            var (pageLogs, totalCount) = await _auditService.SearchAuditLogsPagedAsync(
+                searchTerm: request.SearchTerm,
+                action: parsedAction,
+                fromDate: request.From,
+                toDate: request.To,
                 entityType: request.EntityType,
                 entityId: request.RecordId,
                 performedBy: request.UserId,
-                fromDate: request.From,
-                toDate: request.To,
-                page: 1,
-                pageSize: int.MaxValue,
+                page: request.PageNumber,
+                pageSize: request.PageSize,
                 cancellationToken: cancellationToken);
-            // تطبيق فلاتر البحث والنوع
-            var filteredLogs = allLogs.AsQueryable();
-            if (!string.IsNullOrWhiteSpace(request.SearchTerm))
-            {
-                filteredLogs = filteredLogs.Where(a =>
-                    a.EntityType.Contains(request.SearchTerm) ||
-                    (a.Notes != null && a.Notes.Contains(request.SearchTerm)) ||
-                    (a.OldValues != null && a.OldValues.Contains(request.SearchTerm)) ||
-                    (a.NewValues != null && a.NewValues.Contains(request.SearchTerm)));
-            }
-            if (!string.IsNullOrWhiteSpace(request.OperationType)
-                && Enum.TryParse<AuditAction>(request.OperationType, true, out var actionEnum))
-            {
-                filteredLogs = filteredLogs.Where(a => a.Action == actionEnum);
-            }
-            var totalCount = filteredLogs.Count();
-            // تطبيق الترقيم
-            var pageLogs = filteredLogs
-                .OrderByDescending(a => a.CreatedAt)
-                .Skip((request.PageNumber - 1) * request.PageSize)
-                .Take(request.PageSize)
-                .ToList();
+
             // التحويل إلى DTO
             var dtos = new List<AuditLogDto>();
             foreach (var log in pageLogs)
             {
-                var recordName = await GetRecordNameAsync(log.EntityType, log.EntityId ?? Guid.Empty, cancellationToken);
+                var shortId = (log.EntityId ?? Guid.Empty).ToString();
+                var shortUid = shortId.Length >= 8 ? shortId.Substring(0, 8) : shortId;
+                var recordName = string.Equals(log.EntityType, "User", StringComparison.OrdinalIgnoreCase)
+                    ? (string.IsNullOrWhiteSpace(log.Username) ? shortUid : log.Username!)
+                    : shortUid;
                 dtos.Add(new AuditLogDto
                 {
                     Id = log.Id,
                     TableName = log.EntityType,
-                    Action = log.Action.GetType()
-                        .GetMember(log.Action.ToString())
-                        .FirstOrDefault()?
-                        .GetCustomAttribute<DisplayAttribute>()?.Name
-                        ?? log.Action.ToString(),
+                    Action = log.Action.ToString(),
                     RecordId = log.EntityId ?? Guid.Empty,
                     RecordName = recordName,
                     UserId = log.PerformedBy ?? Guid.Empty,
                     Username = log.Username ?? string.Empty,
                     Notes = log.Notes ?? string.Empty,
-                    OldValues = log.GetOldValues(),
-                    NewValues = log.GetNewValues(),
-                    Metadata = log.GetMetadata(),
+                    // old/new/metadata are heavy; fetch in details endpoint when needed
+                    OldValues = null,
+                    NewValues = null,
+                    Metadata = null,
                     IsSlowOperation = log.IsSlowOperation,
                     Changes = log.Notes ?? string.Empty,
                     Timestamp = log.CreatedAt

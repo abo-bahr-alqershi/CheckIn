@@ -53,5 +53,17 @@ public class AuditLogConfiguration : IEntityTypeConfiguration<AuditLog>
 
         // Global query filter
         builder.HasQueryFilter(a => !a.IsDeleted);
+
+        // Performance indexes for frequent queries
+        builder.HasIndex(a => a.CreatedAt)
+            .HasDatabaseName("IX_AuditLogs_CreatedAt");
+        builder.HasIndex(a => new { a.EntityType, a.CreatedAt })
+            .HasDatabaseName("IX_AuditLogs_EntityType_CreatedAt");
+        builder.HasIndex(a => a.Action)
+            .HasDatabaseName("IX_AuditLogs_Action");
+        builder.HasIndex(a => a.PerformedBy)
+            .HasDatabaseName("IX_AuditLogs_PerformedBy");
+        builder.HasIndex(a => new { a.EntityType, a.EntityId })
+            .HasDatabaseName("IX_AuditLogs_EntityType_EntityId");
     }
 } 

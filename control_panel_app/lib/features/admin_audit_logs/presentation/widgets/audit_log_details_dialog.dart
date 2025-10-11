@@ -8,6 +8,8 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../domain/entities/audit_log.dart';
+import 'package:bookn_cp_app/injection_container.dart' as di;
+import '../../domain/repositories/audit_logs_repository.dart' as repo;
 
 class AuditLogDetailsDialog extends StatefulWidget {
   final AuditLog auditLog;
@@ -30,10 +32,13 @@ class _AuditLogDetailsDialogState extends State<AuditLogDetailsDialog>
   bool _showOldValues = false;
   bool _showNewValues = false;
   bool _showMetadata = false;
+  bool _loading = false;
+  late AuditLog _log;
 
   @override
   void initState() {
     super.initState();
+    _log = widget.auditLog;
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 300),
@@ -56,6 +61,11 @@ class _AuditLogDetailsDialogState extends State<AuditLogDetailsDialog>
     ));
 
     _animationController.forward();
+
+    // Fetch heavy fields on demand
+    if (_log.oldValues == null && _log.newValues == null && _log.metadata == null) {
+      _fetchDetails();
+    }
   }
 
   @override
@@ -131,12 +141,12 @@ class _AuditLogDetailsDialogState extends State<AuditLogDetailsDialog>
                                         _buildMainInfo(isCompact),
                                         const SizedBox(height: 20),
                                         _buildDetailsSection(isCompact),
-                                        if (widget.auditLog.oldValues !=
+                                        if (_log.oldValues !=
                                             null) ...[
                                           const SizedBox(height: 20),
                                           _buildValuesSection(
                                             title: 'القيم السابقة',
-                                            values: widget.auditLog.oldValues!,
+                                            values: _log.oldValues!,
                                             isExpanded: _showOldValues,
                                             onToggle: () => setState(() =>
                                                 _showOldValues =
@@ -145,12 +155,12 @@ class _AuditLogDetailsDialogState extends State<AuditLogDetailsDialog>
                                             isCompact: isCompact,
                                           ),
                                         ],
-                                        if (widget.auditLog.newValues !=
+                                        if (_log.newValues !=
                                             null) ...[
                                           const SizedBox(height: 20),
                                           _buildValuesSection(
                                             title: 'القيم الجديدة',
-                                            values: widget.auditLog.newValues!,
+                                            values: _log.newValues!,
                                             isExpanded: _showNewValues,
                                             onToggle: () => setState(() =>
                                                 _showNewValues =
@@ -159,17 +169,30 @@ class _AuditLogDetailsDialogState extends State<AuditLogDetailsDialog>
                                             isCompact: isCompact,
                                           ),
                                         ],
-                                        if (widget.auditLog.metadata !=
+                                        if (_log.metadata !=
                                             null) ...[
                                           const SizedBox(height: 20),
                                           _buildValuesSection(
                                             title: 'البيانات الإضافية',
-                                            values: widget.auditLog.metadata!,
+                                            values: _log.metadata!,
                                             isExpanded: _showMetadata,
                                             onToggle: () => setState(() =>
                                                 _showMetadata = !_showMetadata),
                                             color: AppTheme.info,
                                             isCompact: isCompact,
+                                          ),
+                                        ],
+                                        if (_loading) ...[
+                                          const SizedBox(height: 20),
+                                          Center(
+                                            child: SizedBox(
+                                              width: 24,
+                                              height: 24,
+                                              child: CircularProgressIndicator(
+                                                color: AppTheme.primaryPurple,
+                                                strokeWidth: 2,
+                                              ),
+                                            ),
                                           ),
                                         ],
                                         const SizedBox(height: 20),
@@ -304,35 +327,35 @@ class _AuditLogDetailsDialogState extends State<AuditLogDetailsDialog>
           _buildInfoRow(
             icon: CupertinoIcons.number,
             label: 'معرف السجل',
-            value: widget.auditLog.id,
+            value: _log.id,
             isCompact: isCompact,
           ),
           const SizedBox(height: 12),
           _buildInfoRow(
             icon: CupertinoIcons.doc_text,
             label: 'اسم السجل',
-            value: widget.auditLog.recordName,
+            value: _log.recordName,
             isCompact: isCompact,
           ),
           const SizedBox(height: 12),
           _buildInfoRow(
             icon: CupertinoIcons.table,
             label: 'الجدول',
-            value: widget.auditLog.tableName,
+            value: _log.tableName,
             isCompact: isCompact,
           ),
           const SizedBox(height: 12),
           _buildInfoRow(
             icon: CupertinoIcons.person_fill,
             label: 'المستخدم',
-            value: widget.auditLog.username,
+            value: _log.username,
             isCompact: isCompact,
           ),
           const SizedBox(height: 12),
           _buildInfoRow(
             icon: CupertinoIcons.clock_fill,
             label: 'التوقيت',
-            value: Formatters.formatDateTime(widget.auditLog.timestamp),
+            value: Formatters.formatDateTime(_log.timestamp),
             isCompact: isCompact,
           ),
         ],
@@ -689,6 +712,25 @@ class _AuditLogDetailsDialogState extends State<AuditLogDetailsDialog>
         return 'تسجيل خروج';
       default:
         return widget.auditLog.action;
+    }
+  }
+
+  Future<void> _fetchDetails() async {
+    setState(() => _loading = true);
+    try {
+      final repository = di.sl<repo.AuditLogsRepository>();
+      final result = await repository.getAuditLogDetails(_log.id);
+      result.fold(
+        (_) => setState(() => _loading = false),
+        (full) {
+          setState(() {
+            _log = full;
+            _loading = false;
+          });
+        },
+      );
+    } catch (_) {
+      setState(() => _loading = false);
     }
   }
 }

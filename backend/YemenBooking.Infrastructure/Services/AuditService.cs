@@ -199,16 +199,38 @@ namespace YemenBooking.Infrastructure.Services
         public async Task<IEnumerable<AuditLog>> GetAuditTrailAsync(string? entityType = null, Guid? entityId = null, Guid? performedBy = null, DateTime? fromDate = null, DateTime? toDate = null, int page = 1, int pageSize = 50, CancellationToken cancellationToken = default)
         {
             _logger.LogInformation("الحصول على سجلات التدقيق");
-            var query = _dbContext.AuditLogs.AsQueryable();
-            if (!string.IsNullOrEmpty(entityType)) query = query.Where(a => a.EntityType == entityType);
-            if (entityId.HasValue) query = query.Where(a => a.EntityId == entityId);
-            if (performedBy.HasValue) query = query.Where(a => a.PerformedBy == performedBy);
-            if (fromDate.HasValue) query = query.Where(a => a.CreatedAt >= fromDate);
-            if (toDate.HasValue) query = query.Where(a => a.CreatedAt <= toDate);
-            return await query.OrderByDescending(a => a.CreatedAt)
-                              .Skip((page - 1) * pageSize)
-                              .Take(pageSize)
-                              .ToListAsync(cancellationToken);
+            // DB-level filtering and paging, project lightweight fields only
+            var baseQuery = _dbContext.AuditLogs.AsNoTracking();
+            if (!string.IsNullOrEmpty(entityType)) baseQuery = baseQuery.Where(a => a.EntityType == entityType);
+            if (entityId.HasValue) baseQuery = baseQuery.Where(a => a.EntityId == entityId);
+            if (performedBy.HasValue) baseQuery = baseQuery.Where(a => a.PerformedBy == performedBy);
+            if (fromDate.HasValue) baseQuery = baseQuery.Where(a => a.CreatedAt >= fromDate);
+            if (toDate.HasValue) baseQuery = baseQuery.Where(a => a.CreatedAt <= toDate);
+
+            var query = baseQuery
+                .OrderByDescending(a => a.CreatedAt)
+                .Select(a => new AuditLog
+                {
+                    Id = a.Id,
+                    EntityType = a.EntityType,
+                    EntityId = a.EntityId,
+                    Action = a.Action,
+                    // Avoid pulling large JSON columns in lists
+                    OldValues = null,
+                    NewValues = null,
+                    Metadata = null,
+                    Notes = a.Notes,
+                    Username = a.Username,
+                    PerformedBy = a.PerformedBy,
+                    CreatedAt = a.CreatedAt,
+                    DurationMs = a.DurationMs,
+                    IsSuccessful = a.IsSuccessful
+                });
+
+            return await query
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync(cancellationToken);
         }
 
         /// <inheritdoc />
@@ -222,18 +244,90 @@ namespace YemenBooking.Infrastructure.Services
         public async Task<IEnumerable<AuditLog>> SearchAuditLogsAsync(string searchTerm, AuditAction? action = null, DateTime? fromDate = null, DateTime? toDate = null, int page = 1, int pageSize = 50, CancellationToken cancellationToken = default)
         {
             _logger.LogInformation("البحث في سجلات التدقيق باستخدام: {SearchTerm}", searchTerm);
-            var query = _dbContext.AuditLogs.AsQueryable();
-            if (action.HasValue) query = query.Where(a => a.Action == action.Value);
-            if (fromDate.HasValue) query = query.Where(a => a.CreatedAt >= fromDate);
-            if (toDate.HasValue) query = query.Where(a => a.CreatedAt <= toDate);
-            query = query.Where(a => a.EntityType.Contains(searchTerm) ||
-                                      (a.Notes != null && a.Notes.Contains(searchTerm)) ||
-                                      (a.OldValues != null && a.OldValues.Contains(searchTerm)) ||
-                                      (a.NewValues != null && a.NewValues.Contains(searchTerm)));
-            return await query.OrderByDescending(a => a.CreatedAt)
-                              .Skip((page - 1) * pageSize)
-                              .Take(pageSize)
-                              .ToListAsync(cancellationToken);
+            var baseQuery = _dbContext.AuditLogs.AsNoTracking();
+            if (action.HasValue) baseQuery = baseQuery.Where(a => a.Action == action.Value);
+            if (fromDate.HasValue) baseQuery = baseQuery.Where(a => a.CreatedAt >= fromDate);
+            if (toDate.HasValue) baseQuery = baseQuery.Where(a => a.CreatedAt <= toDate);
+            baseQuery = baseQuery.Where(a => a.EntityType.Contains(searchTerm) ||
+                                             (a.Notes != null && a.Notes.Contains(searchTerm)));
+
+            // Lightweight projection for list
+            var query = baseQuery
+                .OrderByDescending(a => a.CreatedAt)
+                .Select(a => new AuditLog
+                {
+                    Id = a.Id,
+                    EntityType = a.EntityType,
+                    EntityId = a.EntityId,
+                    Action = a.Action,
+                    OldValues = null,
+                    NewValues = null,
+                    Metadata = null,
+                    Notes = a.Notes,
+                    Username = a.Username,
+                    PerformedBy = a.PerformedBy,
+                    CreatedAt = a.CreatedAt,
+                    DurationMs = a.DurationMs,
+                    IsSuccessful = a.IsSuccessful
+                });
+
+            return await query
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync(cancellationToken);
+        }
+
+        public async Task<(IList<AuditLog> Items, int TotalCount)> SearchAuditLogsPagedAsync(
+            string? searchTerm = null,
+            AuditAction? action = null,
+            DateTime? fromDate = null,
+            DateTime? toDate = null,
+            string? entityType = null,
+            Guid? entityId = null,
+            Guid? performedBy = null,
+            int page = 1,
+            int pageSize = 50,
+            CancellationToken cancellationToken = default)
+        {
+            _logger.LogInformation("بحث مرقم في سجلات التدقيق");
+            var baseQuery = _dbContext.AuditLogs.AsNoTracking();
+            if (!string.IsNullOrWhiteSpace(entityType)) baseQuery = baseQuery.Where(a => a.EntityType == entityType);
+            if (entityId.HasValue) baseQuery = baseQuery.Where(a => a.EntityId == entityId);
+            if (performedBy.HasValue) baseQuery = baseQuery.Where(a => a.PerformedBy == performedBy);
+            if (!string.IsNullOrWhiteSpace(searchTerm))
+            {
+                baseQuery = baseQuery.Where(a => a.EntityType.Contains(searchTerm!) ||
+                                                 (a.Notes != null && a.Notes.Contains(searchTerm!)));
+            }
+            if (action.HasValue) baseQuery = baseQuery.Where(a => a.Action == action.Value);
+            if (fromDate.HasValue) baseQuery = baseQuery.Where(a => a.CreatedAt >= fromDate);
+            if (toDate.HasValue) baseQuery = baseQuery.Where(a => a.CreatedAt <= toDate);
+
+            var totalCount = await baseQuery.CountAsync(cancellationToken);
+
+            var items = await baseQuery
+                .OrderByDescending(a => a.CreatedAt)
+                .Select(a => new AuditLog
+                {
+                    Id = a.Id,
+                    EntityType = a.EntityType,
+                    EntityId = a.EntityId,
+                    Action = a.Action,
+                    OldValues = null,
+                    NewValues = null,
+                    Metadata = null,
+                    Notes = a.Notes,
+                    Username = a.Username,
+                    PerformedBy = a.PerformedBy,
+                    CreatedAt = a.CreatedAt,
+                    DurationMs = a.DurationMs,
+                    IsSuccessful = a.IsSuccessful
+                })
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync(cancellationToken);
+
+            return (items, totalCount);
         }
 
         /// <inheritdoc />
@@ -276,7 +370,12 @@ namespace YemenBooking.Infrastructure.Services
         public async Task<byte[]> ExportAuditLogsAsync(DateTime fromDate, DateTime toDate, string format = "CSV", string? entityType = null, CancellationToken cancellationToken = default)
         {
             _logger.LogInformation("تصدير سجلات التدقيق من {FromDate} إلى {ToDate} بصيغة {Format}", fromDate, toDate, format);
-            var logs = await GetAuditTrailAsync(entityType, null, null, fromDate, toDate, 1, int.MaxValue, cancellationToken);
+            // For exports, still stream from DB but avoid int.MaxValue in memory
+            var logs = await _dbContext.AuditLogs.AsNoTracking()
+                .Where(a => (!string.IsNullOrEmpty(entityType) ? a.EntityType == entityType : true)
+                            && a.CreatedAt >= fromDate && a.CreatedAt <= toDate)
+                .OrderByDescending(a => a.CreatedAt)
+                .ToListAsync(cancellationToken);
             if (format.Equals("JSON", StringComparison.OrdinalIgnoreCase))
             {
                 var json = JsonSerializer.Serialize(logs);
