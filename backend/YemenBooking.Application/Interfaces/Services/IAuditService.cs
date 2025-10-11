@@ -118,6 +118,23 @@ public interface IAuditService
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// البحث في سجلات التدقيق مع ترقيم حقيقي وإرجاع العدد الكلي
+    /// Search audit logs with real pagination and total count
+    /// NOTE: This method projects only lightweight fields to avoid loading large JSON columns.
+    /// </summary>
+    Task<(IList<AuditLog> Items, int TotalCount)> SearchAuditLogsPagedAsync(
+        string? searchTerm = null,
+        AuditAction? action = null,
+        DateTime? fromDate = null,
+        DateTime? toDate = null,
+        string? entityType = null,
+        Guid? entityId = null,
+        Guid? performedBy = null,
+        int page = 1,
+        int pageSize = 50,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// الحصول على إحصائيات التدقيق
     /// Get audit statistics
     /// </summary>

@@ -4,25 +4,30 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../domain/entities/audit_log.dart';
 import '../../domain/usecases/get_audit_logs_usecase.dart';
 import '../../domain/usecases/export_audit_logs_usecase.dart';
+import '../../domain/repositories/audit_logs_repository.dart';
 import 'audit_logs_event.dart';
 import 'audit_logs_state.dart';
 
 class AuditLogsBloc extends Bloc<AuditLogsEvent, AuditLogsState> {
   final GetAuditLogsUseCase getAuditLogsUseCase;
   final ExportAuditLogsUseCase exportAuditLogsUseCase;
+  final AuditLogsRepository? auditLogsRepository;
 
   static const int _pageSize = 20;
 
   AuditLogsBloc({
     required this.getAuditLogsUseCase,
     required this.exportAuditLogsUseCase,
-  }) : super(AuditLogsInitial()) {
+    AuditLogsRepository? repository,
+  })  : auditLogsRepository = repository,
+        super(AuditLogsInitial()) {
     on<LoadAuditLogsEvent>(_onLoadAuditLogs);
     on<LoadMoreAuditLogsEvent>(_onLoadMoreAuditLogs);
     on<RefreshAuditLogsEvent>(_onRefreshAuditLogs);
     on<FilterAuditLogsEvent>(_onFilterAuditLogs);
     on<ExportAuditLogsEvent>(_onExportAuditLogs);
     on<SelectAuditLogEvent>(_onSelectAuditLog);
+    on<LoadAuditLogDetailsEvent>(_onLoadAuditLogDetails);
     on<ClearFiltersEvent>(_onClearFilters);
   }
 
@@ -134,6 +139,21 @@ class AuditLogsBloc extends Bloc<AuditLogsEvent, AuditLogsState> {
       final currentState = state as AuditLogsLoaded;
       emit(currentState.copyWith(selectedLog: event.auditLog));
     }
+  }
+
+  Future<void> _onLoadAuditLogDetails(
+    LoadAuditLogDetailsEvent event,
+    Emitter<AuditLogsState> emit,
+  ) async {
+    if (auditLogsRepository == null) return;
+    if (state is! AuditLogsLoaded) return;
+    final currentState = state as AuditLogsLoaded;
+    emit(currentState.copyWith(loadingDetails: true));
+    final result = await auditLogsRepository!.getAuditLogDetails(event.auditLogId);
+    result.fold(
+      (_) => emit(currentState.copyWith(loadingDetails: false)),
+      (log) => emit(currentState.copyWith(selectedLog: log, loadingDetails: false)),
+    );
   }
 
   void _onClearFilters(

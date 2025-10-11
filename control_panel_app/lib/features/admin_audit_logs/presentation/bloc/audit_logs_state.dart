@@ -22,6 +22,7 @@ class AuditLogsLoaded extends AuditLogsState {
   final bool hasReachedMax;
   final AuditLog? selectedLog;
   final AuditLogsQuery currentQuery;
+  final bool loadingDetails;
 
   const AuditLogsLoaded({
     required this.auditLogs,
@@ -31,6 +32,7 @@ class AuditLogsLoaded extends AuditLogsState {
     required this.hasReachedMax,
     this.selectedLog,
     required this.currentQuery,
+    this.loadingDetails = false,
   });
 
   AuditLogsLoaded copyWith({
@@ -41,6 +43,7 @@ class AuditLogsLoaded extends AuditLogsState {
     bool? hasReachedMax,
     AuditLog? selectedLog,
     AuditLogsQuery? currentQuery,
+    bool? loadingDetails,
   }) {
     return AuditLogsLoaded(
       auditLogs: auditLogs ?? this.auditLogs,
@@ -50,6 +53,7 @@ class AuditLogsLoaded extends AuditLogsState {
       hasReachedMax: hasReachedMax ?? this.hasReachedMax,
       selectedLog: selectedLog ?? this.selectedLog,
       currentQuery: currentQuery ?? this.currentQuery,
+      loadingDetails: loadingDetails ?? this.loadingDetails,
     );
   }
 
@@ -62,6 +66,7 @@ class AuditLogsLoaded extends AuditLogsState {
         hasReachedMax,
         selectedLog,
         currentQuery,
+        loadingDetails,
       ];
 }
 

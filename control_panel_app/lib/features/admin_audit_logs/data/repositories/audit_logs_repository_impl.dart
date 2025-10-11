@@ -105,4 +105,14 @@ class AuditLogsRepositoryImpl implements AuditLogsRepository {
       return Left(NetworkFailure('No internet connection'));
     }
   }
+
+  @override
+  Future<Either<Failure, AuditLog>> getAuditLogDetails(String auditLogId) async {
+    try {
+      final result = await remoteDataSource.getAuditLogDetails(auditLogId);
+      return Right(result);
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
 }
