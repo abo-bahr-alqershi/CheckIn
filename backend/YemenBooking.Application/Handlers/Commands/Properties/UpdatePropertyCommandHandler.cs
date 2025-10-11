@@ -26,6 +26,8 @@ namespace YemenBooking.Application.Handlers.Commands.Properties
         private readonly IAuditService _auditService;
         private readonly IFileStorageService _fileStorageService;
         private readonly IPropertyImageRepository _propertyImageRepository;
+        private readonly IAmenityRepository _amenityRepository;
+        private readonly IPropertyAmenityRepository _propertyAmenityRepository;
         private readonly IIndexingService _indexingService;
         private readonly ILogger<UpdatePropertyCommandHandler> _logger;
         private readonly IMediator _mediator;
@@ -36,6 +38,8 @@ namespace YemenBooking.Application.Handlers.Commands.Properties
             IAuditService auditService,
             IFileStorageService fileStorageService,
             IPropertyImageRepository propertyImageRepository,
+            IAmenityRepository amenityRepository,
+            IPropertyAmenityRepository propertyAmenityRepository,
             IIndexingService indexingService,
             ILogger<UpdatePropertyCommandHandler> logger,
             IMediator mediator)
@@ -45,6 +49,8 @@ namespace YemenBooking.Application.Handlers.Commands.Properties
             _auditService = auditService;
             _fileStorageService = fileStorageService;
             _propertyImageRepository = propertyImageRepository;
+            _amenityRepository = amenityRepository;
+            _propertyAmenityRepository = propertyAmenityRepository;
             _indexingService = indexingService;
             _logger = logger;
             _mediator = mediator;
@@ -75,6 +81,26 @@ namespace YemenBooking.Application.Handlers.Commands.Properties
                  (!string.IsNullOrWhiteSpace(request.Currency) && !string.Equals(property.Currency, request.Currency, StringComparison.OrdinalIgnoreCase)));
             if (requiresReapproval)
                 property.IsApproved = false;
+
+            // تحديث المالك إن طُلب وكان المستخدم مشرفاً
+            if (request.OwnerId.HasValue && request.OwnerId.Value != Guid.Empty)
+            {
+                if (_currentUserService.Role == "Admin")
+                {
+                    var newOwner = await _propertyRepository.GetOwnerByIdAsync(request.OwnerId.Value, cancellationToken);
+                    if (newOwner == null)
+                        return ResultDto<bool>.Failed("المالك الجديد غير موجود");
+                    if (property.OwnerId != request.OwnerId.Value)
+                    {
+                        property.OwnerId = request.OwnerId.Value;
+                        requiresReapproval = true; // تغيير المالك يتطلب إعادة موافقة
+                    }
+                }
+                else
+                {
+                    return ResultDto<bool>.Failed("غير مسموح بتغيير المالك إلا للمشرف");
+                }
+            }
 
             // تنفيذ التحديث
             if (!string.IsNullOrWhiteSpace(request.Name))
@@ -118,6 +144,50 @@ namespace YemenBooking.Application.Handlers.Commands.Properties
             };
 
             await _propertyRepository.UpdatePropertyAsync(property, cancellationToken);
+
+            // مزامنة المرافق إذا تم إرسال قائمة معرفات
+            if (request.AmenityIds != null)
+            {
+                var desiredIds = request.AmenityIds.ToHashSet();
+                // PTAs for this property type
+                var ptaList = (await _amenityRepository.GetAmenitiesByPropertyTypeAsync(property.TypeId, cancellationToken)).ToList();
+                var ptaByAmenityId = ptaList.ToDictionary(x => x.AmenityId, x => x);
+
+                // current assignments
+                var currentAmenities = (await _propertyRepository.GetPropertyAmenitiesAsync(request.PropertyId, cancellationToken)).ToList();
+                // map current to AmenityId via PTA
+                var currentAmenityIds = currentAmenities
+                    .Select(pa => ptaList.FirstOrDefault(pta => pta.Id == pa.PtaId)?.AmenityId)
+                    .Where(id => id.HasValue)
+                    .Select(id => id!.Value)
+                    .ToHashSet();
+
+                // remove
+                foreach (var pa in currentAmenities)
+                {
+                    var amenityId = ptaList.FirstOrDefault(pta => pta.Id == pa.PtaId)?.AmenityId;
+                    if (!amenityId.HasValue) continue;
+                    if (!desiredIds.Contains(amenityId.Value))
+                    {
+                        await _propertyAmenityRepository.RemoveAmenityFromPropertyAsync(property.Id, pa.PtaId, cancellationToken);
+                    }
+                }
+
+                // add
+                var toAddAmenityIds = desiredIds.Where(id => !currentAmenityIds.Contains(id)).ToList();
+                foreach (var amenityId in toAddAmenityIds)
+                {
+                    if (!ptaByAmenityId.TryGetValue(amenityId, out var pta)) continue;
+                    var pa = new PropertyAmenity
+                    {
+                        PropertyId = property.Id,
+                        PtaId = pta.Id,
+                        IsAvailable = true,
+                        ExtraCost = YemenBooking.Core.ValueObjects.Money.Zero(property.Currency)
+                    };
+                    await _propertyAmenityRepository.AddAmenityToPropertyAsync(pa, cancellationToken);
+                }
+            }
 
             // تسجيل العملية في سجل التدقيق (يدوي مع JSON للقيم القديمة والجديدة)
             var newValues = new
