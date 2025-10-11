@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
+import 'dart:convert';
 import '../../services/local_storage_service.dart';
 import '../../services/message_service.dart';
 import '../constants/storage_constants.dart';
@@ -8,6 +9,7 @@ import '../constants/api_constants.dart';
 import '../localization/locale_manager.dart';
 import '../bloc/app_bloc.dart';
 import '../../features/auth/presentation/bloc/auth_event.dart';
+import '../../services/navigation_service.dart';
 import '../../injection_container.dart';
 import '../../features/auth/domain/repositories/auth_repository.dart';
 
@@ -21,6 +23,30 @@ class AuthInterceptor extends Interceptor {
     }
     final localStorage = sl<LocalStorageService>();
     final token = localStorage.getData(StorageConstants.accessToken) as String?;
+
+    // Proactive: if token exists but appears expired, trigger logout to avoid in-page errors
+    if (token != null && token.isNotEmpty) {
+      final isExpired = _isJwtExpired(token, skewSeconds: 10);
+      if (isExpired) {
+        await ErrorInterceptor(_dioForLogout())._forceLogout();
+        // Short-circuit this request with a controlled 401 to trigger router
+        return handler.reject(
+          DioException(
+            requestOptions: options,
+            response: Response(
+              requestOptions: options,
+              statusCode: 401,
+              data: {
+                'success': false,
+                'message': 'انتهت صلاحية الجلسة، يرجى تسجيل الدخول.'
+              },
+            ),
+            type: DioExceptionType.badResponse,
+          ),
+          true,
+        );
+      }
+    }
 
     if (token != null && token.isNotEmpty) {
       // Always overwrite Authorization with the latest token
@@ -128,7 +154,8 @@ class ErrorInterceptor extends Interceptor {
     // Show validation/server messages globally unless suppressed
     try {
       final suppressed = (requestOptions.extra['suppressErrorToast'] == true);
-      if (!suppressed) {
+      // Don't show a toast for 401; we'll refresh/redirect immediately
+      if (!suppressed && status != 401) {
         final message = _extractErrorMessage(err);
         if (message.isNotEmpty) {
           MessageService.showError(message);
@@ -146,13 +173,28 @@ class ErrorInterceptor extends Interceptor {
         // If no refresh token, logout
         if (refreshToken == null || refreshToken.isEmpty) {
           await _forceLogout();
-          return handler.next(err);
+          // Resolve with a synthetic response to stop further error toasts
+          return handler.resolve(Response(
+            requestOptions: requestOptions,
+            statusCode: 401,
+            data: {
+              'success': false,
+              'message': 'انتهت صلاحية الجلسة، تم تسجيل الخروج.'
+            },
+          ));
         }
 
         // If already retried once, avoid infinite loop
         if (requestOptions.extra['retried'] == true) {
           await _forceLogout();
-          return handler.next(err);
+          return handler.resolve(Response(
+            requestOptions: requestOptions,
+            statusCode: 401,
+            data: {
+              'success': false,
+              'message': 'انتهت صلاحية الجلسة، تم تسجيل الخروج.'
+            },
+          ));
         }
 
         // If a refresh is already happening, wait for it
@@ -173,7 +215,14 @@ class ErrorInterceptor extends Interceptor {
             _refreshCompleter?.completeError(e);
             await _forceLogout();
             _isRefreshing = false;
-            return handler.next(err);
+            return handler.resolve(Response(
+              requestOptions: requestOptions,
+              statusCode: 401,
+              data: {
+                'success': false,
+                'message': 'انتهت صلاحية الجلسة، تم تسجيل الخروج.'
+              },
+            ));
           }
           _isRefreshing = false;
         }
@@ -183,7 +232,14 @@ class ErrorInterceptor extends Interceptor {
             localStorage.getData(StorageConstants.accessToken) as String?;
         if (newAccess == null || newAccess.isEmpty) {
           await _forceLogout();
-          return handler.next(err);
+          return handler.resolve(Response(
+            requestOptions: requestOptions,
+            statusCode: 401,
+            data: {
+              'success': false,
+              'message': 'انتهت صلاحية الجلسة، تم تسجيل الخروج.'
+            },
+          ));
         }
 
         final Options newOptions = Options(
@@ -215,6 +271,14 @@ class ErrorInterceptor extends Interceptor {
         return handler.resolve(response);
       } catch (_) {
         await _forceLogout();
+        return handler.resolve(Response(
+          requestOptions: requestOptions,
+          statusCode: 401,
+          data: {
+            'success': false,
+            'message': 'انتهت صلاحية الجلسة، تم تسجيل الخروج.'
+          },
+        ));
       }
     }
 
@@ -223,7 +287,12 @@ class ErrorInterceptor extends Interceptor {
 
   Future<void> _refreshAccessToken(String refreshToken) async {
     final authRepository = sl<AuthRepository>();
-    await authRepository.refreshToken(refreshToken: refreshToken);
+    final result = await authRepository.refreshToken(refreshToken: refreshToken);
+    // Throw on failure so the caller logs out immediately
+    result.fold(
+      (_) => throw Exception('Failed to refresh access token'),
+      (_) => null,
+    );
   }
 
   Future<void> _forceLogout() async {
@@ -232,13 +301,46 @@ class ErrorInterceptor extends Interceptor {
       final localStorage = sl<LocalStorageService>();
       await localStorage.removeData(StorageConstants.accessToken);
       await localStorage.removeData(StorageConstants.refreshToken);
+      // Also clear contextual headers to avoid stale context after logout
+      await localStorage.removeData(StorageConstants.accountRole);
+      await localStorage.removeData(StorageConstants.propertyId);
+      await localStorage.removeData(StorageConstants.propertyName);
+      await localStorage.removeData(StorageConstants.propertyCurrency);
     } catch (_) {}
     // Dispatch logout to trigger router redirect
     try {
       AppBloc.authBloc.add(const LogoutEvent());
+      // Navigate immediately to login to avoid showing stale page/errors
+      NavigationService.goToLogin();
     } catch (_) {}
   }
 }
+
+bool _isJwtExpired(String jwt, {int skewSeconds = 0}) {
+  try {
+    final parts = jwt.split('.');
+    if (parts.length != 3) return false;
+    final payload = parts[1]
+        .replaceAll('-', '+')
+        .replaceAll('_', '/');
+    var normalized = payload;
+    while (normalized.length % 4 != 0) {
+      normalized += '=';
+    }
+    final decoded = String.fromCharCodes(base64Url.decode(normalized));
+    final map = jsonDecode(decoded) as Map<String, dynamic>;
+    final exp = map['exp'];
+    if (exp is int) {
+      final expiresAt = DateTime.fromMillisecondsSinceEpoch(exp * 1000);
+      return DateTime.now().isAfter(expiresAt.subtract(Duration(seconds: skewSeconds)));
+    }
+    return false;
+  } catch (_) {
+    return false;
+  }
+}
+
+Dio _dioForLogout() => Dio();
 
 String _extractErrorMessage(DioException err) {
   final data = err.response?.data;

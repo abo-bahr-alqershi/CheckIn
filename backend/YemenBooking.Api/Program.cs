@@ -34,6 +34,7 @@ using Microsoft.AspNetCore.Hosting;
 using System.IO;
 using YemenBooking.Infrastructure.Services;
 using System.Text.Encodings.Web;
+using Microsoft.AspNetCore.Http;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -175,7 +176,37 @@ builder.Services.AddAuthentication(options =>
         ValidAudience = jwtSettings.Audience,
         ValidateLifetime = true,
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings.Secret)),
-        ValidateIssuerSigningKey = true
+        ValidateIssuerSigningKey = true,
+        ClockSkew = TimeSpan.Zero
+    };
+    // Make sure expired tokens yield a 401 with a clear payload
+    options.Events = new JwtBearerEvents
+    {
+        OnAuthenticationFailed = context =>
+        {
+            if (context.Exception is SecurityTokenExpiredException)
+            {
+                context.NoResult();
+                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                context.Response.ContentType = "application/json";
+                var payload = JsonSerializer.Serialize(new { success = false, message = "Token expired" });
+                return context.Response.WriteAsync(payload);
+            }
+            return Task.CompletedTask;
+        },
+        OnChallenge = context =>
+        {
+            // Suppress default WWW-Authenticate header body
+            context.HandleResponse();
+            if (!context.Response.HasStarted)
+            {
+                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                context.Response.ContentType = "application/json";
+                var payload = JsonSerializer.Serialize(new { success = false, message = "Unauthorized" });
+                return context.Response.WriteAsync(payload);
+            }
+            return Task.CompletedTask;
+        }
     };
 });
 
