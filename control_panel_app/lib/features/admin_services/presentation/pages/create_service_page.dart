@@ -264,11 +264,7 @@ class _CreateServicePageState extends State<CreateServicePage>
   }
 
   Widget _buildProgressIndicator() {
-    final steps = [
-      'المعلومات الأساسية',
-      'التسعير',
-      'المراجعة'
-    ];
+    final steps = ['المعلومات الأساسية', 'التسعير', 'المراجعة'];
 
     return Container(
       height: 80,
