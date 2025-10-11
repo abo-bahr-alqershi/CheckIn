@@ -39,7 +39,6 @@ class YemenBookingApp extends StatelessWidget {
                 themeMode: themeState.themeMode,
                 locale: localeState,
                 scaffoldMessengerKey: MessageService.scaffoldMessengerKey,
-                navigatorKey: NavigationService.rootNavigatorKey,
                 localizationsDelegates: const [
                   AppLocalizations.delegate,
                   GlobalMaterialLocalizations.delegate,
